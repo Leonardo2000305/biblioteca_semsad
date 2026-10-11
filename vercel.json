@@ -1,16 +1,12 @@
 {
   "functions": {
-    "api/*.php": {
-      "runtime": "vercel-php@0.7.3"
-    },
-    "login/*.php": {
-      "runtime": "vercel-php@0.7.3"
-    },
-    "principal/*.php": {
-      "runtime": "vercel-php@0.7.3"
-    },
-    "index.php": {
-      "runtime": "vercel-php@0.7.3"
+    "api/index.php": {
+      "runtime": "vercel-php@0.7.3",
+      "includeFiles": "**"
     }
-  }
+  },
+  "routes": [
+    { "handle": "filesystem" },
+    { "src": "/(.*)", "dest": "/api/index.php" }
+  ]
 }

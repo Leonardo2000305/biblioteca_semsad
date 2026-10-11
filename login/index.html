@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+ <meta charset="UTF-8">
+ <meta name="viewport" content="width=device-width, initial-scale=1.0">
+ <title>Login - SEMSAD</title>
+ <link rel="stylesheet" href="../css/index.css">
+ <style>
+    /* Estilos básicos para el login basados en el original */
+    body { font-family: Arial, sans-serif; background-color: #f4f7f6; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+    .contenedor { background: white; padding: 40px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); width: 100%; max-width: 400px; text-align: center; }
+    h2 { color: #333; margin-bottom: 20px; }
+    input { width: calc(100% - 20px); padding: 10px; margin-bottom: 15px; border: 1px solid #ccc; border-radius: 4px; }
+    button { width: 100%; padding: 10px; background-color: #1d4ed8; color: white; border: none; border-radius: 4px; font-size: 16px; cursor: pointer; }
+    button:hover { background-color: #2563eb; }
+    .enlaces { margin-top: 15px; display: flex; flex-direction: column; gap: 10px; }
+    .enlaces a { text-decoration: none; color: #1d4ed8; font-size: 14px; }
+ </style>
+</head>
+<body>
+ <main>
+    <div class="contenedor">
+        <h2>Bienvenido a la biblioteca</h2>
+        <h2>SEMSAD</h2>
+        
+        <!-- Ahora sí usamos un formulario real para procesar el JS -->
+        <form id="form-login">
+            <input type="text" placeholder="Correo electrónico" id="correo" required>
+            <input type="password" placeholder="Código Empleado / CI" id="codigo_empleado" required>
+            <button type="submit">Acceder</button>
+        </form>
+        <div id="login-error" style="color: red; margin-top: 10px; display: none; font-size: 14px;"></div>
+        
+        <div class="enlaces">
+            <a href="recuperar.html">🔑 ¿Olvidaste tu contraseña?</a>
+            <a href="registro.html">📝 ¿No tienes cuenta? Regístrate</a>
+        </div> 
+    </div>    
+ </main>
+ <script src="../js/login.js"></script>
+</body>
+</html>

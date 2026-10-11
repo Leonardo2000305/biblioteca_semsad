@@ -1,0 +1,82 @@
+<?php
+session_start();
+header("Access-Control-Allow-Origin: *");
+header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
+header("Access-Control-Allow-Headers: Content-Type");
+header('Content-Type: application/json; charset=utf-8');
+
+require_once 'conexion.php';
+
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    http_response_code(200);
+    exit;
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $input = json_decode(file_get_contents('php://input'), true);
+
+    $id_prestamo = isset($_POST['id_prestamo']) ? $_POST['id_prestamo'] : (isset($input['id_prestamo']) ? $input['id_prestamo'] : '');
+    $condicion_devolucion = isset($_POST['condicion_devolucion']) ? trim($_POST['condicion_devolucion']) : (isset($input['condicion_devolucion']) ? trim($input['condicion_devolucion']) : 'Bueno');
+
+    if (empty($id_prestamo)) {
+        echo json_encode(['status' => 'error', 'mensaje' => 'Debe indicar el ID del préstamo.']);
+        exit;
+    }
+
+    try {
+        $conexion->beginTransaction();
+
+        // 1. Obtener detalles del préstamo
+        $sql = "SELECT p.id_prestamo, p.fecha_limite, dp.id_ejemplar 
+                FROM Prestamo p
+                INNER JOIN Detalle_Prestamo dp ON p.id_prestamo = dp.id_prestamo
+                WHERE p.id_prestamo = :id_prestamo AND p.estado IN ('Activo', 'Con Mora')";
+        $stmt = $conexion->prepare($sql);
+        $stmt->execute([':id_prestamo' => $id_prestamo]);
+        $prestamo = $stmt->fetch();
+
+        if (!$prestamo) {
+            $conexion->rollBack();
+            echo json_encode(['status' => 'error', 'mensaje' => 'El préstamo no existe o ya fue devuelto.']);
+            exit;
+        }
+
+        $fecha_actual = date('Y-m-d H:i:s');
+
+        // 2. Actualizar el estado del préstamo
+        $sqlUpPrestamo = "UPDATE Prestamo SET fecha_devolucion_real = :fecha_devolucion, estado = 'Devuelto' WHERE id_prestamo = :id_prestamo";
+        $stmtUpP = $conexion->prepare($sqlUpPrestamo);
+        $stmtUpP->execute([
+            ':fecha_devolucion' => $fecha_actual,
+            ':id_prestamo' => $id_prestamo
+        ]);
+
+        // 3. Actualizar la condición en Detalle_Prestamo
+        $sqlUpDetalle = "UPDATE Detalle_Prestamo SET condicion_devolucion = :condicion WHERE id_prestamo = :id_prestamo";
+        $stmtUpD = $conexion->prepare($sqlUpDetalle);
+        $stmtUpD->execute([
+            ':condicion' => $condicion_devolucion,
+            ':id_prestamo' => $id_prestamo
+        ]);
+
+        // 4. Liberar el ejemplar
+        // (Esto se maneja automáticamente por el Trigger 2 que el usuario proporcionó en database.sql, pero lo dejamos por seguridad)
+        $sqlUpEjemplar = "UPDATE Ejemplar SET estado_ejemplar = 'Disponible' WHERE id_ejemplar = :id_ejemplar";
+        $stmtUpE = $conexion->prepare($sqlUpEjemplar);
+        $stmtUpE->execute([':id_ejemplar' => $prestamo['id_ejemplar']]);
+
+        $conexion->commit();
+
+        echo json_encode([
+            'status' => 'success',
+            'mensaje' => 'Devolución registrada correctamente.'
+        ]);
+
+    } catch (PDOException $e) {
+        $conexion->rollBack();
+        echo json_encode(['status' => 'error', 'mensaje' => 'Error al registrar devolución: ' . $e->getMessage()]);
+    }
+} else {
+    echo json_encode(['status' => 'error', 'mensaje' => 'Método no permitido. Use POST.']);
+}
+?>

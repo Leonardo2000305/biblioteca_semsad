@@ -1,41 +1,63 @@
 <?php
-// Evitar la descarga de archivos en el navegador
-header('Content-Type: text/html; charset=utf-8');
-
-// Engañar a PHP para que reconozca la conexión HTTPS de Vercel y rompa el bucle
+// Engañar a PHP para reconocer la conexión HTTPS de Vercel
 $_SERVER['HTTPS'] = 'on';
 $_SERVER['SERVER_PORT'] = 443;
-
-// Activar reporte de errores
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
-error_reporting(E_ALL);
 
 $rootDir = dirname(__DIR__);
 $uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 
-// Si la ruta es la raíz
-if ($uri === '/' || $uri === '' || $uri === '/index.php') {
+// Normalizar la ruta eliminando duplicados de barras
+$path = urldecode(preg_replace('#/+#', '/', $uri));
+$file = $rootDir . $path;
+
+// 1. Si se solicita la raíz '/', cargar el index.php principal
+if ($path === '/' || $path === '' || $path === '/index.php') {
     require $rootDir . '/index.php';
     exit;
 }
 
-$file = $rootDir . $uri;
-
-// Si se pide una carpeta, buscar su index.php interno
+// 2. Si se solicita una carpeta, buscar index.php o index.html dentro de ella
 if (is_dir($file)) {
-    $file = rtrim($file, '/') . '/index.php';
+    if (file_exists($file . '/index.php')) {
+        $file .= '/index.php';
+    } elseif (file_exists($file . '/index.html')) {
+        $file .= '/index.html';
+    }
 }
 
-// Cargar el archivo PHP correspondiente
-if (file_exists($file) && pathinfo($file, PATHINFO_EXTENSION) === 'php') {
-    require $file;
+// 3. Si el archivo existe físicamente en el repositorio
+if (file_exists($file) && !is_dir($file)) {
+    $ext = pathinfo($file, PATHINFO_EXTENSION);
+
+    // Si es un script PHP, ejecutarlo
+    if ($ext === 'php') {
+        require $file;
+        exit;
+    }
+
+    // Si es un archivo estático (.html, .css, .js, etc.), servirlo con su cabecera correcta
+    $mimes = [
+        'html' => 'text/html; charset=utf-8',
+        'htm'  => 'text/html; charset=utf-8',
+        'css'  => 'text/css',
+        'js'   => 'application/javascript',
+        'json' => 'application/json',
+        'png'  => 'image/png',
+        'jpg'  => 'image/jpeg',
+        'jpeg' => 'image/jpeg',
+        'gif'  => 'image/gif',
+        'svg'  => 'image/svg+xml',
+        'ico'  => 'image/x-icon'
+    ];
+
+    $contentType = $mimes[$ext] ?? mime_content_type($file) ?: 'application/octet-stream';
+    header('Content-Type: ' . $contentType);
+    readfile($file);
     exit;
 }
 
-// Fallback al index principal
-if (file_exists($rootDir . '/index.php')) {
-    require $rootDir . '/index.php';
-} else {
-    echo "<h2>404 - Página no encontrada</h2>";
-}
+// 4. Si la ruta no existe, devolver 404 real en lugar de redirigir a la raíz
+http_response_code(404);
+header('Content-Type: text/html; charset=utf-8');
+echo "<h2>404 - Archivo no encontrado ($path)</h2>";
+exit;

@@ -153,7 +153,7 @@
         mensajeDiv.className = '';
 
         try {
-            const response = await fetch('../api/Solicitar_recuperacion.php', {
+            const response = await fetch('../api/solicitar_recuperacion.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ correo: correoInput })

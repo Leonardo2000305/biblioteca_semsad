@@ -64,6 +64,11 @@
         transform: translateY(-1px);
         box-shadow: 0 4px 12px rgba(29, 78, 216, 0.25);
     }
+
+    button:disabled {
+        background-color: #93c5fd;
+        cursor: not-allowed;
+    }
     
     .enlaces { 
         margin-top: 22px; 
@@ -92,25 +97,88 @@
         transform: scale(1.05); 
         outline: none;
     }
+
+    /* Mensajes de respuesta */
+    #recuperar-mensaje {
+        margin-top: 15px;
+        font-size: 14px;
+        padding: 10px;
+        border-radius: 6px;
+        display: none;
+    }
+
+    .msg-success {
+        background-color: #dcfce7;
+        color: #15803d;
+        border: 1px solid #bbf7d0;
+    }
+
+    .msg-error {
+        background-color: #fee2e2;
+        color: #b91c1c;
+        border: 1px solid #fca5a5;
+    }
  </style>
 </head>
 <body>
  <main>
     <div class="contenedor">
         <h2>Recuperar Contraseña</h2>
-        <p class="descripcion">Ingresa tu correo institucional o código de empleado para verificar tu cuenta.</p>
+        <p class="descripcion">Ingresa tu correo institucional o código para verificar tu cuenta.</p>
         
         <form id="form-recuperar">
-            <input type="email" placeholder="Correo electrónico institucional" id="correo_recuperar" required>
-            <button type="submit">Enviar Instrucciones</button>
+            <input type="text" placeholder="Correo electrónico o código" id="correo_recuperar" required>
+            <button type="submit" id="btn-enviar">Enviar Instrucciones</button>
         </form>
         
-        <div id="recuperar-mensaje" style="margin-top: 15px; font-size: 14px; display: none;"></div>
+        <div id="recuperar-mensaje"></div>
         
         <div class="enlaces">
             <a href="index.html" class="bubble-link">← Volver al Inicio de Sesión</a>
         </div> 
     </div>    
  </main>
+
+ <script>
+    document.getElementById('form-recuperar').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        const correoInput = document.getElementById('correo_recuperar').value.trim();
+        const btn = document.getElementById('btn-enviar');
+        const mensajeDiv = document.getElementById('recuperar-mensaje');
+
+        btn.disabled = true;
+        btn.textContent = 'Verificando...';
+        mensajeDiv.style.display = 'none';
+        mensajeDiv.className = '';
+
+        try {
+            const response = await fetch('../api/Solicitar_recuperacion.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ correo: correoInput })
+            });
+
+            const data = await response.json();
+
+            mensajeDiv.style.display = 'block';
+            mensajeDiv.textContent = data.mensaje;
+
+            if (data.status === 'success') {
+                mensajeDiv.className = 'msg-success';
+                document.getElementById('form-recuperar').reset();
+            } else {
+                mensajeDiv.className = 'msg-error';
+            }
+        } catch (err) {
+            mensajeDiv.style.display = 'block';
+            mensajeDiv.className = 'msg-error';
+            mensajeDiv.textContent = 'Ocurrió un error de conexión con el servidor.';
+        } finally {
+            btn.disabled = false;
+            btn.textContent = 'Enviar Instrucciones';
+        }
+    });
+ </script>
 </body>
 </html>

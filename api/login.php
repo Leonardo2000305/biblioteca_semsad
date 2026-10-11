@@ -25,7 +25,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     try {
         $sql = "SELECT u.id_usuario, u.nombres, u.apellidos, u.correo, u.codigo_empleado, u.estado, r.nombre AS rol 
-                FROM Usuario u 
+                FROM usuario u 
                 INNER JOIN Rol r ON u.id_rol = r.id_rol 
                 WHERE u.correo = :correo AND u.codigo_empleado = :codigo_empleado";
         

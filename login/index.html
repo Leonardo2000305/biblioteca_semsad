@@ -6,24 +6,114 @@
  <title>Login - SEMSAD</title>
  <link rel="stylesheet" href="../css/index.css">
  <style>
-    /* Estilos básicos para el login basados en el original */
-    body { font-family: Arial, sans-serif; background-color: #f4f7f6; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
-    .contenedor { background: white; padding: 40px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); width: 100%; max-width: 400px; text-align: center; }
-    h2 { color: #333; margin-bottom: 20px; }
-    input { width: calc(100% - 20px); padding: 10px; margin-bottom: 15px; border: 1px solid #ccc; border-radius: 4px; }
-    button { width: 100%; padding: 10px; background-color: #1d4ed8; color: white; border: none; border-radius: 4px; font-size: 16px; cursor: pointer; }
-    button:hover { background-color: #2563eb; }
-    .enlaces { margin-top: 15px; display: flex; flex-direction: column; gap: 10px; }
-    .enlaces a { text-decoration: none; color: #1d4ed8; font-size: 14px; }
+    /* Estilos del contenedor principal */
+    body { 
+        font-family: Arial, sans-serif; 
+        background-color: #f4f7f6; 
+        display: flex; 
+        justify-content: center; 
+        align-items: center; 
+        height: 100vh; 
+        margin: 0; 
+    }
+    .contenedor { 
+        background: white; 
+        padding: 40px; 
+        border-radius: 12px; 
+        box-shadow: 0 4px 15px rgba(0,0,0,0.08); 
+        width: 100%; 
+        max-width: 400px; 
+        text-align: center; 
+        box-sizing: border-box;
+    }
+    h2 { 
+        color: #333; 
+        margin-bottom: 8px; 
+        margin-top: 0;
+    }
+    
+    /* Inputs ajustados sin errores de cálculo */
+    input { 
+        width: 100%; 
+        padding: 12px; 
+        margin-bottom: 15px; 
+        border: 1px solid #ccc; 
+        border-radius: 6px; 
+        box-sizing: border-box;
+        font-size: 14px;
+    }
+    
+    /* Botón Acceder mejorado */
+    button { 
+        width: 100%; 
+        padding: 12px; 
+        background-color: #1d4ed8; 
+        color: white; 
+        border: none; 
+        border-radius: 25px; 
+        font-size: 16px; 
+        font-weight: bold;
+        cursor: pointer; 
+        transition: all 0.2s ease;
+    }
+    button:hover, button:active { 
+        background-color: #2563eb; 
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(29, 78, 216, 0.25);
+    }
+    
+    /* Sección de enlaces inferiores */
+    .enlaces { 
+        margin-top: 22px; 
+        display: flex; 
+        flex-direction: column; 
+        gap: 8px; 
+        align-items: center; 
+    }
+
+    .linea-enlace {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 4px;
+        font-size: 14px;
+    }
+    
+    /* Pregunta en negro (no interactiva) */
+    .texto-pregunta { 
+        color: #1a1a1a; 
+        font-weight: normal; 
+    }
+    
+    /* Efecto "Burbuja" interactivo (Hover y Tap táctil) */
+    .bubble-link { 
+        text-decoration: none; 
+        color: #1d4ed8; 
+        font-weight: 600;
+        padding: 6px 14px; 
+        border-radius: 20px; /* Forma de cápsula */
+        transition: all 0.2s ease-in-out; 
+        display: inline-block;
+        user-select: none; /* Evita selecciones feas en cel */
+    }
+    
+    /* Reacción al pasar el ratón o pulsar con el dedo */
+    .bubble-link:hover, 
+    .bubble-link:active, 
+    .bubble-link:focus { 
+        background-color: #e0e7ff; /* Fondo burbuja azul claro */
+        color: #1d4ed8; 
+        transform: scale(1.05); /* Se agranda levemente */
+        outline: none;
+    }
  </style>
 </head>
 <body>
  <main>
     <div class="contenedor">
         <h2>Bienvenido a la biblioteca</h2>
-        <h2>SEMSAD</h2>
+        <h2 style="margin-bottom: 25px;">SEMSAD</h2>
         
-        <!-- Ahora sí usamos un formulario real para procesar el JS -->
         <form id="form-login">
             <input type="text" placeholder="Correo electrónico" id="correo" required>
             <input type="password" placeholder="Código Empleado / CI" id="codigo_empleado" required>
@@ -32,8 +122,13 @@
         <div id="login-error" style="color: red; margin-top: 10px; display: none; font-size: 14px;"></div>
         
         <div class="enlaces">
-            <a href="recuperar.html">🔑 ¿Olvidaste tu contraseña?</a>
-            <a href="registro.html">📝 ¿No tienes cuenta? Regístrate</a>
+            <div class="linea-enlace">
+                <a href="recuperar.html" class="bubble-link">🔑 ¿Olvidaste tu contraseña?</a>
+            </div>
+            <div class="linea-enlace">
+                <span class="texto-pregunta">📝 ¿No tienes cuenta?</span>
+                <a href="registro.html" class="bubble-link">Regístrate</a>
+            </div>
         </div> 
     </div>    
  </main>

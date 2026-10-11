@@ -24,13 +24,13 @@ try {
                 e.nombre AS editorial,
                 COUNT(ej.id_ejemplar) AS total,
                 SUM(CASE WHEN ej.estado_ejemplar = 'Disponible' THEN 1 ELSE 0 END) AS stock,
-                (SELECT CONCAT(nombres, ' ', apellidos) FROM Autor a INNER JOIN Material_Autor ma ON a.id_autor = ma.id_autor WHERE ma.id_material = mb.id_material LIMIT 1) as author,
-                (SELECT sala FROM UbicacionFisica uf INNER JOIN Ejemplar e2 ON e2.id_ubicacion = uf.id_ubicacion WHERE e2.id_material = mb.id_material LIMIT 1) as shelf
-            FROM MaterialBibliografico mb
-            LEFT JOIN TipoMaterial tm ON mb.id_tipo_material = tm.id_tipo_material
-            LEFT JOIN Categoria c ON mb.id_categoria = c.id_categoria
-            LEFT JOIN Editorial e ON mb.id_editorial = e.id_editorial
-            LEFT JOIN Ejemplar ej ON mb.id_material = ej.id_material";
+                (SELECT CONCAT(nombres, ' ', apellidos) FROM autor a INNER JOIN material_autor ma ON a.id_autor = ma.id_autor WHERE ma.id_material = mb.id_material LIMIT 1) as author,
+                (SELECT sala FROM ubicacionfisica uf INNER JOIN ejemplar e2 ON e2.id_ubicacion = uf.id_ubicacion WHERE e2.id_material = mb.id_material LIMIT 1) as shelf
+            FROM materialbibliografico mb
+            LEFT JOIN tipomaterial tm ON mb.id_tipo_material = tm.id_tipo_material
+            LEFT JOIN categoria c ON mb.id_categoria = c.id_categoria
+            LEFT JOIN editorial e ON mb.id_editorial = e.id_editorial
+            LEFT JOIN ejemplar ej ON mb.id_material = ej.id_material";
 
     if (!empty($busqueda)) {
         $sql .= " WHERE mb.titulo LIKE :q OR mb.codigo_isbn_issn LIKE :q OR c.nombre LIKE :q";

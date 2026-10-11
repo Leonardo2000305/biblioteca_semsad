@@ -17,14 +17,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     $id_usuario = isset($_GET['usuario']) ? $_GET['usuario'] : null;
 
     try {
-        // Se añade 'WHERE p.estado != 'Devuelto'' para ignorar préstamos ya finalizados
+        // Tablas convertidas a minúsculas para compatibilidad con Alwaysdata/Linux
         $sql = "SELECT p.id_prestamo, p.fecha_salida, p.fecha_limite, p.estado, 
                         mb.titulo as bookTitle, u.nombres as userName, u.codigo_empleado as userCi
-                FROM Prestamo p
-                INNER JOIN Detalle_Prestamo dp ON p.id_prestamo = dp.id_prestamo
-                INNER JOIN Ejemplar e ON dp.id_ejemplar = e.id_ejemplar
-                INNER JOIN MaterialBibliografico mb ON e.id_material = mb.id_material
-                INNER JOIN Usuario u ON p.id_usuario = u.id_usuario
+                FROM prestamo p
+                INNER JOIN detalle_prestamo dp ON p.id_prestamo = dp.id_prestamo
+                INNER JOIN ejemplar e ON dp.id_ejemplar = e.id_ejemplar
+                INNER JOIN materialbibliografico mb ON e.id_material = mb.id_material
+                INNER JOIN usuario u ON p.id_usuario = u.id_usuario
                 WHERE p.estado != 'Devuelto'"; 
         
         $params = [];
@@ -41,7 +41,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
             $now = time();
             $due = strtotime($p['fecha_limite']);
             $diff = $due - $now;
-            $daysLeft = round($diff / (60 * 60 * 24));
+            $daysLeft = (int)round($diff / (60 * 60 * 24));
             $overdueDays = $daysLeft < 0 ? abs($daysLeft) : 0;
             $status = $p['estado'];
             

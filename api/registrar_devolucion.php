@@ -1,8 +1,19 @@
 <?php
-session_start();
-header("Access-Control-Allow-Origin: *");
+if (session_status() === PHP_SESSION_NONE) {
+    ini_set('session.cookie_samesite', 'None');
+    ini_set('session.cookie_secure', 'True');
+    session_start();
+}
+
+if (isset($_SERVER['HTTP_ORIGIN'])) {
+    header("Access-Control-Allow-Origin: " . $_SERVER['HTTP_ORIGIN']);
+} else {
+    header("Access-Control-Allow-Origin: *");
+}
+
+header("Access-Control-Allow-Credentials: true");
 header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
-header("Access-Control-Allow-Headers: Content-Type");
+header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
 header('Content-Type: application/json; charset=utf-8');
 
 require_once 'conexion.php';
@@ -26,10 +37,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
         $conexion->beginTransaction();
 
-        // 1. Obtener detalles del préstamo
+        // 1. Obtener detalles del préstamo (tablas en minúsculas)
         $sql = "SELECT p.id_prestamo, p.fecha_limite, dp.id_ejemplar 
-                FROM Prestamo p
-                INNER JOIN Detalle_Prestamo dp ON p.id_prestamo = dp.id_prestamo
+                FROM prestamo p
+                INNER JOIN detalle_prestamo dp ON p.id_prestamo = dp.id_prestamo
                 WHERE p.id_prestamo = :id_prestamo AND p.estado IN ('Activo', 'Con Mora')";
         $stmt = $conexion->prepare($sql);
         $stmt->execute([':id_prestamo' => $id_prestamo]);
@@ -44,15 +55,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $fecha_actual = date('Y-m-d H:i:s');
 
         // 2. Actualizar el estado del préstamo
-        $sqlUpPrestamo = "UPDATE Prestamo SET fecha_devolucion_real = :fecha_devolucion, estado = 'Devuelto' WHERE id_prestamo = :id_prestamo";
+        $sqlUpPrestamo = "UPDATE prestamo SET fecha_devolucion_real = :fecha_devolucion, estado = 'Devuelto' WHERE id_prestamo = :id_prestamo";
         $stmtUpP = $conexion->prepare($sqlUpPrestamo);
         $stmtUpP->execute([
             ':fecha_devolucion' => $fecha_actual,
             ':id_prestamo' => $id_prestamo
         ]);
 
-        // 3. Actualizar la condición en Detalle_Prestamo
-        $sqlUpDetalle = "UPDATE Detalle_Prestamo SET condicion_devolucion = :condicion WHERE id_prestamo = :id_prestamo";
+        // 3. Actualizar la condición en detalle_prestamo
+        $sqlUpDetalle = "UPDATE detalle_prestamo SET condicion_devolucion = :condicion WHERE id_prestamo = :id_prestamo";
         $stmtUpD = $conexion->prepare($sqlUpDetalle);
         $stmtUpD->execute([
             ':condicion' => $condicion_devolucion,
@@ -60,8 +71,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         ]);
 
         // 4. Liberar el ejemplar
-        // (Esto se maneja automáticamente por el Trigger 2 que el usuario proporcionó en database.sql, pero lo dejamos por seguridad)
-        $sqlUpEjemplar = "UPDATE Ejemplar SET estado_ejemplar = 'Disponible' WHERE id_ejemplar = :id_ejemplar";
+        $sqlUpEjemplar = "UPDATE ejemplar SET estado_ejemplar = 'Disponible' WHERE id_ejemplar = :id_ejemplar";
         $stmtUpE = $conexion->prepare($sqlUpEjemplar);
         $stmtUpE->execute([':id_ejemplar' => $prestamo['id_ejemplar']]);
 

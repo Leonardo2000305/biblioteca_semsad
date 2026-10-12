@@ -21,6 +21,7 @@ async function initAdminApp() {
     renderDashboard();
     renderBooksTable();
     renderCirculationView();
+    await loadAuditLogs();
 }
 
 // ── CARGA DE DATOS ─────────────────────────────────────────────────────────
@@ -44,6 +45,46 @@ async function loadLoans() {
         console.error("Error cargando préstamos:", e);
     }
 }
+
+// ── AUDITORÍA DE SEGURIDAD ─────────────────────────────────────────────────
+
+async function loadAuditLogs() {
+    const tbody = document.getElementById("tablaAuditoriaBody") || document.getElementById("auditoriaAdminBody");
+    if (!tbody) return;
+
+    try {
+        const res = await fetch(`${API_BASE}/obtener_auditoria.php`, { credentials: "include" });
+        const data = await res.json();
+
+        if (data.status === "success" && data.datos && data.datos.length > 0) {
+            tbody.innerHTML = data.datos.map(item => {
+                const esExito = item.estado === 'Exitoso';
+                const badgeClass = esExito ? 'bg-success' : 'bg-danger';
+                const icono = esExito ? 'fa-circle-check' : 'fa-circle-xmark';
+                
+                return `
+                    <tr>
+                        <td><strong>${item.correo_ingresado}</strong></td>
+                        <td><i class="fa-regular fa-clock text-muted me-1"></i>${item.fecha_formateada}</td>
+                        <td>
+                            <span class="badge ${badgeClass} p-2">
+                                <i class="fa-solid ${icono} me-1"></i>${item.estado}
+                            </span>
+                        </td>
+                        <td><code>${item.ip_origen || 'Desconocida'}</code></td>
+                    </tr>
+                `;
+            }).join('');
+        } else {
+            tbody.innerHTML = `<tr><td colspan="4" class="text-center text-muted py-3">No hay registros de intentos de recuperación.</td></tr>`;
+        }
+    } catch (e) {
+        console.error("Error cargando auditoría:", e);
+        tbody.innerHTML = `<tr><td colspan="4" class="text-center text-danger py-3">Error de conexión al cargar auditoría.</td></tr>`;
+    }
+}
+
+window.loadAuditLogs = loadAuditLogs;
 
 // ── NAVEGACIÓN ─────────────────────────────────────────────────────────────
 
@@ -144,7 +185,7 @@ function renderCirculationView() {
             </td>
             <td>
                 ${l.overdueDays > 0
-                    ? `<span class="badge bg-danger">${l.overdueDays} días mora</span>`
+                    ? `<span class="badge bg-danger">${l.overdueDays} días demora</span>`
                     : `<span class="badge bg-secondary">A tiempo</span>`
                 }
             </td>

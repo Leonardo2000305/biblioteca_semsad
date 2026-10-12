@@ -54,20 +54,29 @@ function loadUserFromStorage() {
     }
 }
 
-// Verificar en segundo plano si la sesión PHP sigue viva
+// Verificar en segundo plano la sesión PHP sin tumbar el estado de localStorage
 async function verifySessionInBackground() {
     try {
         const response = await fetch(`${API_BASE}/verificar_sesion.php`, { credentials: "include" });
         const data = await response.json();
 
-        if (!data.sesion_activa) {
-            // Sesión expiró en el servidor
-            localStorage.removeItem("semsad_user");
-            state.currentUser.active = false;
+        if (data.status === "success" && data.sesion_activa && data.usuario) {
+            // Sincronizar datos del servidor con el estado local
+            state.currentUser.id     = data.usuario.id_usuario;
+            state.currentUser.name   = data.usuario.nombre || state.currentUser.name || "Usuario";
+            state.currentUser.role   = data.usuario.rol || state.currentUser.role || "Estudiante";
+            state.currentUser.ci     = data.usuario.ci || state.currentUser.ci || "";
+            state.currentUser.active = true;
+
+            localStorage.setItem("semsad_user", JSON.stringify({
+                id: state.currentUser.id,
+                name: state.currentUser.name,
+                role: state.currentUser.role,
+                ci: state.currentUser.ci
+            }));
             renderUserStatus();
         }
     } catch (e) {
-        // Error de red: no cerrar sesión, podría ser temporal
         console.warn("No se pudo verificar sesión PHP:", e);
     }
 }

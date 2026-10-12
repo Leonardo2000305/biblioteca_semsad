@@ -1,8 +1,19 @@
 <?php
-session_start();
-header("Access-Control-Allow-Origin: *");
+if (session_status() === PHP_SESSION_NONE) {
+    ini_set('session.cookie_samesite', 'None');
+    ini_set('session.cookie_secure', 'True');
+    session_start();
+}
+
+if (isset($_SERVER['HTTP_ORIGIN'])) {
+    header("Access-Control-Allow-Origin: " . $_SERVER['HTTP_ORIGIN']);
+} else {
+    header("Access-Control-Allow-Origin: *");
+}
+
+header("Access-Control-Allow-Credentials: true");
 header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
-header("Access-Control-Allow-Headers: Content-Type");
+header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
 header('Content-Type: application/json; charset=utf-8');
 
 require_once 'conexion.php';
@@ -27,8 +38,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
         $conexion->beginTransaction();
 
-        // 1. Obtener un ejemplar disponible de ese material
-        $sqlCheck = "SELECT id_ejemplar, estado_ejemplar FROM Ejemplar WHERE id_material = :id_material AND estado_ejemplar = 'Disponible' LIMIT 1 FOR UPDATE";
+        // 1. Obtener un ejemplar disponible de ese material (tabla 'ejemplar' en minúsculas)
+        $sqlCheck = "SELECT id_ejemplar, estado_ejemplar FROM ejemplar WHERE id_material = :id_material AND estado_ejemplar = 'Disponible' LIMIT 1 FOR UPDATE";
         $stmtCheck = $conexion->prepare($sqlCheck);
         $stmtCheck->execute([':id_material' => $id_material]);
         $ejemplar = $stmtCheck->fetch();
@@ -41,12 +52,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         $id_ejemplar = $ejemplar['id_ejemplar'];
 
-        // 2. Registrar el préstamo (incluye id_bibliotecario_entrega)
+        // 2. Registrar el préstamo (tabla 'prestamo' en minúsculas)
         $fecha_salida = date('Y-m-d H:i:s');
         $fecha_limite = date('Y-m-d H:i:s', strtotime("+$dias_prestamo days"));
         $id_bibliotecario = isset($_SESSION['id_usuario']) ? $_SESSION['id_usuario'] : 1; 
 
-        $sqlPrestamo = "INSERT INTO Prestamo (id_usuario, id_bibliotecario_entrega, fecha_salida, fecha_limite, estado) 
+        $sqlPrestamo = "INSERT INTO prestamo (id_usuario, id_bibliotecario_entrega, fecha_salida, fecha_limite, estado) 
                         VALUES (:id_usuario, :id_bibliotecario, :fecha_salida, :fecha_limite, 'Activo')";
         $stmtPrestamo = $conexion->prepare($sqlPrestamo);
         $stmtPrestamo->execute([
@@ -57,8 +68,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         ]);
         $id_prestamo = $conexion->lastInsertId();
 
-        // 3. Registrar en Detalle_Prestamo
-        $sqlDetalle = "INSERT INTO Detalle_Prestamo (id_prestamo, id_ejemplar) VALUES (:id_prestamo, :id_ejemplar)";
+        // 3. Registrar en detalle_prestamo (tabla 'detalle_prestamo' en minúsculas)
+        $sqlDetalle = "INSERT INTO detalle_prestamo (id_prestamo, id_ejemplar) VALUES (:id_prestamo, :id_ejemplar)";
         $stmtDetalle = $conexion->prepare($sqlDetalle);
         $stmtDetalle->execute([
             ':id_prestamo' => $id_prestamo,
@@ -66,7 +77,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         ]);
 
         // 4. Cambiar el estado del ejemplar a 'Prestado'
-        $sqlUpdate = "UPDATE Ejemplar SET estado_ejemplar = 'Prestado' WHERE id_ejemplar = :id_ejemplar";
+        $sqlUpdate = "UPDATE ejemplar SET estado_ejemplar = 'Prestado' WHERE id_ejemplar = :id_ejemplar";
         $stmtUpdate = $conexion->prepare($sqlUpdate);
         $stmtUpdate->execute([':id_ejemplar' => $id_ejemplar]);
 

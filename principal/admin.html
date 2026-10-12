@@ -3,163 +3,209 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SEMSAD - Panel de Administración</title>
+    <title>Biblioteca SEMSAD - Panel Operativo</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="../css/styles.css">
     <style>
-        body { display: flex; flex-direction: column; min-height: 100vh; font-family: 'Inter', sans-serif; background: #f8fafc; }
-        .admin-wrapper { display: flex; flex: 1; }
-        .sidebar { width: 230px; background: #0f172a; min-height: 100vh; flex-shrink: 0; display: flex; flex-direction: column; }
-        .sidebar-brand { padding: 20px; border-bottom: 1px solid rgba(255,255,255,0.1); }
-        .sidebar-nav { flex: 1; padding: 12px 0; }
-        .nav-item-admin {
-            display: block; padding: 11px 20px; color: #94a3b8; text-decoration: none;
-            font-size: 0.88rem; font-weight: 500; border-left: 3px solid transparent;
-            transition: all 0.2s;
-        }
-        .nav-item-admin:hover, .nav-item-admin.active {
-            color: #fff; background: rgba(255,255,255,0.06); border-left-color: #2563eb;
-        }
-        .nav-item-admin i { width: 18px; margin-right: 8px; }
-        .sidebar-footer { padding: 16px; border-top: 1px solid rgba(255,255,255,0.1); }
-        .main-content { flex: 1; display: flex; flex-direction: column; }
-        .top-bar { background: #fff; border-bottom: 1px solid #e2e8f0; padding: 14px 24px; display: flex; justify-content: space-between; align-items: center; }
-        .page-body { padding: 24px; flex: 1; }
-        .kpi-card { background: #fff; border-radius: 12px; border: 1px solid #e2e8f0; padding: 20px; }
-        .kpi-value { font-size: 2rem; font-weight: 700; }
+        body { min-height: 100vh; background-color: #f8f9fa; }
+        .sidebar { width: 240px; background-color: #0f172a; min-height: 100vh; color: #fff; }
+        .sidebar .nav-link { color: #94a3b8; padding: 12px 20px; font-size: 0.95rem; border-radius: 6px; margin: 2px 10px; }
+        .sidebar .nav-link:hover, .sidebar .nav-link.active { color: #fff; background-color: #1e293b; }
+        .sidebar .nav-link i { width: 24px; }
+        .main-content { flex: 1; }
     </style>
 </head>
 <body>
 
-<div class="admin-wrapper">
-
-    <!-- SIDEBAR -->
-    <aside class="sidebar">
-        <div class="sidebar-brand">
-            <p class="text-white fw-bold mb-0" style="font-size:1rem;"><i class="fa-solid fa-book-bookmark me-2 text-blue-400"></i>BIBLIOTECA SEMSAD</p>
-            <small class="text-secondary">Panel Operativo</small>
+<div class="d-flex">
+    <!-- BARRA LATERAL (SIDEBAR) -->
+    <div class="sidebar d-flex flex-column justify-content-between py-3">
+        <div>
+            <div class="px-3 mb-4">
+                <h5 class="fw-bold mb-0 text-white"><i class="fa-solid fa-book-bookmark me-2"></i>BIBLIOTECA SEMSAD</h5>
+                <small class="text-white-50">Panel Operativo</small>
+            </div>
+            <nav class="nav flex-column">
+                <a href="#" class="nav-link nav-item-admin active" data-target="secDashboard">
+                    <i class="fa-solid fa-chart-line me-2"></i>Dashboard
+                </a>
+                <a href="#" class="nav-link nav-item-admin" data-target="secInventario">
+                    <i class="fa-solid fa-boxes-stacked me-2"></i>Inventario
+                </a>
+                <a href="#" class="nav-link nav-item-admin" data-target="secVentanilla">
+                    <i class="fa-solid fa-right-left me-2"></i>Ventanilla
+                </a>
+            </nav>
         </div>
-        <nav class="sidebar-nav">
-            <a href="#" class="nav-item-admin active" data-target="secDashboard">
-                <i class="fa-solid fa-gauge-high"></i> Dashboard
-            </a>
-            <a href="#" class="nav-item-admin" data-target="secInventario">
-                <i class="fa-solid fa-book"></i> Inventario
-            </a>
-            <a href="#" class="nav-item-admin" data-target="secVentanilla">
-                <i class="fa-solid fa-arrow-right-arrow-left"></i> Ventanilla
-            </a>
-        </nav>
-        <div class="sidebar-footer">
-            <a href="index.html" class="btn btn-outline-light btn-sm w-100">
-                <i class="fa-solid fa-users me-1"></i> Portal Estudiantes
+        <div class="px-3">
+            <a href="index.html" class="btn btn-outline-light w-100 btn-sm">
+                <i class="fa-solid fa-users me-1"></i>Portal Estudiantes
             </a>
         </div>
-    </aside>
+    </div>
 
     <!-- CONTENIDO PRINCIPAL -->
     <div class="main-content">
-        <!-- Barra superior -->
-        <div class="top-bar">
-            <h6 class="mb-0 fw-bold text-dark" id="pageTitle">Dashboard</h6>
+        <!-- BARRA SUPERIOR -->
+        <header class="bg-white border-bottom px-4 py-3 d-flex justify-content-between align-items-center">
+            <h5 class="mb-0 fw-bold text-dark">Dashboard</h5>
             <div class="d-flex align-items-center gap-3">
-                <span class="text-muted small"><i class="fa-solid fa-user-tie me-1"></i>Bibliotecario</span>
-                <a href="../login/index.html" class="btn btn-danger btn-sm" onclick="localStorage.removeItem('semsad_user')">
-                    <i class="fa-solid fa-right-from-bracket me-1"></i> Salir
+                <span class="text-secondary small"><i class="fa-solid fa-user-shield me-1"></i>Bibliotecario</span>
+                <a href="../login/index.html" class="btn btn-danger btn-sm px-3">
+                    <i class="fa-solid fa-right-from-bracket me-1"></i>Salir
                 </a>
             </div>
-        </div>
+        </header>
 
-        <div class="page-body">
-
-            <!-- ───── DASHBOARD ───── -->
-            <div id="secDashboard" class="admin-section">
-                <h5 class="mb-4 fw-bold">Resumen Operativo</h5>
+        <!-- SECCIONES -->
+        <main class="p-4">
+            
+            <!-- 1. DASHBOARD -->
+            <section id="secDashboard" class="admin-section">
+                <h4 class="fw-bold mb-4">Resumen General</h4>
+                
+                <!-- MÉTRICAS / KPIs -->
                 <div class="row g-3 mb-4">
                     <div class="col-md-4">
-                        <div class="kpi-card border-start border-4 border-primary">
-                            <small class="text-muted d-block mb-1"><i class="fa-solid fa-book-open me-1"></i>Total Ejemplares</small>
-                            <div class="kpi-value text-primary" id="kpiTotalBooks">—</div>
+                        <div class="card border-0 shadow-sm p-3">
+                            <div class="d-flex align-items-center justify-content-between">
+                                <div>
+                                    <span class="text-muted small d-block">Total Libros</span>
+                                    <h3 class="fw-bold mb-0 text-primary" id="kpiTotalBooks">0</h3>
+                                </div>
+                                <div class="bg-primary text-white rounded-circle p-3">
+                                    <i class="fa-solid fa-book fa-xl"></i>
+                                </div>
+                            </div>
                         </div>
                     </div>
                     <div class="col-md-4">
-                        <div class="kpi-card border-start border-4 border-success">
-                            <small class="text-muted d-block mb-1"><i class="fa-solid fa-circle-check me-1"></i>Disponibles</small>
-                            <div class="kpi-value text-success" id="kpiAvailableBooks">—</div>
+                        <div class="card border-0 shadow-sm p-3">
+                            <div class="d-flex align-items-center justify-content-between">
+                                <div>
+                                    <span class="text-muted small d-block">Disponibles</span>
+                                    <h3 class="fw-bold mb-0 text-success" id="kpiAvailableBooks">0</h3>
+                                </div>
+                                <div class="bg-success text-white rounded-circle p-3">
+                                    <i class="fa-solid fa-circle-check fa-xl"></i>
+                                </div>
+                            </div>
                         </div>
                     </div>
                     <div class="col-md-4">
-                        <div class="kpi-card border-start border-4 border-warning">
-                            <small class="text-muted d-block mb-1"><i class="fa-solid fa-clock me-1"></i>Préstamos Activos</small>
-                            <div class="kpi-value text-warning" id="kpiActiveLoans">—</div>
+                        <div class="card border-0 shadow-sm p-3">
+                            <div class="d-flex align-items-center justify-content-between">
+                                <div>
+                                    <span class="text-muted small d-block">Préstamos Activos</span>
+                                    <h3 class="fw-bold mb-0 text-warning" id="kpiActiveLoans">0</h3>
+                                </div>
+                                <div class="bg-warning text-white rounded-circle p-3">
+                                    <i class="fa-solid fa-hand-holding-hand fa-xl"></i>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
-                <div class="alert alert-info small">
-                    <i class="fa-solid fa-circle-info me-1"></i>
-                    Datos en tiempo real desde la base de datos MariaDB. Haz clic en <strong>Ventanilla</strong> para gestionar devoluciones.
-                </div>
-            </div>
 
-            <!-- ───── INVENTARIO ───── -->
-            <div id="secInventario" class="admin-section d-none">
-                <h5 class="mb-4 fw-bold">Catálogo de Libros</h5>
-                <div class="bg-white rounded border">
-                    <div class="table-responsive">
-                        <table class="table table-hover mb-0">
-                            <thead class="table-light">
-                                <tr>
-                                    <th>Clasificación / ISBN</th>
-                                    <th>Título / Autor</th>
-                                    <th>Categoría</th>
-                                    <th>Stock</th>
-                                    <th>Estante</th>
-                                    <th class="text-end">Acciones</th>
-                                </tr>
-                            </thead>
-                            <tbody id="adminBooksTableBody">
-                                <tr><td colspan="6" class="text-center py-4 text-muted">Cargando inventario...</td></tr>
-                            </tbody>
-                        </table>
+                <!-- AUDITORÍA DE SEGURIDAD -->
+                <div class="card border-0 shadow-sm mt-4">
+                    <div class="card-header bg-white d-flex justify-content-between align-items-center py-3">
+                        <h5 class="mb-0 fw-bold text-dark">
+                            <i class="fa-solid fa-shield-halved text-primary me-2"></i>
+                            Auditoría de Seguridad: Intentos de Recuperación
+                        </h5>
+                        <button class="btn btn-sm btn-outline-secondary" onclick="loadAuditLogs()">
+                            <i class="fa-solid fa-rotate-right me-1"></i> Actualizar
+                        </button>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover table-striped align-middle mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Usuario / Correo Ingresado</th>
+                                        <th>Fecha y Hora</th>
+                                        <th>Estado</th>
+                                        <th>Dirección IP</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tablaAuditoriaBody">
+                                    <tr>
+                                        <td colspan="4" class="text-center text-muted py-3">Cargando registros de auditoría...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
-            </div>
+            </section>
 
-            <!-- ───── VENTANILLA ───── -->
-            <div id="secVentanilla" class="admin-section d-none">
-                <h5 class="mb-4 fw-bold">Ventanilla de Devoluciones</h5>
-                <div class="bg-white rounded border">
-                    <div class="table-responsive">
-                        <table class="table table-hover mb-0">
-                            <thead class="table-light">
-                                <tr>
-                                    <th>Usuario / CI</th>
-                                    <th>Libro</th>
-                                    <th>Fecha Salida</th>
-                                    <th>Vencimiento</th>
-                                    <th>Mora</th>
-                                    <th class="text-end">Acción</th>
-                                </tr>
-                            </thead>
-                            <tbody id="circActiveLoansTable">
-                                <tr><td colspan="6" class="text-center py-4 text-muted">Cargando préstamos...</td></tr>
-                            </tbody>
-                        </table>
+            <!-- 2. INVENTARIO -->
+            <section id="secInventario" class="admin-section d-none">
+                <h4 class="fw-bold mb-4">Inventario de Libros</h4>
+                <div class="card border-0 shadow-sm">
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Clasificación / ISBN</th>
+                                        <th>Título y Autor</th>
+                                        <th>Categoría</th>
+                                        <th>Stock</th>
+                                        <th>Ubicación</th>
+                                        <th class="text-end">Acción</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="adminBooksTableBody">
+                                    <tr>
+                                        <td colspan="6" class="text-center py-3 text-muted">Cargando inventario...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
-            </div>
+            </section>
 
-        </div><!-- /page-body -->
-    </div><!-- /main-content -->
-</div><!-- /admin-wrapper -->
+            <!-- 3. VENTANILLA -->
+            <section id="secVentanilla" class="admin-section d-none">
+                <h4 class="fw-bold mb-4">Ventanilla de Devoluciones</h4>
+                <div class="card border-0 shadow-sm">
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Usuario / CI</th>
+                                        <th>Libro</th>
+                                        <th>Fecha Salida</th>
+                                        <th>Vencimiento</th>
+                                        <th>Demora</th>
+                                        <th class="text-end">Acción</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="circActiveLoansTable">
+                                    <tr>
+                                        <td colspan="6" class="text-center py-3 text-muted">Cargando préstamos activos...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </section>
 
-<!-- Toast de notificaciones -->
-<div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index: 9999;">
-    <div id="adminToast" class="toast align-items-center text-white border-0 bg-success" role="alert">
+        </main>
+    </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast-container position-fixed bottom-0 end-0 p-3">
+    <div id="adminToast" class="toast align-items-center text-white border-0" role="alert">
         <div class="d-flex">
-            <div class="toast-body" id="adminToastBody">Notificación</div>
+            <div class="toast-body" id="adminToastBody"></div>
             <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
         </div>
     </div>

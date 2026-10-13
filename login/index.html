@@ -1,137 +1,129 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
- <meta charset="UTF-8">
- <meta name="viewport" content="width=device-width, initial-scale=1.0">
- <title>Login - SEMSAD</title>
- <link rel="stylesheet" href="../css/index.css">
- <style>
-    /* Estilos del contenedor principal */
-    body { 
-        font-family: Arial, sans-serif; 
-        background-color: #f4f7f6; 
-        display: flex; 
-        justify-content: center; 
-        align-items: center; 
-        height: 100vh; 
-        margin: 0; 
-    }
-    .contenedor { 
-        background: white; 
-        padding: 40px; 
-        border-radius: 12px; 
-        box-shadow: 0 4px 15px rgba(0,0,0,0.08); 
-        width: 100%; 
-        max-width: 400px; 
-        text-align: center; 
-        box-sizing: border-box;
-    }
-    h2 { 
-        color: #333; 
-        margin-bottom: 8px; 
-        margin-top: 0;
-    }
-    
-    /* Inputs ajustados sin errores de cálculo */
-    input { 
-        width: 100%; 
-        padding: 12px; 
-        margin-bottom: 15px; 
-        border: 1px solid #ccc; 
-        border-radius: 6px; 
-        box-sizing: border-box;
-        font-size: 14px;
-    }
-    
-    /* Botón Acceder mejorado */
-    button { 
-        width: 100%; 
-        padding: 12px; 
-        background-color: #1d4ed8; 
-        color: white; 
-        border: none; 
-        border-radius: 25px; 
-        font-size: 16px; 
-        font-weight: bold;
-        cursor: pointer; 
-        transition: all 0.2s ease;
-    }
-    button:hover, button:active { 
-        background-color: #2563eb; 
-        transform: translateY(-1px);
-        box-shadow: 0 4px 12px rgba(29, 78, 216, 0.25);
-    }
-    
-    /* Sección de enlaces inferiores */
-    .enlaces { 
-        margin-top: 22px; 
-        display: flex; 
-        flex-direction: column; 
-        gap: 8px; 
-        align-items: center; 
-    }
-
-    .linea-enlace {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 4px;
-        font-size: 14px;
-    }
-    
-    /* Pregunta en negro (no interactiva) */
-    .texto-pregunta { 
-        color: #1a1a1a; 
-        font-weight: normal; 
-    }
-    
-    /* Efecto "Burbuja" interactivo (Hover y Tap táctil) */
-    .bubble-link { 
-        text-decoration: none; 
-        color: #1d4ed8; 
-        font-weight: 600;
-        padding: 6px 14px; 
-        border-radius: 20px; /* Forma de cápsula */
-        transition: all 0.2s ease-in-out; 
-        display: inline-block;
-        user-select: none; /* Evita selecciones feas en cel */
-    }
-    
-    /* Reacción al pasar el ratón o pulsar con el dedo */
-    .bubble-link:hover, 
-    .bubble-link:active, 
-    .bubble-link:focus { 
-        background-color: #e0e7ff; /* Fondo burbuja azul claro */
-        color: #1d4ed8; 
-        transform: scale(1.05); /* Se agranda levemente */
-        outline: none;
-    }
- </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Biblioteca SEMSAD - Iniciar Sesión</title>
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- FontAwesome Iconos -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { 
+            background-color: #f8fafc; 
+            min-height: 100vh; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+        }
+        .card-login { 
+            width: 100%; 
+            max-width: 420px; 
+            border-radius: 16px; 
+        }
+    </style>
 </head>
 <body>
- <main>
-    <div class="contenedor">
-        <h2>Bienvenido a la biblioteca</h2>
-        <h2 style="margin-bottom: 25px;">SEMSAD</h2>
-        
-        <form id="form-login">
-            <input type="text" placeholder="Correo electrónico" id="correo" required>
-            <input type="password" placeholder="Código Empleado / CI" id="codigo_empleado" required>
-            <button type="submit">Acceder</button>
-        </form>
-        <div id="login-error" style="color: red; margin-top: 10px; display: none; font-size: 14px;"></div>
-        
-        <div class="enlaces">
-            <div class="linea-enlace">
-                <a href="recuperar.html" class="bubble-link">🔑 ¿Olvidaste tu contraseña?</a>
+
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-6 col-lg-5">
+            <div class="card card-login shadow-lg border-0 bg-white p-4">
+                <div class="text-center mb-4">
+                    <h4 class="fw-bold text-dark mb-1">Bienvenido a la biblioteca</h4>
+                    <h4 class="fw-bold text-dark mb-0">SEMSAD</h4>
+                </div>
+
+                <div id="alertContainer"></div>
+
+                <form id="formLogin">
+                    <div class="mb-3">
+                        <input type="email" id="loginCorreo" class="form-control py-2 px-3" placeholder="Correo institucional" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <input type="password" id="loginContrasena" class="form-control py-2 px-3" placeholder="Contraseña" required>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary w-100 py-2 fw-bold mb-3 rounded-pill fs-6" id="btnAcceder">
+                        Acceder
+                    </button>
+
+                    <div class="text-center mb-2">
+                        <a href="recuperar.html" class="text-decoration-none small fw-semibold text-primary">
+                            🔑 ¿Olvidaste tu contraseña?
+                        </a>
+                    </div>
+
+                    <div class="text-center">
+                        <span class="small text-muted me-1">📝 ¿No tienes cuenta?</span>
+                        <a href="registro.html" class="text-decoration-none small fw-bold text-primary">Regístrate</a>
+                    </div>
+                </form>
             </div>
-            <div class="linea-enlace">
-                <span class="texto-pregunta">📝 ¿No tienes cuenta?</span>
-                <a href="registro.html" class="bubble-link">Regístrate</a>
-            </div>
-        </div> 
-    </div>    
- </main>
- <script src="../js/login.js"></script>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    document.getElementById('formLogin').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        const alertContainer = document.getElementById('alertContainer');
+        const btn = document.getElementById('btnAcceder');
+        const correo = document.getElementById('loginCorreo').value.trim();
+        const contrasena = document.getElementById('loginContrasena').value.trim();
+
+        if (!correo || !contrasena) {
+            alertContainer.innerHTML = `<div class="text-danger small text-center mb-3">Ingrese su correo y contraseña.</div>`;
+            return;
+        }
+
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-2"></i>Accediendo...';
+        alertContainer.innerHTML = '';
+
+        try {
+            const resp = await fetch('../api/login.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ correo: correo, contrasena: contrasena })
+            });
+
+            if (!resp.ok) {
+                throw new Error('Error HTTP ' + resp.status);
+            }
+
+            const rawText = await resp.text();
+            let res;
+            
+            try {
+                res = JSON.parse(rawText);
+            } catch(jsonErr) {
+                alertContainer.innerHTML = `<div class="text-danger small text-center mb-3">La API no devolvió JSON válido.</div>`;
+                btn.disabled = false;
+                btn.innerHTML = 'Acceder';
+                return;
+            }
+
+            if (res.status === 'success') {
+                alertContainer.innerHTML = `<div class="alert alert-success small py-2 text-center">${res.mensaje}</div>`;
+                setTimeout(() => {
+                    window.location.href = res.redirect;
+                }, 800);
+            } else {
+                alertContainer.innerHTML = `<div class="text-danger small text-center mb-3">${res.mensaje}</div>`;
+                btn.disabled = false;
+                btn.innerHTML = 'Acceder';
+            }
+        } catch (err) {
+            alertContainer.innerHTML = `<div class="text-danger small text-center mb-3">No se pudo conectar a api/login.php (${err.message}).</div>`;
+            btn.disabled = false;
+            btn.innerHTML = 'Acceder';
+        }
+    });
+</script>
 </body>
 </html>

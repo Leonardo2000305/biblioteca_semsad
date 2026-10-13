@@ -28,18 +28,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 require_once 'conexion.php';
 
 // =========================================================================
-// CONFIGURACIÓN DE RESEND API (CON TU API KEY INTEGRADA)
+// CONFIGURACIÓN DE RESEND API
 // =========================================================================
 define('RESEND_API_KEY', 're_ScKYq1Bb_JiDNbFfHd8STf2d2hzXhHVC3');
 
 /**
- * Función para despachar correos garantizados usando el API REST de Resend por HTTPS
+ * Función optimizada para cURL en Alwaysdata hacia Resend API
  */
-function enviarCorreoAPI($toEmail, $subject, $bodyHtml) {
+function enviarCorreoAPI($toEmail, $subject, $bodyHtml, &$detallesError = '') {
     $url = 'https://api.resend.com/emails';
 
     $payload = [
-        'from'    => 'Biblioteca SEMSAD <onboarding@resend.dev>',
+        'from'    => 'onboarding@resend.dev',
         'to'      => [$toEmail],
         'subject' => $subject,
         'html'    => $bodyHtml
@@ -49,16 +49,36 @@ function enviarCorreoAPI($toEmail, $subject, $bodyHtml) {
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_POST, true);
     curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
+    curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) BibliotecaSEMSAD/1.0');
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 15);
     curl_setopt($ch, CURLOPT_HTTPHEADER, [
         'Authorization: Bearer ' . RESEND_API_KEY,
         'Content-Type: application/json'
     ]);
 
-    $response = curl_exec($ch);
-    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $response  = curl_exec($ch);
+    $curlErr   = curl_error($ch);
+    $httpCode  = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     curl_close($ch);
 
-    return ($httpCode >= 200 && $httpCode < 300);
+    if ($curlErr) {
+        $detallesError = "Error de red cURL: " . $curlErr;
+        return false;
+    }
+
+    if ($httpCode >= 200 && $httpCode < 300) {
+        return true;
+    } else {
+        $resData = json_decode($response, true);
+        if (isset($resData['message'])) {
+            $detallesError = $resData['message'];
+        } else {
+            $detallesError = "Respuesta del servidor de correo ($httpCode): " . $response;
+        }
+        return false;
+    }
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -100,11 +120,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             exit;
         }
 
-        // 3. Generar OTP de 6 dígitos (Válido por 15 minutos)
+        // 3. Generar OTP de 6 dígitos
         $otp = sprintf("%06d", mt_rand(1, 999999));
         $expiracion = date('Y-m-d H:i:s', time() + (15 * 60));
 
-        // 4. Guardar código temporal en la base de datos
+        // 4. Guardar código temporal
         $stmtDel = $conexion->prepare("DELETE FROM codigo_verificacion WHERE correo = :correo");
         $stmtDel->execute([':correo' => $correo]);
 
@@ -131,7 +151,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </div>";
 
         // 6. Enviar vía Resend API
-        $exito = enviarCorreoAPI($correo, $asunto, $cuerpoHtml);
+        $detallesError = '';
+        $exito = enviarCorreoAPI($correo, $asunto, $cuerpoHtml, $detallesError);
 
         if ($exito) {
             echo json_encode([
@@ -141,7 +162,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } else {
             echo json_encode([
                 'status'  => 'error',
-                'mensaje' => 'Error al despachar el correo electrónico. Intente nuevamente en unos instantes.'
+                'mensaje' => 'Error al despachar el correo: ' . $detallesError
             ]);
         }
 

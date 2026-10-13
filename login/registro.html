@@ -54,10 +54,10 @@
                     </div>
 
                     <div class="mb-3">
-                        <label class="form-label small fw-bold text-dark">Correo Institucional</label>
+                        <label class="form-label small fw-bold text-dark">Correo Electrónico</label>
                         <div class="input-group">
                             <span class="input-group-text bg-light text-muted"><i class="fa-solid fa-envelope"></i></span>
-                            <input type="email" id="regCorreo" class="form-control" placeholder="usuario@est.semsad.edu.bo" required>
+                            <input type="email" id="regCorreo" class="form-control" placeholder="ejemplo@gmail.com" required>
                         </div>
                     </div>
 
@@ -155,8 +155,8 @@
             alertContainer.innerHTML = `
                 <div class="alert alert-danger small py-3 text-center">
                     <i class="fa-solid fa-triangle-exclamation fa-xl d-block mb-2 text-danger"></i>
-                    <strong>Problema al enviar correo.</strong><br>
-                    Verifique su dirección institucional e intente más tarde.
+                    <strong>Límite de envíos excedido.</strong><br>
+                    Intente más tarde o verifique que su correo esté bien escrito.
                 </div>`;
             return;
         }

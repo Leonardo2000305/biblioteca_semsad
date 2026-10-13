@@ -275,7 +275,6 @@
                                 <tr>
                                     <th>Nombre Completo</th>
                                     <th>Correo Institucional</th>
-                                    <th>CI / Código</th>
                                     <th>Teléfono / Celular</th>
                                     <th>Estado Cuenta</th>
                                 </tr>
@@ -395,7 +394,7 @@
 
         async function cargarUsuariosRegistrados() {
             const tbody = document.getElementById('tablaUsuariosBody');
-            tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4"><i class="fa-solid fa-spinner fa-spin me-2 text-success"></i>Cargando usuarios...</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="4" class="text-center py-4"><i class="fa-solid fa-spinner fa-spin me-2 text-success"></i>Cargando usuarios...</td></tr>';
 
             try {
                 const resp = await fetch('../api/obtener_usuarios.php');
@@ -412,17 +411,16 @@
                             <tr>
                                 <td class="fw-bold text-dark">${user.nombres} ${user.apellidos}</td>
                                 <td class="text-primary">${user.correo}</td>
-                                <td><span class="badge bg-light text-dark border">${user.codigo_empleado || 'S/N'}</span></td>
                                 <td>${telefonoMostrar}</td>
                                 <td><span class="badge bg-success">Activo</span></td>
                             </tr>
                         `;
                     });
                 } else {
-                    tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-muted">No existen usuarios registrados.</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-muted">No existen usuarios registrados.</td></tr>';
                 }
             } catch (e) {
-                tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-danger">Error al obtener lista de usuarios.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-danger">Error al obtener lista de usuarios.</td></tr>';
             }
         }
     </script>

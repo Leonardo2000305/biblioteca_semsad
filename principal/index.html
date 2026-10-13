@@ -89,7 +89,19 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ correo: correo, contrasena: contrasena })
             });
-            const res = await resp.json();
+
+            const rawText = await resp.text();
+            let res;
+            
+            try {
+                res = JSON.parse(rawText);
+            } catch(jsonErr) {
+                console.error("Respuesta no es JSON:", rawText);
+                alertContainer.innerHTML = `<div class="text-danger small text-center mb-3">Error en la respuesta del servidor.</div>`;
+                btn.disabled = false;
+                btn.innerHTML = 'Acceder';
+                return;
+            }
 
             if (res.status === 'success') {
                 alertContainer.innerHTML = `<div class="alert alert-success small py-2 text-center">${res.mensaje}</div>`;

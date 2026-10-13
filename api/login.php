@@ -1,5 +1,4 @@
 <?php
-// Desactivar la impresión de errores HTML de PHP para garantizar respuestas JSON limpias
 error_reporting(0);
 ini_set('display_errors', 0);
 
@@ -25,7 +24,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit;
 }
 
-// Intentar incluir la conexión
 try {
     require_once 'conexion.php';
 } catch (Throwable $e) {
@@ -33,7 +31,21 @@ try {
     exit;
 }
 
+// Inicializar contador de intentos en la sesión si no existe
+if (!isset($_SESSION['intentos_login'])) {
+    $_SESSION['intentos_login'] = 0;
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // Si ya alcanzó o superó los 5 intentos
+    if ($_SESSION['intentos_login'] >= 5) {
+        echo json_encode([
+            'status'  => 'error',
+            'mensaje' => 'Has alcanzado el límite de 5 intentos fallidos. Por favor, recupera tu contraseña o intenta más tarde.'
+        ]);
+        exit;
+    }
+
     $rawInput = file_get_contents('php://input');
     $input = json_decode($rawInput, true);
 
@@ -45,7 +57,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $contrasena = trim($input['contrasena'] ?? $input['password'] ?? $input['clave'] ?? $input['codigo_empleado'] ?? '');
 
     if (empty($correo) || empty($contrasena)) {
-        echo json_encode(['status' => 'error', 'mensaje' => 'Ingrese su correo y contraseña.']);
+        echo json_encode(['status' => 'error', 'mensaje' => 'Por favor, ingrese su correo y contraseña.']);
         exit;
     }
 
@@ -54,31 +66,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmt->execute([':correo' => $correo]);
         $usuario = $stmt->fetch(PDO::FETCH_ASSOC);
 
-        if (!$usuario) {
-            echo json_encode(['status' => 'error', 'mensaje' => 'El correo ingresado no existe en la base de datos.']);
-            exit;
-        }
-
-        if (isset($usuario['estado']) && $usuario['estado'] !== 'Activo') {
-            echo json_encode(['status' => 'error', 'mensaje' => 'Su cuenta se encuentra inactiva.']);
-            exit;
-        }
-
-        $dbPass   = $usuario['contrasena'] ?? '';
-        $dbCodigo = $usuario['codigo_empleado'] ?? '';
-
         $esValido = false;
-        if ($contrasena === $dbPass || $contrasena === $dbCodigo) {
-            $esValido = true;
-        } else if (!empty($dbPass) && password_verify($contrasena, $dbPass)) {
-            $esValido = true;
+
+        if ($usuario && isset($usuario['estado']) && $usuario['estado'] === 'Activo') {
+            $dbPass   = $usuario['contrasena'] ?? '';
+            $dbCodigo = $usuario['codigo_empleado'] ?? '';
+
+            if ($contrasena === $dbPass || $contrasena === $dbCodigo) {
+                $esValido = true;
+            } else if (!empty($dbPass) && password_verify($contrasena, $dbPass)) {
+                $esValido = true;
+            }
         }
 
         if ($esValido) {
-            $_SESSION['id_usuario'] = $usuario['id_usuario'];
-            $_SESSION['nombres']    = $usuario['nombres'];
-            $_SESSION['correo']     = $usuario['correo'];
-            $_SESSION['id_rol']     = $usuario['id_rol'];
+            // ÉXITO: Reiniciar el contador de intentos
+            $_SESSION['intentos_login'] = 0;
+            $_SESSION['id_usuario']     = $usuario['id_usuario'];
+            $_SESSION['nombres']        = $usuario['nombres'];
+            $_SESSION['correo']         = $usuario['correo'];
+            $_SESSION['id_rol']         = $usuario['id_rol'];
 
             $redirect = ($usuario['id_rol'] == 1 || $usuario['id_rol'] == 2) ? '../principal/admin.html' : '../principal/index.html';
 
@@ -88,11 +95,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'redirect' => $redirect
             ]);
         } else {
-            echo json_encode(['status' => 'error', 'mensaje' => 'La contraseña ingresada es incorrecta.']);
+            // ERROR: Incrementar contador de fallos
+            $_SESSION['intentos_login']++;
+            $intentosRestantes = 5 - $_SESSION['intentos_login'];
+
+            if ($intentosRestantes > 0) {
+                $textoIntentos = ($intentosRestantes === 1) ? '1 intento más.' : "$intentosRestantes intentos más.";
+                $mensajeError  = "El usuario o la contraseña es incorrecta. Tienes $textoIntentos";
+            } else {
+                $mensajeError = "Has alcanzado el límite de 5 intentos fallidos. Por favor, recupera tu contraseña.";
+            }
+
+            echo json_encode([
+                'status'  => 'error',
+                'mensaje' => $mensajeError
+            ]);
         }
 
     } catch (Throwable $e) {
-        echo json_encode(['status' => 'error', 'mensaje' => 'Error en la consulta: ' . $e->getMessage()]);
+        echo json_encode(['status' => 'error', 'mensaje' => 'Error interno al procesar el ingreso.']);
     }
 } else {
     echo json_encode(['status' => 'error', 'mensaje' => 'Método no permitido.']);

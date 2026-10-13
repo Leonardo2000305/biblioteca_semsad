@@ -1,7 +1,11 @@
 <?php
+// Desactivar la impresión de errores HTML de PHP para garantizar respuestas JSON limpias
+error_reporting(0);
+ini_set('display_errors', 0);
+
 if (session_status() === PHP_SESSION_NONE) {
-    ini_set('session.cookie_samesite', 'None');
-    ini_set('session.cookie_secure', 'True');
+    @ini_set('session.cookie_samesite', 'None');
+    @ini_set('session.cookie_secure', 'True');
     session_start();
 }
 
@@ -16,10 +20,16 @@ header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type");
 header('Content-Type: application/json; charset=utf-8');
 
-require_once 'conexion.php';
-
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(200);
+    exit;
+}
+
+// Intentar incluir la conexión
+try {
+    require_once 'conexion.php';
+} catch (Throwable $e) {
+    echo json_encode(['status' => 'error', 'mensaje' => 'Error de conexión a la base de datos.']);
     exit;
 }
 
@@ -27,7 +37,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $rawInput = file_get_contents('php://input');
     $input = json_decode($rawInput, true);
 
-    if (!$input) {
+    if (!is_array($input)) {
         $input = $_POST;
     }
 
@@ -81,8 +91,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             echo json_encode(['status' => 'error', 'mensaje' => 'La contraseña ingresada es incorrecta.']);
         }
 
-    } catch (PDOException $e) {
-        echo json_encode(['status' => 'error', 'mensaje' => 'Error de conexión: ' . $e->getMessage()]);
+    } catch (Throwable $e) {
+        echo json_encode(['status' => 'error', 'mensaje' => 'Error en la consulta: ' . $e->getMessage()]);
     }
+} else {
+    echo json_encode(['status' => 'error', 'mensaje' => 'Método no permitido.']);
 }
 ?>

@@ -92,17 +92,13 @@
                 body: JSON.stringify({ correo: correo, contrasena: contrasena })
             });
 
-            if (!resp.ok) {
-                throw new Error('Error HTTP ' + resp.status);
-            }
-
             const rawText = await resp.text();
             let res;
             
             try {
                 res = JSON.parse(rawText);
             } catch(jsonErr) {
-                alertContainer.innerHTML = `<div class="text-danger small text-center mb-3">La API no devolvió JSON válido.</div>`;
+                alertContainer.innerHTML = `<div class="text-danger small text-center mb-3">Respuesta no válida del servidor.</div>`;
                 btn.disabled = false;
                 btn.innerHTML = 'Acceder';
                 return;
@@ -114,12 +110,12 @@
                     window.location.href = res.redirect;
                 }, 800);
             } else {
-                alertContainer.innerHTML = `<div class="text-danger small text-center mb-3">${res.mensaje}</div>`;
+                alertContainer.innerHTML = `<div class="text-danger small text-center mb-3 fw-semibold">${res.mensaje}</div>`;
                 btn.disabled = false;
                 btn.innerHTML = 'Acceder';
             }
         } catch (err) {
-            alertContainer.innerHTML = `<div class="text-danger small text-center mb-3">No se pudo conectar a api/login.php (${err.message}).</div>`;
+            alertContainer.innerHTML = `<div class="text-danger small text-center mb-3">No se pudo conectar con el servidor. Intente nuevamente.</div>`;
             btn.disabled = false;
             btn.innerHTML = 'Acceder';
         }

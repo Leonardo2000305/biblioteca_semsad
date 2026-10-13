@@ -1,6 +1,17 @@
 <?php
-session_start();
-header("Access-Control-Allow-Origin: *");
+if (session_status() === PHP_SESSION_NONE) {
+    ini_set('session.cookie_samesite', 'None');
+    ini_set('session.cookie_secure', 'True');
+    session_start();
+}
+
+if (isset($_SERVER['HTTP_ORIGIN'])) {
+    header("Access-Control-Allow-Origin: " . $_SERVER['HTTP_ORIGIN']);
+} else {
+    header("Access-Control-Allow-Origin: *");
+}
+
+header("Access-Control-Allow-Credentials: true");
 header("Access-Control-Allow-Methods: GET, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type");
 header('Content-Type: application/json; charset=utf-8');
@@ -13,17 +24,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 }
 
 try {
-    // Consulta los últimos 30 intentos de recuperación ordenados del más reciente al más antiguo
-    $sql = "SELECT id_log, correo_ingresado, DATE_FORMAT(fecha_hora, '%d/%m/%Y %H:%i:%s') as fecha_formateada, estado, ip_origen 
+    // Obtener los últimos 20 intentos de recuperación de contraseña
+    $sql = "SELECT id, correo_ingresado, fecha_hora, estado, ip_origen 
             FROM auditoria_recuperacion 
-            ORDER BY fecha_hora DESC LIMIT 30";
+            ORDER BY id DESC LIMIT 20";
     
-    $stmt = $conexion->query($sql);
-    $registros = $stmt->fetchAll();
+    $stmt = $conexion->prepare($sql);
+    $stmt->execute();
+    $registros = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     echo json_encode([
         'status' => 'success',
-        'datos' => $registros
+        'data'   => $registros
     ]);
 
 } catch (PDOException $e) {

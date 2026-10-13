@@ -1,6 +1,7 @@
 <?php
 error_reporting(0);
 ini_set('display_errors', 0);
+date_default_timezone_set('America/La_Paz');
 
 if (session_status() === PHP_SESSION_NONE) {
     @ini_set('session.cookie_samesite', 'None');
@@ -58,18 +59,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     try {
-        // 1. Validar el código OTP
-        $stmtOtp = $conexion->prepare("SELECT id FROM codigo_verificacion WHERE correo = :correo AND codigo = :codigo AND expiracion >= NOW()");
+        // 1. Obtener el código de verificación para este correo
+        $stmtOtp = $conexion->prepare("SELECT id, expiracion FROM codigo_verificacion WHERE correo = :correo AND codigo = :codigo");
         $stmtOtp->execute([':correo' => $correo, ':codigo' => $otp]);
-        if (!$stmtOtp->fetch()) {
-            echo json_encode(['status' => 'error', 'mensaje' => 'El código de verificación es incorrecto o expiro.']);
+        $rowOtp = $stmtOtp->fetch(PDO::FETCH_ASSOC);
+
+        if (!$rowOtp) {
+            echo json_encode(['status' => 'error', 'mensaje' => 'El código de verificación ingresado es incorrecto.']);
             exit;
         }
 
-        // 2. Encriptar contraseña con BCRYPT
+        // 2. Comprobar tiempo de expiración en PHP (previene errores de zona horaria en la BD)
+        $tiempoExpiracion = strtotime($rowOtp['expiracion']);
+        if ($tiempoExpiracion < time()) {
+            echo json_encode(['status' => 'error', 'mensaje' => 'El código de verificación ha expirado. Por favor, solicita uno nuevo.']);
+            exit;
+        }
+
+        // 3. Encriptar contraseña con BCRYPT
         $hash_contrasena = password_hash($contrasena, PASSWORD_BCRYPT);
 
-        // 3. Insertar usuario en MySQL
+        // 4. Insertar usuario en MySQL
         $sql = "INSERT INTO usuario (nombres, apellidos, correo, contrasena, id_rol, codigo_empleado, telefono, nivel_permiso, estado) 
                 VALUES (:nombres, :apellidos, :correo, :contrasena, 4, :codigo, :telefono, 1, 'Activo')";
         
@@ -83,7 +93,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ':telefono'   => $telefono
         ]);
 
-        // 4. Borrar código OTP consumido
+        // 5. Borrar código OTP consumido
         $stmtDel = $conexion->prepare("DELETE FROM codigo_verificacion WHERE correo = :correo");
         $stmtDel->execute([':correo' => $correo]);
 

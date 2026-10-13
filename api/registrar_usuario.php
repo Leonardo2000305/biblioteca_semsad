@@ -1,7 +1,10 @@
 <?php
+error_reporting(0);
+ini_set('display_errors', 0);
+
 if (session_status() === PHP_SESSION_NONE) {
-    ini_set('session.cookie_samesite', 'None');
-    ini_set('session.cookie_secure', 'True');
+    @ini_set('session.cookie_samesite', 'None');
+    @ini_set('session.cookie_secure', 'True');
     session_start();
 }
 
@@ -24,7 +27,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $input = json_decode(file_get_contents('php://input'), true);
+    $rawInput = file_get_contents('php://input');
+    $input = json_decode($rawInput, true);
+
+    if (!is_array($input)) {
+        $input = $_POST;
+    }
 
     $nombres    = isset($input['nombres']) ? trim($input['nombres']) : '';
     $apellidos  = isset($input['apellidos']) ? trim($input['apellidos']) : '';
@@ -39,6 +47,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit;
     }
 
+    if (!filter_var($correo, FILTER_VALIDATE_EMAIL)) {
+        echo json_encode(['status' => 'error', 'mensaje' => 'Ingrese un correo electrónico válido.']);
+        exit;
+    }
+
     if (strlen($contrasena) < 6) {
         echo json_encode(['status' => 'error', 'mensaje' => 'La contraseña debe tener al menos 6 caracteres.']);
         exit;
@@ -49,14 +62,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmtOtp = $conexion->prepare("SELECT id FROM codigo_verificacion WHERE correo = :correo AND codigo = :codigo AND expiracion >= NOW()");
         $stmtOtp->execute([':correo' => $correo, ':codigo' => $otp]);
         if (!$stmtOtp->fetch()) {
-            echo json_encode(['status' => 'error', 'mensaje' => 'El código de verificación es incorrecto o expiró.']);
+            echo json_encode(['status' => 'error', 'mensaje' => 'El código de verificación es incorrecto o expiro.']);
             exit;
         }
 
-        // 2. ENCRIPTACIÓN SEGURA DE CONTRASEÑA CON BCRYPT
+        // 2. Encriptar contraseña con BCRYPT
         $hash_contrasena = password_hash($contrasena, PASSWORD_BCRYPT);
 
-        // 3. Insertar nuevo usuario con contraseña encriptada
+        // 3. Insertar usuario en MySQL
         $sql = "INSERT INTO usuario (nombres, apellidos, correo, contrasena, id_rol, codigo_empleado, telefono, nivel_permiso, estado) 
                 VALUES (:nombres, :apellidos, :correo, :contrasena, 4, :codigo, :telefono, 1, 'Activo')";
         

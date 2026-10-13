@@ -186,19 +186,43 @@
             </div>
         </div>
 
-        <!-- MÓDULO 2: INVENTARIO (Vista previa) -->
+        <!-- MÓDULO 2: INVENTARIO DE LIBROS -->
         <div id="secInventario" class="modulo-vista d-none">
-            <div class="card table-card shadow-sm p-4 bg-white">
-                <h5 class="fw-bold mb-3"><i class="fa-solid fa-boxes-stacked me-2 text-primary"></i>Gestión de Libros</h5>
-                <p class="text-muted">Sección de administración del inventario bibliográfico.</p>
+            <div class="card table-card shadow-sm bg-white">
+                <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center border-bottom">
+                    <h5 class="fw-bold mb-0 text-dark">
+                        <i class="fa-solid fa-boxes-stacked text-primary me-2"></i>Inventario Bibliográfico
+                    </h5>
+                    <button class="btn btn-sm btn-outline-primary" onclick="cargarInventario()">
+                        <i class="fa-solid fa-rotate me-1"></i>Actualizar Libros
+                    </button>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th># ID</th>
+                                    <th>Título del Libro</th>
+                                    <th>Código / ISBN</th>
+                                    <th>Año Publicación</th>
+                                    <th>Estado</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tablaInventarioBody">
+                                <!-- Se carga dinámicamente -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
         </div>
 
-        <!-- MÓDULO 3: VENTANILLA (Vista previa) -->
+        <!-- MÓDULO 3: VENTANILLA -->
         <div id="secVentanilla" class="modulo-vista d-none">
             <div class="card table-card shadow-sm p-4 bg-white">
                 <h5 class="fw-bold mb-3"><i class="fa-solid fa-right-left me-2 text-primary"></i>Préstamos y Devoluciones</h5>
-                <p class="text-muted">Sección de atención en ventanilla para alumnos.</p>
+                <p class="text-muted">Módulo de atención presencial para registro de préstamos.</p>
             </div>
         </div>
 
@@ -270,16 +294,11 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         function verModulo(nombreModulo, elemento) {
-            // Ocultar todas las secciones
             document.querySelectorAll('.modulo-vista').forEach(el => el.classList.add('d-none'));
-
-            // Desmarcar menú activo
             document.querySelectorAll('.sidebar-menu .nav-link').forEach(link => link.classList.remove('active'));
 
-            // Marcar opción seleccionada
             if (elemento) elemento.classList.add('active');
 
-            // Actualizar título superior
             const titulos = {
                 'dashboard': 'Dashboard',
                 'inventario': 'Inventario de Libros',
@@ -289,19 +308,53 @@
             };
             document.getElementById('tituloPagina').innerText = titulos[nombreModulo] || 'Dashboard';
 
-            // Mostrar la sección seleccionada y cargar datos
-            if (nombreModulo === 'auditoria') {
+            if (nombreModulo === 'inventario') {
+                document.getElementById('secInventario').classList.remove('d-none');
+                cargarInventario();
+            } else if (nombreModulo === 'auditoria') {
                 document.getElementById('secAuditoria').classList.remove('d-none');
                 cargarAuditoria();
             } else if (nombreModulo === 'usuarios') {
                 document.getElementById('secUsuarios').classList.remove('d-none');
                 cargarUsuariosRegistrados();
-            } else if (nombreModulo === 'inventario') {
-                document.getElementById('secInventario').classList.remove('d-none');
             } else if (nombreModulo === 'ventanilla') {
                 document.getElementById('secVentanilla').classList.remove('d-none');
             } else {
                 document.getElementById('secDashboard').classList.remove('d-none');
+            }
+        }
+
+        async function cargarInventario() {
+            const tbody = document.getElementById('tablaInventarioBody');
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4"><i class="fa-solid fa-spinner fa-spin me-2 text-primary"></i>Cargando inventario de libros...</td></tr>';
+
+            try {
+                const resp = await fetch('../api/obtener_libros.php');
+                const res = await resp.json();
+
+                if (res.status === 'success' && res.data.length > 0) {
+                    tbody.innerHTML = '';
+                    res.data.forEach(libro => {
+                        const titulo = libro.titulo || libro.nombre || 'Sin título';
+                        const isbn = libro.isbn || libro.codigo_barras || 'S/N';
+                        const id = libro.id_material || libro.id || 'N/A';
+                        const anio = libro.anio_publicacion || libro.anio || 'N/A';
+
+                        tbody.innerHTML += `
+                            <tr>
+                                <td class="fw-bold text-dark">#${id}</td>
+                                <td class="fw-semibold text-primary">${titulo}</td>
+                                <td class="text-muted font-monospace">${isbn}</td>
+                                <td>${anio}</td>
+                                <td><span class="badge bg-success py-2 px-3"><i class="fa-solid fa-circle-check me-1"></i>Disponible</span></td>
+                            </tr>
+                        `;
+                    });
+                } else {
+                    tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-muted">No existen libros registrados en la base de datos.</td></tr>';
+                }
+            } catch (e) {
+                tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-danger">Error al consultar el inventario de libros.</td></tr>';
             }
         }
 

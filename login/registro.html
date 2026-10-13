@@ -4,23 +4,36 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Biblioteca SEMSAD - Registro de Estudiante</title>
+    <!-- Bootstrap 5 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- FontAwesome Iconos -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="../css/styles.css">
     <style>
-        body { background-color: #0f172a; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px 0; }
-        .card-register { width: 100%; max-width: 500px; border-radius: 12px; }
+        body { 
+            background-color: #0f172a; 
+            min-height: 100vh; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            padding: 30px 0; 
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+        }
+        .card-register { 
+            width: 100%; 
+            max-width: 520px; 
+            border-radius: 16px; 
+        }
     </style>
 </head>
 <body>
 
 <div class="container">
     <div class="row justify-content-center">
-        <div class="col-md-7 col-lg-6">
+        <div class="col-md-8 col-lg-6">
             <div class="card card-register shadow-lg border-0 bg-white p-4">
                 <div class="text-center mb-3">
-                    <div class="bg-primary text-white rounded-circle d-inline-flex align-items-center justify-content-center mb-2" style="width: 55px; height: 55px;">
-                        <i class="fa-solid fa-user-shield fa-lg"></i>
+                    <div class="bg-primary text-white rounded-circle d-inline-flex align-items-center justify-content-center mb-2" style="width: 60px; height: 60px;">
+                        <i class="fa-solid fa-user-shield fa-xl"></i>
                     </div>
                     <h4 class="fw-bold text-dark mb-0">Crear Cuenta Estudiante</h4>
                     <small class="text-muted">Biblioteca SEMSAD</small>
@@ -31,39 +44,57 @@
                 <form id="formRegistro">
                     <div class="row g-2 mb-3">
                         <div class="col-6">
-                            <label class="form-label small fw-bold">Nombres</label>
+                            <label class="form-label small fw-bold text-dark">Nombres</label>
                             <input type="text" id="regNombres" class="form-control" placeholder="Ej. Juan" required>
                         </div>
                         <div class="col-6">
-                            <label class="form-label small fw-bold">Apellidos</label>
+                            <label class="form-label small fw-bold text-dark">Apellidos</label>
                             <input type="text" id="regApellidos" class="form-control" placeholder="Ej. Pérez" required>
                         </div>
                     </div>
 
                     <div class="mb-3">
-                        <label class="form-label small fw-bold">Correo Institucional</label>
+                        <label class="form-label small fw-bold text-dark">Correo Institucional</label>
                         <div class="input-group">
-                            <span class="input-group-text"><i class="fa-solid fa-envelope"></i></span>
+                            <span class="input-group-text bg-light text-muted"><i class="fa-solid fa-envelope"></i></span>
                             <input type="email" id="regCorreo" class="form-control" placeholder="usuario@est.semsad.edu.bo" required>
                         </div>
                     </div>
 
                     <div class="row g-2 mb-3">
                         <div class="col-6">
-                            <label class="form-label small fw-bold">CI / Código</label>
+                            <label class="form-label small fw-bold text-dark">CI / Código</label>
                             <input type="text" id="regCodigo" class="form-control" placeholder="EST-202409" required>
                         </div>
                         <div class="col-6">
-                            <label class="form-label small fw-bold">Teléfono / Celular</label>
+                            <label class="form-label small fw-bold text-dark">Teléfono / Celular</label>
                             <input type="tel" id="regTelefono" class="form-control" placeholder="70012345" required>
                         </div>
                     </div>
 
+                    <!-- NUEVOS CAMPOS DE CONTRASEÑA SEGURA -->
+                    <div class="row g-2 mb-3">
+                        <div class="col-6">
+                            <label class="form-label small fw-bold text-dark">Contraseña Secreta</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light text-muted"><i class="fa-solid fa-lock"></i></span>
+                                <input type="password" id="regContrasena" class="form-control" placeholder="Mínimo 6 caracteres" minlength="6" required>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label small fw-bold text-dark">Confirmar Clave</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light text-muted"><i class="fa-solid fa-key"></i></span>
+                                <input type="password" id="regConfirmar" class="form-control" placeholder="Repite contraseña" minlength="6" required>
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="mb-3 d-none" id="divOtp">
-                        <label class="form-label small fw-bold text-primary">Código de Verificación (Enviado al Correo)</label>
+                        <label class="form-label small fw-bold text-primary"><i class="fa-solid fa-shield-halved me-1"></i>Código de Verificación OTP (Correo)</label>
                         <div class="input-group">
-                            <span class="input-group-text bg-primary text-white"><i class="fa-solid fa-key"></i></span>
-                            <input type="text" id="regOtp" class="form-control border-primary fw-bold text-center" placeholder="6 dígitos" maxlength="6">
+                            <span class="input-group-text bg-primary text-white"><i class="fa-solid fa-hashtag"></i></span>
+                            <input type="text" id="regOtp" class="form-control border-primary fw-bold text-center fs-5" placeholder="6 dígitos" maxlength="6">
                         </div>
                     </div>
 
@@ -77,7 +108,7 @@
 
                     <div class="text-center">
                         <a href="index.html" class="text-decoration-none small text-secondary">
-                            <i class="fa-solid fa-arrow-left me-1"></i> Volver al Login
+                            <i class="fa-solid fa-arrow-left me-1"></i> Volver al Inicio de Sesión
                         </a>
                     </div>
                 </form>
@@ -100,9 +131,21 @@
         const correo = document.getElementById('regCorreo').value.trim();
         const codigo_emp = document.getElementById('regCodigo').value.trim();
         const telefono = document.getElementById('regTelefono').value.trim();
+        const contrasena = document.getElementById('regContrasena').value;
+        const confirmar = document.getElementById('regConfirmar').value;
 
-        if (!correo || !codigo_emp || !telefono) {
-            alertContainer.innerHTML = `<div class="alert alert-warning small py-2"><i class="fa-solid fa-triangle-exclamation me-1"></i>Llene su Correo, CI y Teléfono para pedir el código.</div>`;
+        if (!correo || !codigo_emp || !telefono || !contrasena) {
+            alertContainer.innerHTML = `<div class="alert alert-warning small py-2"><i class="fa-solid fa-triangle-exclamation me-1"></i>Llene todos sus datos antes de solicitar el código.</div>`;
+            return;
+        }
+
+        if (contrasena.length < 6) {
+            alertContainer.innerHTML = `<div class="alert alert-warning small py-2"><i class="fa-solid fa-lock me-1"></i>La contraseña debe tener al menos 6 caracteres.</div>`;
+            return;
+        }
+
+        if (contrasena !== confirmar) {
+            alertContainer.innerHTML = `<div class="alert alert-danger small py-2"><i class="fa-solid fa-circle-xmark me-1"></i>Las contraseñas ingresadas no coinciden.</div>`;
             return;
         }
 
@@ -120,7 +163,7 @@
         }
 
         btn.disabled = true;
-        txtBtn.innerHTML = 'Enviando correo...';
+        txtBtn.innerHTML = 'Enviando código OTP...';
         alertContainer.innerHTML = '';
 
         try {
@@ -142,12 +185,12 @@
             } else {
                 alertContainer.innerHTML = `<div class="alert alert-danger small py-2"><i class="fa-solid fa-circle-xmark me-1"></i>${res.mensaje}</div>`;
                 btn.disabled = false;
-                txtBtn.innerHTML = cantidadIntentos > 0 ? 'Reenviar Código de Verificación' : 'Enviar Código de Verificación';
+                txtBtn.innerHTML = cantidadIntentos > 0 ? 'Reenviar Código OTP' : 'Enviar Código de Verificación';
             }
         } catch (e) {
             alertContainer.innerHTML = `<div class="alert alert-danger small py-2"><i class="fa-solid fa-wifi me-1"></i>Error de conexión al enviar el código.</div>`;
             btn.disabled = false;
-            txtBtn.innerHTML = cantidadIntentos > 0 ? 'Reenviar Código de Verificación' : 'Enviar Código de Verificación';
+            txtBtn.innerHTML = cantidadIntentos > 0 ? 'Reenviar Código OTP' : 'Enviar Código de Verificación';
         }
     }
 
@@ -172,7 +215,7 @@
                 clearInterval(timerInterval);
                 if (cantidadIntentos < 3) {
                     btn.disabled = false;
-                    txtBtn.innerHTML = 'Reenviar Código de Verificación';
+                    txtBtn.innerHTML = 'Reenviar Código OTP';
                 } else {
                     btn.disabled = true;
                     btn.className = "btn btn-secondary w-100 py-2 fw-bold mb-2";
@@ -187,8 +230,16 @@
         const alertContainer = document.getElementById('alertContainer');
         const btn = document.getElementById('btnRegistrar');
 
+        const contrasena = document.getElementById('regContrasena').value;
+        const confirmar = document.getElementById('regConfirmar').value;
+
+        if (contrasena !== confirmar) {
+            alertContainer.innerHTML = `<div class="alert alert-danger small py-2"><i class="fa-solid fa-circle-xmark me-1"></i>Las contraseñas no coinciden.</div>`;
+            return;
+        }
+
         btn.disabled = true;
-        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-2"></i>Verificando...';
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-2"></i>Registrando...';
 
         const datos = {
             nombres: document.getElementById('regNombres').value.trim(),
@@ -196,6 +247,7 @@
             correo: document.getElementById('regCorreo').value.trim(),
             codigo_empleado: document.getElementById('regCodigo').value.trim(),
             telefono: document.getElementById('regTelefono').value.trim(),
+            contrasena: contrasena,
             codigo_otp: document.getElementById('regOtp').value.trim()
         };
 

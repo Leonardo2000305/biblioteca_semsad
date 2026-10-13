@@ -63,8 +63,8 @@
 
                     <div class="row g-2 mb-3">
                         <div class="col-6">
-                            <label class="form-label small fw-bold text-dark">CI / Código</label>
-                            <input type="text" id="regCodigo" class="form-control" placeholder="EST-202409" required>
+                            <label class="form-label small fw-bold text-dark">Carnet de Identidad (CI)</label>
+                            <input type="text" id="regCodigo" class="form-control" placeholder="Ej. 12345678" required>
                         </div>
                         <div class="col-6">
                             <label class="form-label small fw-bold text-dark">Teléfono / Celular</label>
@@ -72,7 +72,6 @@
                         </div>
                     </div>
 
-                    <!-- NUEVOS CAMPOS DE CONTRASEÑA SEGURA -->
                     <div class="row g-2 mb-3">
                         <div class="col-6">
                             <label class="form-label small fw-bold text-dark">Contraseña Secreta</label>
@@ -121,7 +120,7 @@
 <script>
     let cantidadIntentos = 0;
     let timerInterval = null;
-    const tiemposEspera = [60, 300, 600]; // 1 min, 5 min, 10 min
+    const tiemposEspera = [60, 300, 600];
 
     async function solicitarCodigo() {
         const btn = document.getElementById('btnPedirCodigo');
@@ -156,8 +155,8 @@
             alertContainer.innerHTML = `
                 <div class="alert alert-danger small py-3 text-center">
                     <i class="fa-solid fa-triangle-exclamation fa-xl d-block mb-2 text-danger"></i>
-                    <strong>Parece que tenemos un problema enviando correos a tu dirección.</strong><br>
-                    Por favor verifica que tu correo esté bien escrito o intenta más tarde.
+                    <strong>Problema al enviar correo.</strong><br>
+                    Verifique su dirección institucional e intente más tarde.
                 </div>`;
             return;
         }

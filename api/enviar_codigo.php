@@ -27,16 +27,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 
 require_once 'conexion.php';
 
-// =========================================================================
-// CONFIGURACIÓN OFICIAL BREVO API (300 CORREOS GRATIS DIARIOS)
-// =========================================================================
 define('BREVO_API_KEY', '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');
 define('REMITENTE_EMAIL', 'robertleonardoyujra@gmail.com');
 define('REMITENTE_NOMBRE', 'Biblioteca SEMSAD');
 
-/**
- * Función para despachar correos garantizados a cualquier dominio vía Brevo HTTPS API
- */
 function enviarCorreoBrevo($toEmail, $subject, $bodyHtml, &$detallesError = '') {
     $url = 'https://api.brevo.com/v3/smtp/email';
 
@@ -103,7 +97,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     try {
-        // 1. Verificar si el correo ya existe
         $stmtUser = $conexion->prepare("SELECT id_usuario FROM usuario WHERE LOWER(correo) = :correo");
         $stmtUser->execute([':correo' => $correo]);
         if ($stmtUser->fetch()) {
@@ -111,7 +104,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             exit;
         }
 
-        // 2. Verificar que el teléfono no esté duplicado
         $stmtTel = $conexion->prepare("SELECT id_usuario FROM usuario WHERE telefono = :telefono AND telefono != ''");
         $stmtTel->execute([':telefono' => $telefono]);
         if ($stmtTel->fetch()) {
@@ -119,11 +111,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             exit;
         }
 
-        // 3. Generar OTP de 6 dígitos (Válido por 15 min)
         $otp = sprintf("%06d", mt_rand(1, 999999));
         $expiracion = date('Y-m-d H:i:s', time() + (15 * 60));
 
-        // 4. Guardar en Base de Datos
         $stmtDel = $conexion->prepare("DELETE FROM codigo_verificacion WHERE correo = :correo");
         $stmtDel->execute([':correo' => $correo]);
 
@@ -134,7 +124,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ':expiracion' => $expiracion
         ]);
 
-        // 5. Plantilla HTML profesional del mensaje privado
         $asunto = "Código de Verificación - Biblioteca SEMSAD";
         $cuerpoHtml = "
         <div style='font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px; background-color: #ffffff;'>
@@ -149,14 +138,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <p style='color: #64748b; font-size: 13px;'>Este código caducará en 15 minutos. No compartas este código con nadie.</p>
         </div>";
 
-        // 6. Enviar vía Brevo API
         $detallesError = '';
         $exito = enviarCorreoBrevo($correo, $asunto, $cuerpoHtml, $detallesError);
 
         if ($exito) {
             echo json_encode([
                 'status'  => 'success',
-                'mensaje' => '¡Código de verificación enviado! Revisa la bandeja de entrada o Spam de ' . $correo
+                'mensaje' => '¡Código de verificación enviado! Revisa la casilla de correo ' . $correo
             ]);
         } else {
             echo json_encode([

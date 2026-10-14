@@ -44,25 +44,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     try {
-        // 1. Detectar todas las columnas de la tabla usuario
+        // 1. Obtener estructura de columnas reales en MySQL
         $stmtCols = $conexion->query("SHOW COLUMNS FROM usuario");
         $cols = $stmtCols ? $stmtCols->fetchAll(PDO::FETCH_COLUMN) : [];
 
         if (empty($cols)) {
-            echo json_encode(['status' => 'error', 'mensaje' => 'No se pudo acceder a la tabla de usuarios.']);
+            echo json_encode(['status' => 'error', 'mensaje' => 'Error al conectar con la tabla de usuarios.']);
             exit;
         }
 
-        // 2. Construir la consulta WHERE buscando por correo, email, usuario o código
+        // 2. Buscar por correo o campos alternativos
         $whereClauses = [];
-        foreach (['correo', 'email', 'correo_electronico', 'usuario', 'codigo_empleado', 'ci', 'dni', 'codigo'] as $col) {
-            if (in_array($col, $cols)) {
-                $whereClauses[] = "LOWER(TRIM({$col})) = :login";
+        foreach (['correo', 'email', 'correo_electronico', 'usuario', 'codigo_empleado', 'ci', 'dni'] as $c) {
+            if (in_array($c, $cols)) {
+                $whereClauses[] = "LOWER(TRIM({$c})) = :login";
             }
-        }
-
-        if (empty($whereClauses)) {
-            $whereClauses[] = "1=1";
         }
 
         $sql = "SELECT * FROM usuario WHERE (" . implode(' OR ', $whereClauses) . ") LIMIT 1";
@@ -75,94 +71,60 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             exit;
         }
 
-        // 3. Verificación de contraseña multi-algoritmo (BCRYPT, Texto Plano, MD5, SHA1, SHA256)
+        // 3. Verificación de contraseña multi-algoritmo (BCRYPT, Texto Plano, MD5, SHA1)
         $claveValida = false;
-        $columnaContrasenaUsada = null;
+        $colContrasena = null;
+        $posiblesColumnas = ['clave', 'password', 'contrasena', 'contraseña', 'pass', 'codigo_empleado'];
 
-        $posiblesColClave = ['clave', 'password', 'contrasena', 'contraseña', 'pass', 'codigo_empleado', 'ci'];
-        
-        foreach ($posiblesColClave as $col) {
+        foreach ($posiblesColumnas as $col) {
             if (isset($usuario[$col]) && $usuario[$col] !== null && $usuario[$col] !== '') {
                 $dbVal = trim((string)$usuario[$col]);
 
-                // Check A: BCRYPT / Argon2
-                if (password_verify($claveInput, $dbVal)) {
+                if (password_verify($claveInput, $dbVal) || $dbVal === $claveInput || strcasecmp($dbVal, $claveInput) === 0 || strtolower($dbVal) === md5($claveInput) || strtolower($dbVal) === sha1($claveInput)) {
                     $claveValida = true;
-                    $columnaContrasenaUsada = $col;
-                    break;
-                }
-
-                // Check B: Texto plano exacto (sensible e insensible a mayúsculas)
-                if ($dbVal === $claveInput || strcasecmp($dbVal, $claveInput) === 0) {
-                    $claveValida = true;
-                    $columnaContrasenaUsada = $col;
-                    break;
-                }
-
-                // Check C: Hash MD5
-                if (strtolower($dbVal) === md5($claveInput) || strtolower($dbVal) === md5(trim($claveInput))) {
-                    $claveValida = true;
-                    $columnaContrasenaUsada = $col;
-                    break;
-                }
-
-                // Check D: Hash SHA1
-                if (strtolower($dbVal) === sha1($claveInput) || strtolower($dbVal) === sha1(trim($claveInput))) {
-                    $claveValida = true;
-                    $columnaContrasenaUsada = $col;
-                    break;
-                }
-
-                // Check E: Hash SHA256
-                if (strtolower($dbVal) === hash('sha256', $claveInput)) {
-                    $claveValida = true;
-                    $columnaContrasenaUsada = $col;
+                    $colContrasena = $col;
                     break;
                 }
             }
         }
 
         if ($claveValida) {
-            // Si la clave estaba en texto plano o MD5/SHA1, actualizarla a BCRYPT automáticamente
-            if ($columnaContrasenaUsada && !password_verify($claveInput, $usuario[$columnaContrasenaUsada])) {
+            // Actualización transparente a BCRYPT si la contraseña estaba en texto plano o hash antiguo
+            if ($colContrasena && !password_verify($claveInput, $usuario[$colContrasena])) {
                 $colId = in_array('id_usuario', $cols) ? 'id_usuario' : (in_array('id', $cols) ? 'id' : $cols[0]);
                 $nuevoHash = password_hash($claveInput, PASSWORD_BCRYPT);
-                $stmtUpd = $conexion->prepare("UPDATE usuario SET {$columnaContrasenaUsada} = :hash WHERE {$colId} = :id");
+                $stmtUpd = $conexion->prepare("UPDATE usuario SET {$colContrasena} = :hash WHERE {$colId} = :id");
                 $stmtUpd->execute([':hash' => $nuevoHash, ':id' => $usuario[$colId]]);
             }
 
-            // Detectar Nombre y Apellidos
-            $nombres = $usuario['nombres'] ?? $usuario['nombre'] ?? '';
-            $apellidos = $usuario['apellidos'] ?? $usuario['apellido'] ?? '';
-            $nombreCompleto = trim("{$nombres} {$apellidos}");
-
-            // Detectar Rol
+            // Detectar rol
             $rol = 'estudiante';
-            foreach (['rol', 'tipo', 'tipo_usuario', 'nivel', 'cargo'] as $rCol) {
+            foreach (['rol', 'tipo', 'tipo_usuario', 'nivel'] as $rCol) {
                 if (isset($usuario[$rCol]) && !empty($usuario[$rCol])) {
                     $rol = strtolower(trim($usuario[$rCol]));
                     break;
                 }
             }
-            if (strpos($loginInput, 'admin') !== false || strpos(strtolower($nombreCompleto), 'admin') !== false) {
+            if (strpos($loginInput, 'admin') !== false) {
                 $rol = 'admin';
             }
 
-            $idUsuario = $usuario['id_usuario'] ?? $usuario['id'] ?? 1;
+            $nombreUser = trim(($usuario['nombres'] ?? '') . ' ' . ($usuario['apellidos'] ?? ''));
 
-            $_SESSION['id_usuario'] = $idUsuario;
-            $_SESSION['nombre_usuario'] = $nombreCompleto ?: $loginInput;
+            $_SESSION['id_usuario'] = $usuario['id_usuario'] ?? $usuario['id'] ?? 1;
+            $_SESSION['nombre_usuario'] = $nombreUser ?: $loginInput;
             $_SESSION['rol'] = $rol;
 
-            $redirect = ($rol === 'admin' || strpos($rol, 'admin') !== false) ? 'admin/dashboard.html' : 'dashboard.html';
+            // Redirección directa al dashboard real de la raíz
+            $redirect = '../dashboard.html';
 
             echo json_encode([
                 'status'   => 'success',
                 'mensaje'  => '¡Inicio de sesión exitoso!',
                 'redirect' => $redirect,
                 'usuario'  => [
-                    'nombres'   => $nombres,
-                    'apellidos' => $apellidos,
+                    'nombres'   => $usuario['nombres'] ?? '',
+                    'apellidos' => $usuario['apellidos'] ?? '',
                     'rol'       => $rol
                 ]
             ]);

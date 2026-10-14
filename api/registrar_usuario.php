@@ -49,7 +49,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     try {
-        // 1. Validar Código OTP en tabla codigo_verificacion
+        // 1. Validar Código OTP
         $stmtOTP = $conexion->prepare("SELECT id FROM codigo_verificacion WHERE LOWER(correo) = :correo AND codigo = :codigo AND expiracion >= NOW() LIMIT 1");
         $stmtOTP->execute([
             ':correo' => $correo,
@@ -61,21 +61,44 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             exit;
         }
 
-        // 2. Hash seguro de contraseña BCRYPT
+        // 2. Detectar dinámicamente los nombres de columnas
+        $stmtCols = $conexion->query("SHOW COLUMNS FROM usuario");
+        $cols = $stmtCols ? $stmtCols->fetchAll(PDO::FETCH_COLUMN) : [];
+
+        $colClave = 'clave';
+        foreach (['password', 'clave', 'contrasena', 'contraseña', 'pass'] as $posible) {
+            if (in_array($posible, $cols)) {
+                $colClave = $posible;
+                break;
+            }
+        }
+
+        $colCodigo = 'codigo_empleado';
+        foreach (['codigo_empleado', 'ci', 'dni', 'carnet'] as $posible) {
+            if (in_array($posible, $cols)) {
+                $colCodigo = $posible;
+                break;
+            }
+        }
+
+        // 3. Hash BCRYPT de la contraseña
         $hashClave = password_hash($clave, PASSWORD_BCRYPT);
 
-        // 3. Insertar usuario final
-        $stmtIns = $conexion->prepare("INSERT INTO usuario (nombres, apellidos, correo, codigo_empleado, telefono, clave, rol) VALUES (:nombres, :apellidos, :correo, :codigo_empleado, :telefono, :clave, 'estudiante')");
+        // 4. Inserción adaptativa
+        $sql = "INSERT INTO usuario (nombres, apellidos, correo, {$colCodigo}, telefono, {$colClave}, rol) 
+                VALUES (:nombres, :apellidos, :correo, :codigo, :telefono, :clave, 'estudiante')";
+        
+        $stmtIns = $conexion->prepare($sql);
         $stmtIns->execute([
-            ':nombres'         => $nombres,
-            ':apellidos'       => $apellidos,
-            ':correo'          => $correo,
-            ':codigo_empleado' => $codigo_empleado,
-            ':telefono'        => $telefono,
-            ':clave'           => $hashClave
+            ':nombres'   => $nombres,
+            ':apellidos' => $apellidos,
+            ':correo'    => $correo,
+            ':codigo'    => $codigo_empleado,
+            ':telefono'  => $telefono,
+            ':clave'     => $hashClave
         ]);
 
-        // 4. Limpiar el código OTP usado
+        // 5. Borrar el OTP utilizado
         $stmtDel = $conexion->prepare("DELETE FROM codigo_verificacion WHERE LOWER(correo) = :correo");
         $stmtDel->execute([':correo' => $correo]);
 

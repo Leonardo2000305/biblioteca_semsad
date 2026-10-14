@@ -4,7 +4,6 @@
  <meta charset="UTF-8">
  <meta name="viewport" content="width=device-width, initial-scale=1.0">
  <title>Recuperar Contraseña - SEMSAD</title>
- <link rel="stylesheet" href="../css/index.css">
  <style>
     body { 
         font-family: Arial, sans-serif; 
@@ -36,7 +35,7 @@
         margin-bottom: 20px;
         line-height: 1.4;
     }
-    
+
     input { 
         width: 100%; 
         padding: 12px; 
@@ -46,7 +45,7 @@
         box-sizing: border-box;
         font-size: 14px;
     }
-    
+
     button { 
         width: 100%; 
         padding: 12px; 
@@ -69,7 +68,7 @@
         background-color: #93c5fd;
         cursor: not-allowed;
     }
-    
+
     .enlaces { 
         margin-top: 22px; 
         display: flex; 
@@ -88,7 +87,7 @@
         display: inline-block;
         user-select: none;
     }
-    
+
     .bubble-link:hover, 
     .bubble-link:active, 
     .bubble-link:focus { 
@@ -98,7 +97,6 @@
         outline: none;
     }
 
-    /* Mensajes de respuesta */
     #recuperar-mensaje {
         margin-top: 15px;
         font-size: 14px;
@@ -125,14 +123,14 @@
     <div class="contenedor">
         <h2>Recuperar Contraseña</h2>
         <p class="descripcion">Ingresa tu correo institucional o código para verificar tu cuenta.</p>
-        
+
         <form id="form-recuperar">
             <input type="text" placeholder="Correo electrónico o código" id="correo_recuperar" required>
             <button type="submit" id="btn-enviar">Enviar Instrucciones</button>
         </form>
-        
+
         <div id="recuperar-mensaje"></div>
-        
+
         <div class="enlaces">
             <a href="index.html" class="bubble-link">← Volver al Inicio de Sesión</a>
         </div> 
@@ -142,7 +140,7 @@
  <script>
     document.getElementById('form-recuperar').addEventListener('submit', async function(e) {
         e.preventDefault();
-        
+
         const correoInput = document.getElementById('correo_recuperar').value.trim();
         const btn = document.getElementById('btn-enviar');
         const mensajeDiv = document.getElementById('recuperar-mensaje');

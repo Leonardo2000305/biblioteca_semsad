@@ -44,7 +44,44 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     try {
-        $stmt = $conexion->prepare("SELECT id_usuario, nombres, apellidos, correo, clave, rol FROM usuario WHERE LOWER(correo) = :correo LIMIT 1");
+        // Detectar dinámicamente los nombres reales de las columnas en la tabla 'usuario'
+        $stmtCols = $conexion->query("SHOW COLUMNS FROM usuario");
+        $cols = $stmtCols ? $stmtCols->fetchAll(PDO::FETCH_COLUMN) : [];
+
+        // Columna de Contraseña
+        $colClave = 'clave';
+        foreach (['password', 'clave', 'contrasena', 'contraseña', 'pass'] as $posible) {
+            if (in_array($posible, $cols)) {
+                $colClave = $posible;
+                break;
+            }
+        }
+
+        // Columna de ID
+        $colId = 'id_usuario';
+        foreach (['id_usuario', 'id', 'id_user'] as $posible) {
+            if (in_array($posible, $cols)) {
+                $colId = $posible;
+                break;
+            }
+        }
+
+        // Columna de Correo
+        $colCorreo = 'correo';
+        foreach (['correo', 'email', 'correo_electronico'] as $posible) {
+            if (in_array($posible, $cols)) {
+                $colCorreo = $posible;
+                break;
+            }
+        }
+
+        // Consulta Adaptativa Automática
+        $sql = "SELECT {$colId} AS id_usuario, nombres, apellidos, {$colCorreo} AS correo, {$colClave} AS clave, rol 
+                FROM usuario 
+                WHERE LOWER({$colCorreo}) = :correo 
+                LIMIT 1";
+
+        $stmt = $conexion->prepare($sql);
         $stmt->execute([':correo' => $correo]);
         $usuario = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -53,13 +90,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             exit;
         }
 
+        // Verificar contraseña (soporta BCRYPT y texto plano)
         $claveValida = false;
         if (password_verify($clave, $usuario['clave'])) {
             $claveValida = true;
         } else if ($usuario['clave'] === $clave) {
             $claveValida = true;
+            // Actualizar contraseña encriptada BCRYPT
             $nuevoHash = password_hash($clave, PASSWORD_BCRYPT);
-            $stmtUpd = $conexion->prepare("UPDATE usuario SET clave = :hash WHERE id_usuario = :id");
+            $stmtUpd = $conexion->prepare("UPDATE usuario SET {$colClave} = :hash WHERE {$colId} = :id");
             $stmtUpd->execute([':hash' => $nuevoHash, ':id' => $usuario['id_usuario']]);
         }
 

@@ -1,6 +1,7 @@
 <?php
 error_reporting(0);
 ini_set('display_errors', 0);
+date_default_timezone_set('America/La_Paz');
 
 if (session_status() === PHP_SESSION_NONE) {
     @ini_set('session.cookie_samesite', 'None');
@@ -15,7 +16,7 @@ if (isset($_SERVER['HTTP_ORIGIN'])) {
 }
 
 header("Access-Control-Allow-Credentials: true");
-header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
+header("Access-Control-Allow-Methods: POST, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type");
 header('Content-Type: application/json; charset=utf-8');
 
@@ -24,28 +25,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit;
 }
 
-try {
-    require_once 'conexion.php';
-} catch (Throwable $e) {
-    echo json_encode(['status' => 'error', 'mensaje' => 'Error de conexión a la base de datos.']);
-    exit;
-}
-
-// Inicializar contador de intentos en la sesión si no existe
-if (!isset($_SESSION['intentos_login'])) {
-    $_SESSION['intentos_login'] = 0;
-}
+require_once 'conexion.php';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // Si ya alcanzó o superó los 5 intentos
-    if ($_SESSION['intentos_login'] >= 5) {
-        echo json_encode([
-            'status'  => 'error',
-            'mensaje' => 'Has alcanzado el límite de 5 intentos fallidos. Por favor, recupera tu contraseña o intenta más tarde.'
-        ]);
-        exit;
-    }
-
     $rawInput = file_get_contents('php://input');
     $input = json_decode($rawInput, true);
 
@@ -53,67 +35,60 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $input = $_POST;
     }
 
-    $correo     = trim($input['correo'] ?? $input['email'] ?? $input['usuario'] ?? '');
-    $contrasena = trim($input['contrasena'] ?? $input['password'] ?? $input['clave'] ?? $input['codigo_empleado'] ?? '');
+    $correo = isset($input['correo']) ? trim(strtolower($input['correo'])) : '';
+    $clave  = isset($input['clave']) ? trim($input['clave']) : '';
 
-    if (empty($correo) || empty($contrasena)) {
-        echo json_encode(['status' => 'error', 'mensaje' => 'Por favor, ingrese su correo y contraseña.']);
+    if (empty($correo) || empty($clave)) {
+        echo json_encode(['status' => 'error', 'mensaje' => 'Ingrese su correo y contraseña.']);
         exit;
     }
 
     try {
-        $stmt = $conexion->prepare("SELECT * FROM usuario WHERE LOWER(correo) = LOWER(:correo)");
+        // Buscar usuario por correo
+        $stmt = $conexion->prepare("SELECT id_usuario, nombres, apellidos, correo, clave, rol FROM usuario WHERE LOWER(correo) = :correo LIMIT 1");
         $stmt->execute([':correo' => $correo]);
         $usuario = $stmt->fetch(PDO::FETCH_ASSOC);
 
-        $esValido = false;
-
-        if ($usuario && isset($usuario['estado']) && $usuario['estado'] === 'Activo') {
-            $dbPass   = $usuario['contrasena'] ?? '';
-            $dbCodigo = $usuario['codigo_empleado'] ?? '';
-
-            if ($contrasena === $dbPass || $contrasena === $dbCodigo) {
-                $esValido = true;
-            } else if (!empty($dbPass) && password_verify($contrasena, $dbPass)) {
-                $esValido = true;
-            }
+        if (!$usuario) {
+            echo json_encode(['status' => 'error', 'mensaje' => 'El correo o la contraseña son incorrectos.']);
+            exit;
         }
 
-        if ($esValido) {
-            // ÉXITO: Reiniciar el contador de intentos
-            $_SESSION['intentos_login'] = 0;
-            $_SESSION['id_usuario']     = $usuario['id_usuario'];
-            $_SESSION['nombres']        = $usuario['nombres'];
-            $_SESSION['correo']         = $usuario['correo'];
-            $_SESSION['id_rol']         = $usuario['id_rol'];
+        // Verificar contraseña (soporta BCRYPT o texto plano antiguo)
+        $claveValida = false;
+        if (password_verify($clave, $usuario['clave'])) {
+            $claveValida = true;
+        } else if ($usuario['clave'] === $clave) {
+            // Si la clave estaba en texto plano, la actualiza a BCRYPT automáticamente
+            $claveValida = true;
+            $nuevoHash = password_hash($clave, PASSWORD_BCRYPT);
+            $stmtUpd = $conexion->prepare("UPDATE usuario SET clave = :hash WHERE id_usuario = :id");
+            $stmtUpd->execute([':hash' => $nuevoHash, ':id' => $usuario['id_usuario']]);
+        }
 
-            $redirect = ($usuario['id_rol'] == 1 || $usuario['id_rol'] == 2) ? '../principal/admin.html' : '../principal/index.html';
+        if ($claveValida) {
+            $_SESSION['id_usuario'] = $usuario['id_usuario'];
+            $_SESSION['nombre_usuario'] = $usuario['nombres'] . ' ' . $usuario['apellidos'];
+            $_SESSION['rol'] = $usuario['rol'];
+
+            $redirect = ($usuario['rol'] === 'admin') ? 'admin/dashboard.html' : 'dashboard.html';
 
             echo json_encode([
                 'status'   => 'success',
                 'mensaje'  => '¡Inicio de sesión exitoso!',
-                'redirect' => $redirect
+                'redirect' => $redirect,
+                'usuario'  => [
+                    'nombres'   => $usuario['nombres'],
+                    'apellidos' => $usuario['apellidos'],
+                    'rol'       => $usuario['rol']
+                ]
             ]);
         } else {
-            // ERROR: Incrementar contador de fallos
-            $_SESSION['intentos_login']++;
-            $intentosRestantes = 5 - $_SESSION['intentos_login'];
-
-            if ($intentosRestantes > 0) {
-                $textoIntentos = ($intentosRestantes === 1) ? '1 intento más.' : "$intentosRestantes intentos más.";
-                $mensajeError  = "El usuario o la contraseña es incorrecta. Tienes $textoIntentos";
-            } else {
-                $mensajeError = "Has alcanzado el límite de 5 intentos fallidos. Por favor, recupera tu contraseña.";
-            }
-
-            echo json_encode([
-                'status'  => 'error',
-                'mensaje' => $mensajeError
-            ]);
+            echo json_encode(['status' => 'error', 'mensaje' => 'El correo o la contraseña son incorrectos.']);
         }
 
-    } catch (Throwable $e) {
-        echo json_encode(['status' => 'error', 'mensaje' => 'Error interno al procesar el ingreso.']);
+    } catch (PDOException $e) {
+        echo json_encode(['status' => 'error', 'mensaje' => 'Error de base de datos: ' . $e->getMessage()]);
     }
 } else {
     echo json_encode(['status' => 'error', 'mensaje' => 'Método no permitido.']);

@@ -222,10 +222,20 @@ async function realizarLogin(event) {
             body: JSON.stringify({ correo, clave })
         });
 
-        const data = await resp.json();
+        const textoRespuesta = await resp.text();
+        let data;
+        
+        try {
+            data = JSON.parse(textoRespuesta);
+        } catch (e) {
+            mostrarAlerta('Error en respuesta del servidor (HTTP ' + resp.status + ').', 'error');
+            btn.disabled = false;
+            btn.innerHTML = 'Acceder';
+            return;
+        }
 
         if (data.status === 'success') {
-            mostrarAlerta('¡Inicio de sesión exitoso!', 'success');
+            mostrarAlerta('¡Inicio de sesión exitoso! Redirigiendo...', 'success');
             setTimeout(() => {
                 window.location.href = data.redirect || 'dashboard.html';
             }, 1000);
@@ -235,7 +245,7 @@ async function realizarLogin(event) {
             btn.innerHTML = 'Acceder';
         }
     } catch (err) {
-        mostrarAlerta('Error de conexión con el servidor.', 'error');
+        mostrarAlerta('Error de red al conectar con el servidor: ' + err.message, 'error');
         btn.disabled = false;
         btn.innerHTML = 'Acceder';
     }

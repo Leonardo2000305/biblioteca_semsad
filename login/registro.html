@@ -120,6 +120,11 @@
             border: none;
             width: 100%;
             font-size: 15px;
+            transition: all 0.2s ease;
+        }
+
+        .btn-success-custom:hover {
+            background-color: #15803d;
         }
 
         .link-login {
@@ -218,7 +223,7 @@
                 Ingresa el Código de 6 Dígitos recibido en tu Correo:
             </label>
             <input type="text" id="codigo_otp" class="form-control text-center fs-3 fw-bold mb-3" placeholder="000000" maxlength="6" autocomplete="off">
-            <button type="button" onclick="completarRegistro()" class="btn btn-success-custom">
+            <button id="btnConfirmarRegistro" type="button" onclick="completarRegistro()" class="btn btn-success-custom">
                 <i class="fas fa-check-circle me-2"></i> Confirmar y Crear Cuenta
             </button>
         </div>
@@ -230,9 +235,15 @@
         </a>
     </div>
 </div>
+
 <script src="../js/config.js"></script>
 
 <script>
+function getApiBase() {
+    const raw = window.SEMSAD_API || 'https://semsad.alwaysdata.net/api';
+    return raw.replace(/\/+$/, '');
+}
+
 function toggleVisibilidad(idInput, boton) {
     const input = document.getElementById(idInput);
     const icono = boton.querySelector('i');
@@ -256,13 +267,15 @@ function mostrarAlerta(mensaje, tipo) {
 }
 
 async function enviarCodigoOTP() {
+    const nombres = document.getElementById('nombres').value.trim();
+    const apellidos = document.getElementById('apellidos').value.trim();
     const correo = document.getElementById('correo').value.trim();
     const codigo_empleado = document.getElementById('codigo_empleado').value.trim();
     const telefono = document.getElementById('telefono').value.trim();
     const clave = document.getElementById('clave').value;
     const confirmar_clave = document.getElementById('confirmar_clave').value;
 
-    if (!correo || !codigo_empleado || !telefono || !clave || !confirmar_clave) {
+    if (!nombres || !apellidos || !correo || !codigo_empleado || !telefono || !clave || !confirmar_clave) {
         mostrarAlerta('Por favor, completa todos los campos del formulario.', 'error');
         return;
     }
@@ -276,26 +289,49 @@ async function enviarCodigoOTP() {
     btn.disabled = true;
     btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i> Enviando código al correo...';
 
-    try {
-        const resp = await fetch(window.SEMSAD_API + '/enviar_codigo.php', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ correo, codigo_empleado, telefono })
-        });
+    const apiBase = getApiBase();
+    const rutas = [`${apiBase}/enviar_codigo.php`, `${apiBase}/solicitar_codigo.php`];
+    let respuestaValida = false;
 
-        const data = await resp.json();
+    for (const url of rutas) {
+        try {
+            const resp = await fetch(url, {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json' 
+                },
+                body: JSON.stringify({ correo, codigo_empleado, telefono, nombres, apellidos })
+            });
 
-        if (data.status === 'success') {
-            mostrarAlerta(data.mensaje, 'success');
-            document.getElementById('seccion_otp').classList.remove('d-none');
-            btn.classList.add('d-none');
-        } else {
-            mostrarAlerta(data.mensaje, 'error');
-            btn.disabled = false;
-            btn.innerHTML = '<i class="fas fa-paper-plane me-2"></i> Enviar Código de Verificación';
+            const texto = await resp.text();
+            let data;
+
+            try {
+                data = JSON.parse(texto);
+            } catch (e) {
+                continue;
+            }
+
+            respuestaValida = true;
+
+            if (data.status === 'success') {
+                mostrarAlerta(data.mensaje || 'Código de verificación enviado.', 'success');
+                document.getElementById('seccion_otp').classList.remove('d-none');
+                btn.classList.add('d-none');
+            } else {
+                mostrarAlerta(data.mensaje || 'No se pudo enviar el código.', 'error');
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-paper-plane me-2"></i> Enviar Código de Verificación';
+            }
+            break;
+        } catch (err) {
+            console.error('Error al conectar con:', url, err);
         }
-    } catch (err) {
-        mostrarAlerta('Error de conexión con el servidor.', 'error');
+    }
+
+    if (!respuestaValida) {
+        mostrarAlerta('Error de conexión con el servidor al solicitar el código.', 'error');
         btn.disabled = false;
         btn.innerHTML = '<i class="fas fa-paper-plane me-2"></i> Enviar Código de Verificación';
     }
@@ -305,11 +341,13 @@ async function completarRegistro() {
     const payload = {
         nombres: document.getElementById('nombres').value.trim(),
         apellidos: document.getElementById('apellidos').value.trim(),
+        nombre: `${document.getElementById('nombres').value.trim()} ${document.getElementById('apellidos').value.trim()}`,
         correo: document.getElementById('correo').value.trim(),
         codigo_empleado: document.getElementById('codigo_empleado').value.trim(),
         telefono: document.getElementById('telefono').value.trim(),
         clave: document.getElementById('clave').value,
-        codigo_otp: document.getElementById('codigo_otp').value.trim()
+        codigo_otp: document.getElementById('codigo_otp').value.trim(),
+        rol: 'estudiante'
     };
 
     if (!payload.codigo_otp) {
@@ -317,23 +355,54 @@ async function completarRegistro() {
         return;
     }
 
-    try {
-        const resp = await fetch(window.SEMSAD_API + '/registrar_usuario.php', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        });
+    const btnConfirmar = document.getElementById('btnConfirmarRegistro');
+    btnConfirmar.disabled = true;
+    btnConfirmar.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i> Verificando código y creando cuenta...';
 
-        const data = await resp.json();
+    const apiBase = getApiBase();
+    const rutas = [`${apiBase}/registrar_usuario.php`, `${apiBase}/registro.php`];
+    let respuestaValida = false;
 
-        if (data.status === 'success') {
-            mostrarAlerta('¡Cuenta creada con éxito! Redirigiendo al login...', 'success');
-            setTimeout(() => { window.location.href = 'index.html'; }, 1800);
-        } else {
-            mostrarAlerta(data.mensaje, 'error');
+    for (const url of rutas) {
+        try {
+            const resp = await fetch(url, {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json' 
+                },
+                body: JSON.stringify(payload)
+            });
+
+            const texto = await resp.text();
+            let data;
+
+            try {
+                data = JSON.parse(texto);
+            } catch (e) {
+                continue;
+            }
+
+            respuestaValida = true;
+
+            if (data.status === 'success') {
+                mostrarAlerta('¡Cuenta creada con éxito! Redirigiendo al inicio de sesión...', 'success');
+                setTimeout(() => { window.location.href = 'index.html'; }, 1800);
+            } else {
+                mostrarAlerta(data.mensaje || 'No se pudo crear la cuenta.', 'error');
+                btnConfirmar.disabled = false;
+                btnConfirmar.innerHTML = '<i class="fas fa-check-circle me-2"></i> Confirmar y Crear Cuenta';
+            }
+            break;
+        } catch (err) {
+            console.error('Error al registrar usuario:', err);
         }
-    } catch (err) {
-        mostrarAlerta('Error de servidor al registrar.', 'error');
+    }
+
+    if (!respuestaValida) {
+        mostrarAlerta('Error del servidor al procesar el registro.', 'error');
+        btnConfirmar.disabled = false;
+        btnConfirmar.innerHTML = '<i class="fas fa-check-circle me-2"></i> Confirmar y Crear Cuenta';
     }
 }
 </script>

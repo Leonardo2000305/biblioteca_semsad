@@ -20,12 +20,12 @@ header("Access-Control-Allow-Methods: POST, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type");
 header('Content-Type: application/json; charset=utf-8');
 
-require_once 'conexion.php';
-
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(200);
     exit;
 }
+
+require_once 'conexion.php';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $rawInput = file_get_contents('php://input');
@@ -35,75 +35,59 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $input = $_POST;
     }
 
-    $nombres    = isset($input['nombres']) ? trim($input['nombres']) : '';
-    $apellidos  = isset($input['apellidos']) ? trim($input['apellidos']) : '';
-    $correo     = isset($input['correo']) ? trim(strtolower($input['correo'])) : '';
-    $codigo     = isset($input['codigo_empleado']) ? trim($input['codigo_empleado']) : '';
-    $telefono   = isset($input['telefono']) ? trim($input['telefono']) : '';
-    $contrasena = isset($input['contrasena']) ? $input['contrasena'] : '';
-    $otp        = isset($input['codigo_otp']) ? trim($input['codigo_otp']) : '';
+    $nombres        = isset($input['nombres']) ? trim($input['nombres']) : '';
+    $apellidos      = isset($input['apellidos']) ? trim($input['apellidos']) : '';
+    $correo         = isset($input['correo']) ? trim(strtolower($input['correo'])) : '';
+    $codigo_empleado= isset($input['codigo_empleado']) ? trim($input['codigo_empleado']) : '';
+    $telefono       = isset($input['telefono']) ? trim($input['telefono']) : '';
+    $clave          = isset($input['clave']) ? trim($input['clave']) : '';
+    $codigo_otp     = isset($input['codigo_otp']) ? trim($input['codigo_otp']) : '';
 
-    if (empty($nombres) || empty($apellidos) || empty($correo) || empty($codigo) || empty($telefono) || empty($contrasena) || empty($otp)) {
-        echo json_encode(['status' => 'error', 'mensaje' => 'Todos los campos y el código OTP son obligatorios.']);
-        exit;
-    }
-
-    if (!filter_var($correo, FILTER_VALIDATE_EMAIL)) {
-        echo json_encode(['status' => 'error', 'mensaje' => 'Ingrese un correo electrónico válido.']);
-        exit;
-    }
-
-    if (strlen($contrasena) < 6) {
-        echo json_encode(['status' => 'error', 'mensaje' => 'La contraseña debe tener al menos 6 caracteres.']);
+    if (empty($nombres) || empty($apellidos) || empty($correo) || empty($codigo_empleado) || empty($clave) || empty($codigo_otp)) {
+        echo json_encode(['status' => 'error', 'mensaje' => 'Todos los datos requeridos deben ser completados.']);
         exit;
     }
 
     try {
-        // 1. Obtener el código de verificación para este correo
-        $stmtOtp = $conexion->prepare("SELECT id, expiracion FROM codigo_verificacion WHERE correo = :correo AND codigo = :codigo");
-        $stmtOtp->execute([':correo' => $correo, ':codigo' => $otp]);
-        $rowOtp = $stmtOtp->fetch(PDO::FETCH_ASSOC);
-
-        if (!$rowOtp) {
-            echo json_encode(['status' => 'error', 'mensaje' => 'El código de verificación ingresado es incorrecto.']);
-            exit;
-        }
-
-        // 2. Comprobar tiempo de expiración en PHP (previene errores de zona horaria en la BD)
-        $tiempoExpiracion = strtotime($rowOtp['expiracion']);
-        if ($tiempoExpiracion < time()) {
-            echo json_encode(['status' => 'error', 'mensaje' => 'El código de verificación ha expirado. Por favor, solicita uno nuevo.']);
-            exit;
-        }
-
-        // 3. Encriptar contraseña con BCRYPT
-        $hash_contrasena = password_hash($contrasena, PASSWORD_BCRYPT);
-
-        // 4. Insertar usuario en MySQL
-        $sql = "INSERT INTO usuario (nombres, apellidos, correo, contrasena, id_rol, codigo_empleado, telefono, nivel_permiso, estado) 
-                VALUES (:nombres, :apellidos, :correo, :contrasena, 4, :codigo, :telefono, 1, 'Activo')";
-        
-        $stmt = $conexion->prepare($sql);
-        $stmt->execute([
-            ':nombres'    => $nombres,
-            ':apellidos'  => $apellidos,
-            ':correo'     => $correo,
-            ':contrasena' => $hash_contrasena,
-            ':codigo'     => $codigo,
-            ':telefono'   => $telefono
+        // 1. Validar Código OTP en tabla codigo_verificacion
+        $stmtOTP = $conexion->prepare("SELECT id FROM codigo_verificacion WHERE LOWER(correo) = :correo AND codigo = :codigo AND expiracion >= NOW() LIMIT 1");
+        $stmtOTP->execute([
+            ':correo' => $correo,
+            ':codigo' => $codigo_otp
         ]);
 
-        // 5. Borrar código OTP consumido
-        $stmtDel = $conexion->prepare("DELETE FROM codigo_verificacion WHERE correo = :correo");
+        if (!$stmtOTP->fetch()) {
+            echo json_encode(['status' => 'error', 'mensaje' => 'El código de verificación es incorrecto o ha expirado.']);
+            exit;
+        }
+
+        // 2. Hash seguro de contraseña BCRYPT
+        $hashClave = password_hash($clave, PASSWORD_BCRYPT);
+
+        // 3. Insertar usuario final
+        $stmtIns = $conexion->prepare("INSERT INTO usuario (nombres, apellidos, correo, codigo_empleado, telefono, clave, rol) VALUES (:nombres, :apellidos, :correo, :codigo_empleado, :telefono, :clave, 'estudiante')");
+        $stmtIns->execute([
+            ':nombres'         => $nombres,
+            ':apellidos'       => $apellidos,
+            ':correo'          => $correo,
+            ':codigo_empleado' => $codigo_empleado,
+            ':telefono'        => $telefono,
+            ':clave'           => $hashClave
+        ]);
+
+        // 4. Limpiar el código OTP usado
+        $stmtDel = $conexion->prepare("DELETE FROM codigo_verificacion WHERE LOWER(correo) = :correo");
         $stmtDel->execute([':correo' => $correo]);
 
         echo json_encode([
             'status'  => 'success',
-            'mensaje' => '¡Cuenta creada con éxito! Redirigiendo al inicio de sesión...'
+            'mensaje' => '¡Registro exitoso! Tu cuenta ha sido creada.'
         ]);
 
     } catch (PDOException $e) {
-        echo json_encode(['status' => 'error', 'mensaje' => 'Error al registrar usuario: ' . $e->getMessage()]);
+        echo json_encode(['status' => 'error', 'mensaje' => 'Error de servidor: ' . $e->getMessage()]);
     }
+} else {
+    echo json_encode(['status' => 'error', 'mensaje' => 'Método no permitido.']);
 }
 ?>

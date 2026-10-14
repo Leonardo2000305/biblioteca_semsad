@@ -67,7 +67,6 @@
             color: #64748b;
         }
 
-        /* Inputs optimizados para pulsación táctil en móvil */
         .form-control {
             border-color: #cbd5e1;
             padding: 11px 12px;
@@ -155,16 +154,15 @@
 
     <div id="alerta_mensaje" class="alert d-none" role="alert"></div>
 
-    <form id="formRegistro" onsubmit="return false;">
-        <!-- Se apilan en móvil (col-12) y se ponen en 2 columnas en pantallas medianas (col-sm-6) -->
+    <form id="formRegistro" autocomplete="off" onsubmit="return false;">
         <div class="row g-2 mb-2">
             <div class="col-12 col-sm-6 mb-2 mb-sm-0">
                 <label class="form-label">Nombres</label>
-                <input type="text" id="nombres" class="form-control" placeholder="Robert" required>
+                <input type="text" id="nombres" class="form-control" placeholder="Ej. Juan Carlos" autocomplete="off" required>
             </div>
             <div class="col-12 col-sm-6">
                 <label class="form-label">Apellidos</label>
-                <input type="text" id="apellidos" class="form-control" placeholder="Yujra" required>
+                <input type="text" id="apellidos" class="form-control" placeholder="Ej. Pérez Gómez" autocomplete="off" required>
             </div>
         </div>
 
@@ -172,18 +170,18 @@
             <label class="form-label">Correo Electrónico</label>
             <div class="input-group">
                 <span class="input-group-text"><i class="fas fa-envelope"></i></span>
-                <input type="email" id="correo" class="form-control" placeholder="ejemplo@gmail.com" required>
+                <input type="email" id="correo" class="form-control" placeholder="tu_correo@gmail.com" autocomplete="off" required>
             </div>
         </div>
 
         <div class="row g-2 mb-2">
             <div class="col-12 col-sm-6 mb-2 mb-sm-0">
                 <label class="form-label">Carnet de Identidad (CI)</label>
-                <input type="text" id="codigo_empleado" class="form-control" placeholder="11305021" required>
+                <input type="text" id="codigo_empleado" class="form-control" placeholder="Ej. 12345678" autocomplete="off" required>
             </div>
             <div class="col-12 col-sm-6">
                 <label class="form-label">Teléfono / Celular</label>
-                <input type="text" id="telefono" class="form-control" placeholder="73174547" required>
+                <input type="text" id="telefono" class="form-control" placeholder="Ej. 71234567" autocomplete="off" required>
             </div>
         </div>
 
@@ -192,7 +190,7 @@
                 <label class="form-label">Contraseña Secreta</label>
                 <div class="input-group">
                     <span class="input-group-text"><i class="fas fa-lock"></i></span>
-                    <input type="password" id="clave" class="form-control" placeholder="••••••••" required>
+                    <input type="password" id="clave" class="form-control" placeholder="••••••••" autocomplete="new-password" required>
                     <button class="btn btn-toggle-eye" type="button" onclick="toggleVisibilidad('clave', this)">
                         <i class="fas fa-eye"></i>
                     </button>
@@ -203,7 +201,7 @@
                 <label class="form-label">Confirmar Clave</label>
                 <div class="input-group">
                     <span class="input-group-text"><i class="fas fa-key"></i></span>
-                    <input type="password" id="confirmar_clave" class="form-control" placeholder="••••••••" required>
+                    <input type="password" id="confirmar_clave" class="form-control" placeholder="••••••••" autocomplete="new-password" required>
                     <button class="btn btn-toggle-eye" type="button" onclick="toggleVisibilidad('confirmar_clave', this)">
                         <i class="fas fa-eye"></i>
                     </button>
@@ -219,7 +217,7 @@
             <label class="form-label text-center d-block fw-bold text-primary mb-2">
                 Ingresa el Código de 6 Dígitos recibido en tu Correo:
             </label>
-            <input type="text" id="codigo_otp" class="form-control text-center fs-3 fw-bold mb-3" placeholder="000000" maxlength="6">
+            <input type="text" id="codigo_otp" class="form-control text-center fs-3 fw-bold mb-3" placeholder="000000" maxlength="6" autocomplete="off">
             <button type="button" onclick="completarRegistro()" class="btn btn-success-custom">
                 <i class="fas fa-check-circle me-2"></i> Confirmar y Crear Cuenta
             </button>
@@ -278,7 +276,7 @@ async function enviarCodigoOTP() {
     btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i> Enviando código al correo...';
 
     try {
-        const resp = await fetch('api/enviar_codigo.php', {
+        const resp = await fetch('../api/enviar_codigo.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ correo, codigo_empleado, telefono })
@@ -319,7 +317,7 @@ async function completarRegistro() {
     }
 
     try {
-        const resp = await fetch('api/registrar_usuario.php', {
+        const resp = await fetch('../api/registrar_usuario.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)

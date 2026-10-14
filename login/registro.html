@@ -3,93 +3,343 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Biblioteca SEMSAD - Registro</title>
-    <!-- Bootstrap 5 CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- FontAwesome para Íconos y Ojitos -->
+    <title>Biblioteca SEMSAD - Registro de Estudiante</title>
+    <!-- Font Awesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Bootstrap 5 CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    
     <style>
         body {
             background-color: #0f172a;
-            color: #1e293b;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 20px;
+            padding: 20px 0;
         }
+
         .card-registro {
-            background-color: #ffffff;
-            border-radius: 16px;
-            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3);
-            max-width: 520px;
+            background: #ffffff;
+            border-radius: 20px;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.3);
             width: 100%;
-            padding: 32px 28px;
+            max-width: 520px;
+            padding: 35px 30px;
         }
-        .avatar-icon {
-            width: 72px;
-            height: 72px;
+
+        .icon-header {
+            width: 70px;
+            height: 70px;
             background-color: #2563eb;
-            color: white;
+            color: #ffffff;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
             font-size: 32px;
-            margin: 0 auto 16px auto;
+            margin: 0 auto 15px auto;
+            box-shadow: 0 10px 15px -3px rgba(37, 99, 235, 0.3);
         }
+
         .form-label {
-            font-weight: 700;
-            font-size: 0.85rem;
-            color: #0f172a;
-            margin-bottom: 6px;
+            font-weight: 600;
+            color: #1e293b;
+            font-size: 13.5px;
+            margin-bottom: 5px;
         }
+
         .input-group-text {
             background-color: #f8fafc;
             border-color: #cbd5e1;
             color: #64748b;
         }
+
         .form-control {
             border-color: #cbd5e1;
             padding: 10px 12px;
-            font-size: 0.95rem;
+            font-size: 14px;
         }
+
         .form-control:focus {
             border-color: #2563eb;
             box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
         }
-        .btn-eye {
-            background-color: #f8fafc;
-            border: 1px solid #cbd5e1;
+
+        .btn-toggle-eye {
+            border-color: #cbd5e1;
+            background-color: #ffffff;
             color: #64748b;
-            border-left: none;
         }
-        .btn-eye:hover {
-            background-color: #e2e8f0;
+
+        .btn-toggle-eye:hover {
+            background-color: #f1f5f9;
             color: #1e293b;
         }
-        .btn-enviar {
-            border: 2px solid #2563eb;
+
+        .btn-primary-custom {
+            background-color: #ffffff;
             color: #2563eb;
-            background-color: transparent;
+            border: 2px solid #2563eb;
             font-weight: 700;
-            border-radius: 8px;
-            padding: 10px;
+            padding: 12px;
+            border-radius: 10px;
             transition: all 0.2s ease;
         }
-        .btn-enviar:hover {
+
+        .btn-primary-custom:hover {
             background-color: #2563eb;
             color: #ffffff;
         }
-        .btn-confirmar {
+
+        .btn-success-custom {
             background-color: #16a34a;
             color: #ffffff;
             font-weight: 700;
-            border-radius: 8px;
-            padding: 10px;
+            padding: 12px;
+            border-radius: 10px;
             border: none;
+            width: 100%;
         }
-        .btn-confirmar:hover {
+
+        .btn-success-custom:hover {
             background-color: #15803d;
         }
+
+        .link-login {
+            color: #64748b;
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .link-login:hover {
+            color: #2563eb;
+        }
+
+        #seccion_otp {
+            background-color: #f8fafc;
+            border: 2px dashed #2563eb;
+            border-radius: 12px;
+            padding: 20px;
+            margin-top: 15px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="card-registro">
+    <!-- Icono Superior -->
+    <div class="icon-header">
+        <i class="fas fa-user-shield"></i>
+    </div>
+
+    <!-- Título y Subtítulo -->
+    <h3 class="text-center fw-bold text-dark mb-1">Crear Cuenta Estudiante</h3>
+    <p class="text-center text-muted small mb-4">Biblioteca SEMSAD</p>
+
+    <!-- Área de Alertas y Mensajes de Estado -->
+    <div id="alerta_mensaje" class="alert d-none" role="alert"></div>
+
+    <form id="formRegistro" onsubmit="return false;">
+        <!-- Fila 1: Nombres y Apellidos -->
+        <div class="row mb-3">
+            <div class="col-6">
+                <label class="form-label">Nombres</label>
+                <input type="text" id="nombres" class="form-control" placeholder="Robert" required>
+            </div>
+            <div class="col-6">
+                <label class="form-label">Apellidos</label>
+                <input type="text" id="apellidos" class="form-control" placeholder="Yujra" required>
+            </div>
+        </div>
+
+        <!-- Fila 2: Correo Electrónico -->
+        <div class="mb-3">
+            <label class="form-label">Correo Electrónico</label>
+            <div class="input-group">
+                <span class="input-group-text"><i class="fas fa-envelope"></i></span>
+                <input type="email" id="correo" class="form-control" placeholder="leogutisp@gmail.com" required>
+            </div>
+        </div>
+
+        <!-- Fila 3: CI y Teléfono -->
+        <div class="row mb-3">
+            <div class="col-6">
+                <label class="form-label">Carnet de Identidad (CI)</label>
+                <input type="text" id="codigo_empleado" class="form-control" placeholder="11305021" required>
+            </div>
+            <div class="col-6">
+                <label class="form-label">Teléfono / Celular</label>
+                <input type="text" id="telefono" class="form-control" placeholder="73174547" required>
+            </div>
+        </div>
+
+        <!-- Fila 4: Contraseñas con Botones de Ojito -->
+        <div class="row mb-4">
+            <!-- Contraseña Secreta -->
+            <div class="col-6">
+                <label class="form-label">Contraseña Secreta</label>
+                <div class="input-group">
+                    <span class="input-group-text"><i class="fas fa-lock"></i></span>
+                    <input type="password" id="clave" class="form-control" placeholder="••••••••" required>
+                    <button class="btn btn-toggle-eye" type="button" onclick="toggleVisibilidad('clave', this)">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Confirmar Clave -->
+            <div class="col-6">
+                <label class="form-label">Confirmar Clave</label>
+                <div class="input-group">
+                    <span class="input-group-text"><i class="fas fa-key"></i></span>
+                    <input type="password" id="confirmar_clave" class="form-control" placeholder="••••••••" required>
+                    <button class="btn btn-toggle-eye" type="button" onclick="toggleVisibilidad('confirmar_clave', this)">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Botón Paso 1: Enviar Código -->
+        <button id="btnEnviarCodigo" type="button" onclick="enviarCodigoOTP()" class="btn btn-primary-custom w-100">
+            <i class="fas fa-paper-plane me-2"></i> Enviar Código de Verificación
+        </button>
+
+        <!-- Bloque Paso 2: Casilla OTP (Aparece al enviar el código) -->
+        <div id="seccion_otp" class="d-none">
+            <label class="form-label text-center d-block fw-bold text-primary mb-2">
+                Ingresa el Código de 6 Dígitos recibido en tu Correo:
+            </label>
+            <input type="text" id="codigo_otp" class="form-control text-center fs-4 fw-bold mb-3" placeholder="000000" maxlength="6">
+            <button type="button" onclick="completarRegistro()" class="btn btn-success-custom">
+                <i class="fas fa-check-circle me-2"></i> Confirmar y Crear Cuenta
+            </button>
+        </div>
+    </form>
+
+    <!-- Volver al Login -->
+    <div class="text-center mt-4">
+        <a href="index.html" class="link-login">
+            <i class="fas fa-arrow-left me-1"></i> Volver al Inicio de Sesión
+        </a>
+    </div>
+</div>
+
+<!-- Lógica JavaScript Incorporada -->
+<script>
+// 1. Función para mostrar / ocultar las contraseñas con el ojito
+function toggleVisibilidad(idInput, boton) {
+    const input = document.getElementById(idInput);
+    const icono = boton.querySelector('i');
+
+    if (input.type === 'password') {
+        input.type = 'text';
+        icono.classList.remove('fa-eye');
+        icono.classList.add('fa-eye-slash');
+    } else {
+        input.type = 'password';
+        icono.classList.remove('fa-eye-slash');
+        icono.classList.add('fa-eye');
+    }
+}
+
+// Helper para mostrar mensajes de alerta
+function mostrarAlerta(mensaje, tipo) {
+    const alerta = document.getElementById('alerta_mensaje');
+    alerta.className = `alert alert-${tipo === 'success' ? 'success' : 'danger'} alert-dismissible fade show`;
+    alerta.innerHTML = `<i class="fas fa-${tipo === 'success' ? 'check-circle' : 'exclamation-circle'} me-2"></i> ${mensaje}`;
+    alerta.classList.remove('d-none');
+}
+
+// 2. Función para Enviar el Código OTP por Brevo
+async function enviarCodigoOTP() {
+    const correo = document.getElementById('correo').value.trim();
+    const codigo_empleado = document.getElementById('codigo_empleado').value.trim();
+    const telefono = document.getElementById('telefono').value.trim();
+    const clave = document.getElementById('clave').value;
+    const confirmar_clave = document.getElementById('confirmar_clave').value;
+
+    if (!correo || !codigo_empleado || !telefono || !clave || !confirmar_clave) {
+        mostrarAlerta('Por favor, completa todos los campos del formulario.', 'error');
+        return;
+    }
+
+    if (clave !== confirmar_clave) {
+        mostrarAlerta('Las contraseñas no coinciden. Por favor verifica.', 'error');
+        return;
+    }
+
+    const btn = document.getElementById('btnEnviarCodigo');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i> Enviando código al correo...';
+
+    try {
+        const resp = await fetch('api/enviar_codigo.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ correo, codigo_empleado, telefono })
+        });
+
+        const data = await resp.json();
+
+        if (data.status === 'success') {
+            mostrarAlerta(data.mensaje, 'success');
+            document.getElementById('seccion_otp').classList.remove('d-none');
+            btn.classList.add('d-none'); // Ocultar botón de envío
+        } else {
+            mostrarAlerta(data.mensaje, 'error');
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-paper-plane me-2"></i> Enviar Código de Verificación';
+        }
+    } catch (err) {
+        mostrarAlerta('Error de conexión con el servidor: ' + err.message, 'error');
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-paper-plane me-2"></i> Enviar Código de Verificación';
+    }
+}
+
+// 3. Función para Confirmar el Código y Finalizar Registro
+async function completarRegistro() {
+    const payload = {
+        nombres: document.getElementById('nombres').value.trim(),
+        apellidos: document.getElementById('apellidos').value.trim(),
+        correo: document.getElementById('correo').value.trim(),
+        codigo_empleado: document.getElementById('codigo_empleado').value.trim(),
+        telefono: document.getElementById('telefono').value.trim(),
+        clave: document.getElementById('clave').value,
+        codigo_otp: document.getElementById('codigo_otp').value.trim()
+    };
+
+    if (!payload.codigo_otp) {
+        mostrarAlerta('Ingresa el código de 6 dígitos enviado a tu correo.', 'error');
+        return;
+    }
+
+    try {
+        const resp = await fetch('api/registrar_usuario.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        const data = await resp.json();
+
+        if (data.status === 'success') {
+            mostrarAlerta('¡Cuenta creada con éxito! Redirigiendo al login...', 'success');
+            setTimeout(() => {
+                window.location.href = 'index.html';
+            }, 2000);
+        } else {
+            mostrarAlerta(data.mensaje, 'error');
+        }
+    } catch (err) {
+        mostrarAlerta('Error de servidor al registrar: ' + err.message, 'error');
+    }
+}
+</script>
+
+</body>
+</html>

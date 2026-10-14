@@ -3,275 +3,93 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Biblioteca SEMSAD - Registro de Estudiante</title>
+    <title>Biblioteca SEMSAD - Registro</title>
     <!-- Bootstrap 5 CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- FontAwesome Iconos -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- FontAwesome para Íconos y Ojitos -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        body { 
-            background-color: #0f172a; 
-            min-height: 100vh; 
-            display: flex; 
-            align-items: center; 
-            justify-content: center; 
-            padding: 30px 0; 
-            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+        body {
+            background-color: #0f172a;
+            color: #1e293b;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
         }
-        .card-register { 
-            width: 100%; 
-            max-width: 520px; 
-            border-radius: 16px; 
+        .card-registro {
+            background-color: #ffffff;
+            border-radius: 16px;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3);
+            max-width: 520px;
+            width: 100%;
+            padding: 32px 28px;
         }
-    </style>
-</head>
-<body>
-
-<div class="container">
-    <div class="row justify-content-center">
-        <div class="col-md-8 col-lg-6">
-            <div class="card card-register shadow-lg border-0 bg-white p-4">
-                <div class="text-center mb-3">
-                    <div class="bg-primary text-white rounded-circle d-inline-flex align-items-center justify-content-center mb-2" style="width: 60px; height: 60px;">
-                        <i class="fa-solid fa-user-shield fa-xl"></i>
-                    </div>
-                    <h4 class="fw-bold text-dark mb-0">Crear Cuenta Estudiante</h4>
-                    <small class="text-muted">Biblioteca SEMSAD</small>
-                </div>
-
-                <div id="alertContainer"></div>
-
-                <form id="formRegistro">
-                    <div class="row g-2 mb-3">
-                        <div class="col-6">
-                            <label class="form-label small fw-bold text-dark">Nombres</label>
-                            <input type="text" id="regNombres" class="form-control" placeholder="Ej. Juan" required>
-                        </div>
-                        <div class="col-6">
-                            <label class="form-label small fw-bold text-dark">Apellidos</label>
-                            <input type="text" id="regApellidos" class="form-control" placeholder="Ej. Pérez" required>
-                        </div>
-                    </div>
-
-                    <div class="mb-3">
-                        <label class="form-label small fw-bold text-dark">Correo Electrónico</label>
-                        <div class="input-group">
-                            <span class="input-group-text bg-light text-muted"><i class="fa-solid fa-envelope"></i></span>
-                            <input type="email" id="regCorreo" class="form-control" placeholder="ejemplo@gmail.com" required>
-                        </div>
-                    </div>
-
-                    <div class="row g-2 mb-3">
-                        <div class="col-6">
-                            <label class="form-label small fw-bold text-dark">Carnet de Identidad (CI)</label>
-                            <input type="text" id="regCodigo" class="form-control" placeholder="Ej. 12345678" required>
-                        </div>
-                        <div class="col-6">
-                            <label class="form-label small fw-bold text-dark">Teléfono / Celular</label>
-                            <input type="tel" id="regTelefono" class="form-control" placeholder="70012345" required>
-                        </div>
-                    </div>
-
-                    <div class="row g-2 mb-3">
-                        <div class="col-6">
-                            <label class="form-label small fw-bold text-dark">Contraseña Secreta</label>
-                            <div class="input-group">
-                                <span class="input-group-text bg-light text-muted"><i class="fa-solid fa-lock"></i></span>
-                                <input type="password" id="regContrasena" class="form-control" placeholder="Mínimo 6 caracteres" minlength="6" required>
-                            </div>
-                        </div>
-                        <div class="col-6">
-                            <label class="form-label small fw-bold text-dark">Confirmar Clave</label>
-                            <div class="input-group">
-                                <span class="input-group-text bg-light text-muted"><i class="fa-solid fa-key"></i></span>
-                                <input type="password" id="regConfirmar" class="form-control" placeholder="Repite contraseña" minlength="6" required>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="mb-3 d-none" id="divOtp">
-                        <label class="form-label small fw-bold text-primary"><i class="fa-solid fa-shield-halved me-1"></i>Código de Verificación OTP (Correo)</label>
-                        <div class="input-group">
-                            <span class="input-group-text bg-primary text-white"><i class="fa-solid fa-hashtag"></i></span>
-                            <input type="text" id="regOtp" class="form-control border-primary fw-bold text-center fs-5" placeholder="6 dígitos" maxlength="6">
-                        </div>
-                    </div>
-
-                    <button type="button" class="btn btn-outline-primary w-100 py-2 fw-bold mb-2" id="btnPedirCodigo" onclick="solicitarCodigo()">
-                        <i class="fa-solid fa-paper-plane me-2"></i><span id="txtBtnCodigo">Enviar Código de Verificación</span>
-                    </button>
-
-                    <button type="submit" class="btn btn-success w-100 py-2 fw-bold mb-3 d-none" id="btnRegistrar">
-                        <i class="fa-solid fa-check-circle me-2"></i>Confirmar y Crear Cuenta
-                    </button>
-
-                    <div class="text-center">
-                        <a href="index.html" class="text-decoration-none small text-secondary">
-                            <i class="fa-solid fa-arrow-left me-1"></i> Volver al Inicio de Sesión
-                        </a>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
-</div>
-
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-<script>
-    let cantidadIntentos = 0;
-    let timerInterval = null;
-    const tiemposEspera = [60, 300, 600];
-
-    async function solicitarCodigo() {
-        const btn = document.getElementById('btnPedirCodigo');
-        const txtBtn = document.getElementById('txtBtnCodigo');
-        const alertContainer = document.getElementById('alertContainer');
-
-        const correo = document.getElementById('regCorreo').value.trim();
-        const codigo_emp = document.getElementById('regCodigo').value.trim();
-        const telefono = document.getElementById('regTelefono').value.trim();
-        const contrasena = document.getElementById('regContrasena').value;
-        const confirmar = document.getElementById('regConfirmar').value;
-
-        if (!correo || !codigo_emp || !telefono || !contrasena) {
-            alertContainer.innerHTML = `<div class="alert alert-warning small py-2"><i class="fa-solid fa-triangle-exclamation me-1"></i>Llene todos sus datos antes de solicitar el código.</div>`;
-            return;
+        .avatar-icon {
+            width: 72px;
+            height: 72px;
+            background-color: #2563eb;
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 32px;
+            margin: 0 auto 16px auto;
         }
-
-        if (contrasena.length < 6) {
-            alertContainer.innerHTML = `<div class="alert alert-warning small py-2"><i class="fa-solid fa-lock me-1"></i>La contraseña debe tener al menos 6 caracteres.</div>`;
-            return;
+        .form-label {
+            font-weight: 700;
+            font-size: 0.85rem;
+            color: #0f172a;
+            margin-bottom: 6px;
         }
-
-        if (contrasena !== confirmar) {
-            alertContainer.innerHTML = `<div class="alert alert-danger small py-2"><i class="fa-solid fa-circle-xmark me-1"></i>Las contraseñas ingresadas no coinciden.</div>`;
-            return;
+        .input-group-text {
+            background-color: #f8fafc;
+            border-color: #cbd5e1;
+            color: #64748b;
         }
-
-        if (cantidadIntentos >= 3) {
-            btn.disabled = true;
-            btn.className = "btn btn-secondary w-100 py-2 fw-bold mb-2";
-            txtBtn.innerHTML = "Límite de solicitudes alcanzado";
-            alertContainer.innerHTML = `
-                <div class="alert alert-danger small py-3 text-center">
-                    <i class="fa-solid fa-triangle-exclamation fa-xl d-block mb-2 text-danger"></i>
-                    <strong>Límite de envíos excedido.</strong><br>
-                    Intente más tarde o verifique que su correo esté bien escrito.
-                </div>`;
-            return;
+        .form-control {
+            border-color: #cbd5e1;
+            padding: 10px 12px;
+            font-size: 0.95rem;
         }
-
-        btn.disabled = true;
-        txtBtn.innerHTML = 'Enviando código OTP...';
-        alertContainer.innerHTML = '';
-
-        try {
-            const resp = await fetch('../api/enviar_codigo.php', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ correo, codigo_empleado: codigo_emp, telefono })
-            });
-            const res = await resp.json();
-
-            if (res.status === 'success') {
-                alertContainer.innerHTML = `<div class="alert alert-success small py-2"><i class="fa-solid fa-envelope-circle-check me-1"></i>${res.mensaje}</div>`;
-                document.getElementById('divOtp').classList.remove('d-none');
-                document.getElementById('btnRegistrar').classList.remove('d-none');
-
-                const segundosEspera = tiemposEspera[cantidadIntentos];
-                cantidadIntentos++;
-                iniciarCronometro(segundosEspera);
-            } else {
-                alertContainer.innerHTML = `<div class="alert alert-danger small py-2"><i class="fa-solid fa-circle-xmark me-1"></i>${res.mensaje}</div>`;
-                btn.disabled = false;
-                txtBtn.innerHTML = cantidadIntentos > 0 ? 'Reenviar Código OTP' : 'Enviar Código de Verificación';
-            }
-        } catch (e) {
-            alertContainer.innerHTML = `<div class="alert alert-danger small py-2"><i class="fa-solid fa-wifi me-1"></i>Error de conexión al enviar el código.</div>`;
-            btn.disabled = false;
-            txtBtn.innerHTML = cantidadIntentos > 0 ? 'Reenviar Código OTP' : 'Enviar Código de Verificación';
+        .form-control:focus {
+            border-color: #2563eb;
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
         }
-    }
-
-    function iniciarCronometro(segundosTotales) {
-        const btn = document.getElementById('btnPedirCodigo');
-        const txtBtn = document.getElementById('txtBtnCodigo');
-        btn.disabled = true;
-        let tiempoRestante = segundosTotales;
-
-        if (timerInterval) clearInterval(timerInterval);
-
-        timerInterval = setInterval(() => {
-            const minutos = Math.floor(tiempoRestante / 60);
-            const segundos = tiempoRestante % 60;
-            const formatoMin = minutos < 10 ? '0' + minutos : minutos;
-            const formatoSeg = segundos < 10 ? '0' + segundos : segundos;
-
-            txtBtn.innerHTML = `Reenviar código en (${formatoMin}:${formatoSeg})`;
-            tiempoRestante--;
-
-            if (tiempoRestante < 0) {
-                clearInterval(timerInterval);
-                if (cantidadIntentos < 3) {
-                    btn.disabled = false;
-                    txtBtn.innerHTML = 'Reenviar Código OTP';
-                } else {
-                    btn.disabled = true;
-                    btn.className = "btn btn-secondary w-100 py-2 fw-bold mb-2";
-                    txtBtn.innerHTML = "Límite de solicitudes alcanzado";
-                }
-            }
-        }, 1000);
-    }
-
-    document.getElementById('formRegistro').addEventListener('submit', async function(e) {
-        e.preventDefault();
-        const alertContainer = document.getElementById('alertContainer');
-        const btn = document.getElementById('btnRegistrar');
-
-        const contrasena = document.getElementById('regContrasena').value;
-        const confirmar = document.getElementById('regConfirmar').value;
-
-        if (contrasena !== confirmar) {
-            alertContainer.innerHTML = `<div class="alert alert-danger small py-2"><i class="fa-solid fa-circle-xmark me-1"></i>Las contraseñas no coinciden.</div>`;
-            return;
+        .btn-eye {
+            background-color: #f8fafc;
+            border: 1px solid #cbd5e1;
+            color: #64748b;
+            border-left: none;
         }
-
-        btn.disabled = true;
-        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-2"></i>Registrando...';
-
-        const datos = {
-            nombres: document.getElementById('regNombres').value.trim(),
-            apellidos: document.getElementById('regApellidos').value.trim(),
-            correo: document.getElementById('regCorreo').value.trim(),
-            codigo_empleado: document.getElementById('regCodigo').value.trim(),
-            telefono: document.getElementById('regTelefono').value.trim(),
-            contrasena: contrasena,
-            codigo_otp: document.getElementById('regOtp').value.trim()
-        };
-
-        try {
-            const response = await fetch('../api/registrar_usuario.php', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(datos)
-            });
-            const res = await response.json();
-
-            if (res.status === 'success') {
-                alertContainer.innerHTML = `<div class="alert alert-success small py-2"><i class="fa-solid fa-circle-check me-1"></i>${res.mensaje}</div>`;
-                setTimeout(() => { window.location.href = 'index.html'; }, 2000);
-            } else {
-                alertContainer.innerHTML = `<div class="alert alert-danger small py-2"><i class="fa-solid fa-circle-xmark me-1"></i>${res.mensaje}</div>`;
-                btn.disabled = false;
-                btn.innerHTML = '<i class="fa-solid fa-check-circle me-2"></i>Confirmar y Crear Cuenta';
-            }
-        } catch (err) {
-            alertContainer.innerHTML = `<div class="alert alert-danger small py-2"><i class="fa-solid fa-wifi me-1"></i>Error de conexión con el servidor.</div>`;
-            btn.disabled = false;
-            btn.innerHTML = '<i class="fa-solid fa-check-circle me-2"></i>Confirmar y Crear Cuenta';
+        .btn-eye:hover {
+            background-color: #e2e8f0;
+            color: #1e293b;
         }
-    });
-</script>
-</body>
-</html>
+        .btn-enviar {
+            border: 2px solid #2563eb;
+            color: #2563eb;
+            background-color: transparent;
+            font-weight: 700;
+            border-radius: 8px;
+            padding: 10px;
+            transition: all 0.2s ease;
+        }
+        .btn-enviar:hover {
+            background-color: #2563eb;
+            color: #ffffff;
+        }
+        .btn-confirmar {
+            background-color: #16a34a;
+            color: #ffffff;
+            font-weight: 700;
+            border-radius: 8px;
+            padding: 10px;
+            border: none;
+        }
+        .btn-confirmar:hover {
+            background-color: #15803d;
+        }

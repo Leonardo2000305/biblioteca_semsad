@@ -61,44 +61,43 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             exit;
         }
 
-        // 2. Detectar dinámicamente los nombres de columnas
+        // 2. Mapear columnas dinámicamente según la estructura real de la base de datos
         $stmtCols = $conexion->query("SHOW COLUMNS FROM usuario");
         $cols = $stmtCols ? $stmtCols->fetchAll(PDO::FETCH_COLUMN) : [];
 
+        $colCorreo = 'correo';
+        foreach (['correo', 'email', 'correo_electronico'] as $p) { if (in_array($p, $cols)) { $colCorreo = $p; break; } }
+
         $colClave = 'clave';
-        foreach (['password', 'clave', 'contrasena', 'contraseña', 'pass'] as $posible) {
-            if (in_array($posible, $cols)) {
-                $colClave = $posible;
-                break;
-            }
-        }
+        foreach (['clave', 'password', 'contrasena', 'contraseña', 'pass'] as $p) { if (in_array($p, $cols)) { $colClave = $p; break; } }
 
-        $colCodigo = 'codigo_empleado';
-        foreach (['codigo_empleado', 'ci', 'dni', 'carnet'] as $posible) {
-            if (in_array($posible, $cols)) {
-                $colCodigo = $posible;
-                break;
-            }
-        }
+        $colCodigo = null;
+        foreach (['codigo_empleado', 'ci', 'dni', 'carnet', 'codigo'] as $p) { if (in_array($p, $cols)) { $colCodigo = $p; break; } }
 
-        // 3. Hash BCRYPT de la contraseña
-        $hashClave = password_hash($clave, PASSWORD_BCRYPT);
+        $colRol = null;
+        foreach (['rol', 'tipo', 'tipo_usuario', 'nivel', 'cargo'] as $p) { if (in_array($p, $cols)) { $colRol = $p; break; } }
 
-        // 4. Inserción adaptativa
-        $sql = "INSERT INTO usuario (nombres, apellidos, correo, {$colCodigo}, telefono, {$colClave}, rol) 
-                VALUES (:nombres, :apellidos, :correo, :codigo, :telefono, :clave, 'estudiante')";
-        
+        $colTel = null;
+        foreach (['telefono', 'celular', 'phone'] as $p) { if (in_array($p, $cols)) { $colTel = $p; break; } }
+
+        // Construir consulta INSERT dinámica
+        $insertFields = [$colCorreo, $colClave];
+        $insertValues = [':correo' => $correo, ':clave' => password_hash($clave, PASSWORD_BCRYPT)];
+
+        if (in_array('nombres', $cols)) { $insertFields[] = 'nombres'; $insertValues[':nombres'] = $nombres; }
+        if (in_array('apellidos', $cols)) { $insertFields[] = 'apellidos'; $insertValues[':apellidos'] = $apellidos; }
+        if ($colCodigo) { $insertFields[] = $colCodigo; $insertValues[':codigo'] = $codigo_empleado; }
+        if ($colTel) { $insertFields[] = $colTel; $insertValues[':telefono'] = $telefono; }
+        if ($colRol) { $insertFields[] = $colRol; $insertValues[':rol'] = 'estudiante'; }
+
+        $fieldStr = implode(', ', $insertFields);
+        $paramStr = implode(', ', array_keys($insertValues));
+
+        $sql = "INSERT INTO usuario ({$fieldStr}) VALUES ({$paramStr})";
         $stmtIns = $conexion->prepare($sql);
-        $stmtIns->execute([
-            ':nombres'   => $nombres,
-            ':apellidos' => $apellidos,
-            ':correo'    => $correo,
-            ':codigo'    => $codigo_empleado,
-            ':telefono'  => $telefono,
-            ':clave'     => $hashClave
-        ]);
+        $stmtIns->execute($insertValues);
 
-        // 5. Borrar el OTP utilizado
+        // 3. Limpiar código OTP
         $stmtDel = $conexion->prepare("DELETE FROM codigo_verificacion WHERE LOWER(correo) = :correo");
         $stmtDel->execute([':correo' => $correo]);
 

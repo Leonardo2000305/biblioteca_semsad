@@ -44,7 +44,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     try {
-        // Buscar usuario por correo
         $stmt = $conexion->prepare("SELECT id_usuario, nombres, apellidos, correo, clave, rol FROM usuario WHERE LOWER(correo) = :correo LIMIT 1");
         $stmt->execute([':correo' => $correo]);
         $usuario = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -54,12 +53,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             exit;
         }
 
-        // Verificar contraseña (soporta BCRYPT o texto plano antiguo)
         $claveValida = false;
         if (password_verify($clave, $usuario['clave'])) {
             $claveValida = true;
         } else if ($usuario['clave'] === $clave) {
-            // Si la clave estaba en texto plano, la actualiza a BCRYPT automáticamente
             $claveValida = true;
             $nuevoHash = password_hash($clave, PASSWORD_BCRYPT);
             $stmtUpd = $conexion->prepare("UPDATE usuario SET clave = :hash WHERE id_usuario = :id");

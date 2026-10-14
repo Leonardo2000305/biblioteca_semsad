@@ -117,26 +117,24 @@
             background-color: #0052cc;
         }
 
-        .link-item {
+        /* Enlaces Azules Interactivos */
+        .link-blue {
             color: #0066ff;
             text-decoration: none;
             font-size: 14px;
             font-weight: 600;
+            transition: color 0.2s ease;
         }
 
-        .link-item:hover {
+        .link-blue:hover {
+            color: #0044cc;
             text-decoration: underline;
         }
 
-        .text-muted-link {
-            color: #475569;
+        .text-muted-info {
+            color: #64748b;
             font-size: 14px;
             font-weight: 500;
-            text-decoration: none;
-        }
-
-        .text-muted-link:hover {
-            color: #0066ff;
         }
     </style>
 </head>
@@ -147,13 +145,13 @@
 
     <div id="alerta_mensaje" class="alert d-none mb-3" role="alert"></div>
 
-    <form id="formLogin" onsubmit="realizarLogin(event);">
+    <form id="formLogin" autocomplete="off" onsubmit="realizarLogin(event);">
         <div class="mb-3">
-            <input type="email" id="correo" class="form-control" placeholder="Correo institucional" required>
+            <input type="email" id="correo" class="form-control" placeholder="Correo institucional" autocomplete="off" required>
         </div>
 
         <div class="mb-4 input-group-password">
-            <input type="password" id="clave" class="form-control" placeholder="Contraseña" required>
+            <input type="password" id="clave" class="form-control" placeholder="Contraseña" autocomplete="current-password" required>
             <button class="btn-toggle-eye" type="button" onclick="toggleVisibilidad('clave', this)">
                 <i class="fas fa-eye"></i>
             </button>
@@ -166,13 +164,13 @@
 
     <div class="text-center mt-4">
         <div class="mb-2">
-            <a href="recuperar.html" class="text-muted-link">
+            <a href="recuperar.html" class="link-blue">
                 🔑 ¿Olvidaste tu contraseña?
             </a>
         </div>
         <div>
-            <span class="text-muted-link">📝 ¿No tienes cuenta? </span>
-            <a href="registro.html" class="link-item">Regístrate</a>
+            <span class="text-muted-info">📝 ¿No tienes cuenta? </span>
+            <a href="registro.html" class="link-blue">Regístrate</a>
         </div>
     </div>
 </div>
@@ -216,7 +214,7 @@ async function realizarLogin(event) {
     btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i> Verificando...';
 
     try {
-        const resp = await fetch('api/login.php', {
+        const resp = await fetch('../api/login.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ correo, clave })
@@ -228,7 +226,7 @@ async function realizarLogin(event) {
         try {
             data = JSON.parse(textoRespuesta);
         } catch (e) {
-            mostrarAlerta('Error en respuesta del servidor (HTTP ' + resp.status + ').', 'error');
+            mostrarAlerta('Error en la respuesta del servidor.', 'error');
             btn.disabled = false;
             btn.innerHTML = 'Acceder';
             return;
@@ -237,7 +235,7 @@ async function realizarLogin(event) {
         if (data.status === 'success') {
             mostrarAlerta('¡Inicio de sesión exitoso! Redirigiendo...', 'success');
             setTimeout(() => {
-                window.location.href = data.redirect || 'dashboard.html';
+                window.location.href = data.redirect || '../dashboard.html';
             }, 1000);
         } else {
             mostrarAlerta(data.mensaje || 'Credenciales incorrectas.', 'error');
@@ -245,7 +243,7 @@ async function realizarLogin(event) {
             btn.innerHTML = 'Acceder';
         }
     } catch (err) {
-        mostrarAlerta('Error de red al conectar con el servidor: ' + err.message, 'error');
+        mostrarAlerta('Error de red al conectar con el servidor.', 'error');
         btn.disabled = false;
         btn.innerHTML = 'Acceder';
     }

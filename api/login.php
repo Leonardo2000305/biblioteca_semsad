@@ -35,59 +35,39 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $input = $_POST;
     }
 
-    $correo = isset($input['correo']) ? trim(strtolower($input['correo'])) : '';
-    $clave  = isset($input['clave']) ? trim($input['clave']) : '';
+    $loginInput = isset($input['correo']) ? trim(strtolower($input['correo'])) : '';
+    $claveInput = isset($input['clave']) ? trim($input['clave']) : '';
 
-    if (empty($correo) || empty($clave)) {
+    if (empty($loginInput) || empty($claveInput)) {
         echo json_encode(['status' => 'error', 'mensaje' => 'Ingrese su correo y contraseña.']);
         exit;
     }
 
     try {
-        // Detectar columnas reales existentes en la tabla usuario
+        // 1. Detectar todas las columnas de la tabla usuario
         $stmtCols = $conexion->query("SHOW COLUMNS FROM usuario");
         $cols = $stmtCols ? $stmtCols->fetchAll(PDO::FETCH_COLUMN) : [];
 
-        // Columna de correo
-        $colCorreo = 'correo';
-        foreach (['correo', 'email', 'correo_electronico', 'usuario'] as $pos) {
-            if (in_array($pos, $cols)) { $colCorreo = $pos; break; }
+        if (empty($cols)) {
+            echo json_encode(['status' => 'error', 'mensaje' => 'No se pudo acceder a la tabla de usuarios.']);
+            exit;
         }
 
-        // Columna de contraseña
-        $colClave = 'clave';
-        foreach (['clave', 'password', 'contrasena', 'contraseña', 'pass'] as $pos) {
-            if (in_array($pos, $cols)) { $colClave = $pos; break; }
+        // 2. Construir la consulta WHERE buscando por correo, email, usuario o código
+        $whereClauses = [];
+        foreach (['correo', 'email', 'correo_electronico', 'usuario', 'codigo_empleado', 'ci', 'dni', 'codigo'] as $col) {
+            if (in_array($col, $cols)) {
+                $whereClauses[] = "LOWER(TRIM({$col})) = :login";
+            }
         }
 
-        // Columna de ID
-        $colId = 'id_usuario';
-        foreach (['id_usuario', 'id', 'id_user'] as $pos) {
-            if (in_array($pos, $cols)) { $colId = $pos; break; }
+        if (empty($whereClauses)) {
+            $whereClauses[] = "1=1";
         }
 
-        // Columna de Rol (opcional)
-        $colRol = null;
-        foreach (['rol', 'tipo', 'tipo_usuario', 'nivel', 'cargo', 'id_rol'] as $pos) {
-            if (in_array($pos, $cols)) { $colRol = $pos; break; }
-        }
-
-        // Construcción dinámica de los campos a consultar
-        $fields = [
-            "{$colId} AS id_usuario",
-            "{$colCorreo} AS correo",
-            "{$colClave} AS clave"
-        ];
-        $fields[] = in_array('nombres', $cols) ? 'nombres' : "'' AS nombres";
-        $fields[] = in_array('apellidos', $cols) ? 'apellidos' : "'' AS apellidos";
-        
-        if ($colRol) {
-            $fields[] = "{$colRol} AS rol";
-        }
-
-        $sql = "SELECT " . implode(', ', $fields) . " FROM usuario WHERE LOWER({$colCorreo}) = :correo LIMIT 1";
+        $sql = "SELECT * FROM usuario WHERE (" . implode(' OR ', $whereClauses) . ") LIMIT 1";
         $stmt = $conexion->prepare($sql);
-        $stmt->execute([':correo' => $correo]);
+        $stmt->execute([':login' => $loginInput]);
         $usuario = $stmt->fetch(PDO::FETCH_ASSOC);
 
         if (!$usuario) {
@@ -95,28 +75,83 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             exit;
         }
 
-        // Determinar rol seguro
-        $rol = 'estudiante';
-        if (isset($usuario['rol']) && !empty($usuario['rol'])) {
-            $rol = strtolower($usuario['rol']);
-        } else if (strpos($correo, 'admin') !== false) {
-            $rol = 'admin';
-        }
-
-        // Verificar contraseña (BCRYPT o texto plano)
+        // 3. Verificación de contraseña multi-algoritmo (BCRYPT, Texto Plano, MD5, SHA1, SHA256)
         $claveValida = false;
-        if (password_verify($clave, $usuario['clave'])) {
-            $claveValida = true;
-        } else if ($usuario['clave'] === $clave) {
-            $claveValida = true;
-            $nuevoHash = password_hash($clave, PASSWORD_BCRYPT);
-            $stmtUpd = $conexion->prepare("UPDATE usuario SET {$colClave} = :hash WHERE {$colId} = :id");
-            $stmtUpd->execute([':hash' => $nuevoHash, ':id' => $usuario['id_usuario']]);
+        $columnaContrasenaUsada = null;
+
+        $posiblesColClave = ['clave', 'password', 'contrasena', 'contraseña', 'pass', 'codigo_empleado', 'ci'];
+        
+        foreach ($posiblesColClave as $col) {
+            if (isset($usuario[$col]) && $usuario[$col] !== null && $usuario[$col] !== '') {
+                $dbVal = trim((string)$usuario[$col]);
+
+                // Check A: BCRYPT / Argon2
+                if (password_verify($claveInput, $dbVal)) {
+                    $claveValida = true;
+                    $columnaContrasenaUsada = $col;
+                    break;
+                }
+
+                // Check B: Texto plano exacto (sensible e insensible a mayúsculas)
+                if ($dbVal === $claveInput || strcasecmp($dbVal, $claveInput) === 0) {
+                    $claveValida = true;
+                    $columnaContrasenaUsada = $col;
+                    break;
+                }
+
+                // Check C: Hash MD5
+                if (strtolower($dbVal) === md5($claveInput) || strtolower($dbVal) === md5(trim($claveInput))) {
+                    $claveValida = true;
+                    $columnaContrasenaUsada = $col;
+                    break;
+                }
+
+                // Check D: Hash SHA1
+                if (strtolower($dbVal) === sha1($claveInput) || strtolower($dbVal) === sha1(trim($claveInput))) {
+                    $claveValida = true;
+                    $columnaContrasenaUsada = $col;
+                    break;
+                }
+
+                // Check E: Hash SHA256
+                if (strtolower($dbVal) === hash('sha256', $claveInput)) {
+                    $claveValida = true;
+                    $columnaContrasenaUsada = $col;
+                    break;
+                }
+            }
         }
 
         if ($claveValida) {
-            $_SESSION['id_usuario'] = $usuario['id_usuario'];
-            $_SESSION['nombre_usuario'] = trim(($usuario['nombres'] ?? '') . ' ' . ($usuario['apellidos'] ?? ''));
+            // Si la clave estaba en texto plano o MD5/SHA1, actualizarla a BCRYPT automáticamente
+            if ($columnaContrasenaUsada && !password_verify($claveInput, $usuario[$columnaContrasenaUsada])) {
+                $colId = in_array('id_usuario', $cols) ? 'id_usuario' : (in_array('id', $cols) ? 'id' : $cols[0]);
+                $nuevoHash = password_hash($claveInput, PASSWORD_BCRYPT);
+                $stmtUpd = $conexion->prepare("UPDATE usuario SET {$columnaContrasenaUsada} = :hash WHERE {$colId} = :id");
+                $stmtUpd->execute([':hash' => $nuevoHash, ':id' => $usuario[$colId]]);
+            }
+
+            // Detectar Nombre y Apellidos
+            $nombres = $usuario['nombres'] ?? $usuario['nombre'] ?? '';
+            $apellidos = $usuario['apellidos'] ?? $usuario['apellido'] ?? '';
+            $nombreCompleto = trim("{$nombres} {$apellidos}");
+
+            // Detectar Rol
+            $rol = 'estudiante';
+            foreach (['rol', 'tipo', 'tipo_usuario', 'nivel', 'cargo'] as $rCol) {
+                if (isset($usuario[$rCol]) && !empty($usuario[$rCol])) {
+                    $rol = strtolower(trim($usuario[$rCol]));
+                    break;
+                }
+            }
+            if (strpos($loginInput, 'admin') !== false || strpos(strtolower($nombreCompleto), 'admin') !== false) {
+                $rol = 'admin';
+            }
+
+            $idUsuario = $usuario['id_usuario'] ?? $usuario['id'] ?? 1;
+
+            $_SESSION['id_usuario'] = $idUsuario;
+            $_SESSION['nombre_usuario'] = $nombreCompleto ?: $loginInput;
             $_SESSION['rol'] = $rol;
 
             $redirect = ($rol === 'admin' || strpos($rol, 'admin') !== false) ? 'admin/dashboard.html' : 'dashboard.html';
@@ -126,8 +161,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'mensaje'  => '¡Inicio de sesión exitoso!',
                 'redirect' => $redirect,
                 'usuario'  => [
-                    'nombres'   => $usuario['nombres'] ?? '',
-                    'apellidos' => $usuario['apellidos'] ?? '',
+                    'nombres'   => $nombres,
+                    'apellidos' => $apellidos,
                     'rol'       => $rol
                 ]
             ]);

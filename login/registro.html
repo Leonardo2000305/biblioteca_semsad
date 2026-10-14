@@ -326,7 +326,7 @@ async function completarRegistro() {
         const data = await resp.json();
 
         if (data.status === 'success') {
-            mostrarAlerta('¡Cuenta creada con éxito! Redirigiendo...', 'success');
+            mostrarAlerta('¡Cuenta creada con éxito! Redirigiendo al login...', 'success');
             setTimeout(() => { window.location.href = 'index.html'; }, 1800);
         } else {
             mostrarAlerta(data.mensaje, 'error');

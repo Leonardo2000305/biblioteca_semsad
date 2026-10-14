@@ -10,10 +10,7 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
 
     <style>
-        * {
-            box-sizing: border-box;
-        }
-
+        * { box-sizing: border-box; }
         body {
             background-color: #f1f5f9;
             font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
@@ -24,7 +21,6 @@
             margin: 0;
             padding: 15px;
         }
-
         .card-login {
             background: #ffffff;
             border-radius: 20px;
@@ -33,13 +29,7 @@
             max-width: 380px;
             padding: 30px 22px;
         }
-
-        @media (min-width: 576px) {
-            .card-login {
-                padding: 35px 28px;
-            }
-        }
-
+        @media (min-width: 576px) { .card-login { padding: 35px 28px; } }
         .login-title {
             font-weight: 800;
             color: #0f172a;
@@ -48,13 +38,7 @@
             text-align: center;
             margin-bottom: 22px;
         }
-
-        @media (min-width: 576px) {
-            .login-title {
-                font-size: 22px;
-            }
-        }
-
+        @media (min-width: 576px) { .login-title { font-size: 22px; } }
         .form-control {
             border: 1px solid #cbd5e1;
             border-radius: 10px;
@@ -62,25 +46,12 @@
             font-size: 15px;
             color: #334155;
         }
-
-        .form-control::placeholder {
-            color: #94a3b8;
-        }
-
         .form-control:focus {
             border-color: #0066ff;
             box-shadow: 0 0 0 3px rgba(0, 102, 255, 0.15);
         }
-
-        .input-group-password {
-            position: relative;
-        }
-
-        .input-group-password .form-control {
-            padding-right: 45px;
-            border-radius: 10px;
-        }
-
+        .input-group-password { position: relative; }
+        .input-group-password .form-control { padding-right: 45px; border-radius: 10px; }
         .btn-toggle-eye {
             position: absolute;
             right: 12px;
@@ -94,11 +65,7 @@
             z-index: 10;
             padding: 5px;
         }
-
-        .btn-toggle-eye:hover {
-            color: #0066ff;
-        }
-
+        .btn-toggle-eye:hover { color: #0066ff; }
         .btn-acceder {
             background-color: #0066ff;
             color: #ffffff;
@@ -112,29 +79,15 @@
             box-shadow: 0 4px 12px rgba(0, 102, 255, 0.25);
             transition: all 0.2s ease;
         }
-
-        .btn-acceder:hover {
-            background-color: #0052cc;
-        }
-
+        .btn-acceder:hover { background-color: #0052cc; }
         .link-blue {
             color: #0066ff;
             text-decoration: none;
             font-size: 14px;
             font-weight: 600;
-            transition: color 0.2s ease;
         }
-
-        .link-blue:hover {
-            color: #0044cc;
-            text-decoration: underline;
-        }
-
-        .text-muted-info {
-            color: #64748b;
-            font-size: 14px;
-            font-weight: 500;
-        }
+        .link-blue:hover { text-decoration: underline; }
+        .text-muted-info { color: #64748b; font-size: 14px; font-weight: 500; }
     </style>
 </head>
 <body>
@@ -156,16 +109,12 @@
             </button>
         </div>
 
-        <button type="submit" id="btnAcceder" class="btn-acceder">
-            Acceder
-        </button>
+        <button type="submit" id="btnAcceder" class="btn-acceder">Acceder</button>
     </form>
 
     <div class="text-center mt-4">
         <div class="mb-2">
-            <a href="recuperar.html" class="link-blue">
-                🔑 ¿Olvidaste tu contraseña?
-            </a>
+            <a href="recuperar.html" class="link-blue">🔑 ¿Olvidaste tu contraseña?</a>
         </div>
         <div>
             <span class="text-muted-info">📝 ¿No tienes cuenta? </span>
@@ -179,7 +128,6 @@
 function toggleVisibilidad(idInput, boton) {
     const input = document.getElementById(idInput);
     const icono = boton.querySelector('i');
-
     if (input.type === 'password') {
         input.type = 'text';
         icono.classList.remove('fa-eye');
@@ -218,88 +166,84 @@ async function realizarLogin(event) {
     btn.disabled = true;
     btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i> Verificando...';
 
-    // Obtener la URL base desde config.js o fallback por defecto
-    const apiBaseRaw = window.SEMSAD_API || 'https://semsad.alwaysdata.net/api';
-    const apiBaseClean = apiBaseRaw.replace(/\/+$/, '');
-    const apiBaseWithoutApi = apiBaseClean.replace(/\/api$/, '');
+    // Obtener la URL configurada en js/config.js
+    const apiBaseRaw = window.SEMSAD_API || 'https://bibliosemsad.alwaysdata.net/api';
+    const apiBase = apiBaseRaw.replace(/\/+$/, '');
+    const targetUrl = `${apiBase}/login.php`;
 
-    // Rutas candidatas para probar automáticamente
-    const candidateURLs = [
-        `${apiBaseClean}/login.php`,
-        `${apiBaseWithoutApi}/login.php`
-    ];
+    try {
+        const resp = await fetch(targetUrl, {
+            method: 'POST',
+            headers: { 
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify({ correo, clave })
+        });
 
-    let exitoRespuesta = false;
+        // 1. Si la ruta no existe en Alwaysdata
+        if (resp.status === 404) {
+            mostrarAlerta(`No se encontró el archivo en: ${targetUrl} (Error 404)`, 'error');
+            restaurarBoton(btn);
+            return;
+        }
 
-    for (const urlEndpoint of candidateURLs) {
+        // 2. Si PHP falló por error de base de datos o servidor
+        if (resp.status === 500) {
+            mostrarAlerta('Error interno en Alwaysdata (Error 500). Revisa conexion.php.', 'error');
+            restaurarBoton(btn);
+            return;
+        }
+
+        const texto = await resp.text();
+        let data;
+
         try {
-            const resp = await fetch(urlEndpoint, {
-                method: 'POST',
-                headers: { 
-                    'Content-Type': 'application/json', 
-                    'Accept': 'application/json' 
-                },
-                body: JSON.stringify({ correo, clave })
-            });
+            data = JSON.parse(texto);
+        } catch (e) {
+            console.error('Respuesta no JSON de Alwaysdata:', texto);
+            mostrarAlerta('El servidor respondió texto plano en vez de JSON. Revisa login.php.', 'error');
+            restaurarBoton(btn);
+            return;
+        }
 
-            // Si devuelve 404, pasa al siguiente endpoint sin dar error
-            if (resp.status === 404) {
-                continue;
+        // 3. Respuesta correcta en JSON
+        if (data.status === 'success' && data.usuario) {
+            const datosUsuario = {
+                id: data.usuario.id_usuario || data.usuario.id || 1,
+                name: data.usuario.nombre || 'Usuario',
+                role: data.usuario.rol || 'estudiante',
+                ci: data.usuario.ci || '',
+                correo: data.usuario.correo || correo
+            };
+
+            if (window.SEMSAD && typeof window.SEMSAD.setUser === 'function') {
+                window.SEMSAD.setUser(datosUsuario);
+            } else {
+                localStorage.setItem('semsad_user', JSON.stringify(datosUsuario));
             }
 
-            const texto = await resp.text();
-            let data;
+            mostrarAlerta('¡Inicio de sesión exitoso! Redirigiendo...', 'success');
 
-            try {
-                data = JSON.parse(texto);
-            } catch (e) {
-                console.error('Servidor no devolvió JSON en:', urlEndpoint, resp.status, texto.slice(0, 300));
-                continue;
-            }
+            setTimeout(() => {
+                let destino = '../index.html';
+                const rolLower = (datosUsuario.role || '').toLowerCase();
 
-            exitoRespuesta = true;
-
-            if (data.status === 'success' && data.usuario) {
-                const datosUsuario = {
-                    id: data.usuario.id_usuario || data.usuario.id || 1,
-                    name: data.usuario.nombre || 'Usuario',
-                    role: data.usuario.rol || 'estudiante',
-                    ci: data.usuario.ci || '',
-                    correo: data.usuario.correo || correo
-                };
-
-                if (window.SEMSAD && typeof window.SEMSAD.setUser === 'function') {
-                    window.SEMSAD.setUser(datosUsuario);
-                } else {
-                    localStorage.setItem('semsad_user', JSON.stringify(datosUsuario));
+                if (window.SEMSAD && typeof window.SEMSAD.destinoSegunRol === 'function') {
+                    destino = window.SEMSAD.destinoSegunRol(datosUsuario.role);
+                } else if (rolLower === 'admin' || rolLower === 'bibliotecario') {
+                    destino = '../admin.html';
                 }
 
-                mostrarAlerta('¡Inicio de sesión exitoso! Redirigiendo...', 'success');
-
-                setTimeout(() => {
-                    let destino = '../index.html';
-                    const rolLower = (datosUsuario.role || '').toLowerCase();
-
-                    if (window.SEMSAD && typeof window.SEMSAD.destinoSegunRol === 'function') {
-                        destino = window.SEMSAD.destinoSegunRol(datosUsuario.role);
-                    } else if (rolLower === 'admin' || rolLower === 'bibliotecario') {
-                        destino = '../admin.html';
-                    }
-
-                    window.location.href = destino;
-                }, 800);
-            } else {
-                mostrarAlerta(data.mensaje || 'Credenciales incorrectas.', 'error');
-                restaurarBoton(btn);
-            }
-            break; // Se detiene al recibir una respuesta JSON válida
-        } catch (err) {
-            console.error('Error de conexión probando:', urlEndpoint, err);
+                window.location.href = destino;
+            }, 800);
+        } else {
+            mostrarAlerta(data.mensaje || 'Credenciales incorrectas.', 'error');
+            restaurarBoton(btn);
         }
-    }
-
-    if (!exitoRespuesta) {
-        mostrarAlerta('No se encontró login.php en Alwaysdata. Revisa el subdominio en js/config.js.', 'error');
+    } catch (err) {
+        console.error('Error de red:', err);
+        mostrarAlerta('Error de red o bloqueo CORS al conectar con Alwaysdata.', 'error');
         restaurarBoton(btn);
     }
 }

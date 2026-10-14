@@ -2,7 +2,7 @@
   "rewrites": [
     {
       "src": "/api/(.*)",
-      "dest": "https://TU_USUARIO.alwaysdata.net/api/$1"
+      "dest": "https://semsad.alwaysdata.net/api/$1"
     }
   ]
 }

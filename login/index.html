@@ -218,70 +218,88 @@ async function realizarLogin(event) {
     btn.disabled = true;
     btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i> Verificando...';
 
-    // Normalizar la URL base (elimina barras inclinadas al final si existen)
+    // Obtener la URL base desde config.js o fallback por defecto
     const apiBaseRaw = window.SEMSAD_API || 'https://semsad.alwaysdata.net/api';
-    const apiBase = apiBaseRaw.replace(/\/+$/, '');
-    const urlEndpoint = `${apiBase}/login.php`;
+    const apiBaseClean = apiBaseRaw.replace(/\/+$/, '');
+    const apiBaseWithoutApi = apiBaseClean.replace(/\/api$/, '');
 
-    try {
-        const resp = await fetch(urlEndpoint, {
-            method: 'POST',
-            headers: { 
-                'Content-Type': 'application/json', 
-                'Accept': 'application/json' 
-            },
-            body: JSON.stringify({ correo, clave })
-        });
+    // Rutas candidatas para probar automáticamente
+    const candidateURLs = [
+        `${apiBaseClean}/login.php`,
+        `${apiBaseWithoutApi}/login.php`
+    ];
 
-        const texto = await resp.text();
-        let data;
+    let exitoRespuesta = false;
 
+    for (const urlEndpoint of candidateURLs) {
         try {
-            data = JSON.parse(texto);
-        } catch (e) {
-            console.error('Respuesta no válida de /login.php', resp.status, texto.slice(0, 300));
-            mostrarAlerta(`El servidor respondió algo inesperado (código ${resp.status}). Verifica la URL en config.js.`, 'error');
-            restaurarBoton(btn);
-            return;
-        }
+            const resp = await fetch(urlEndpoint, {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json', 
+                    'Accept': 'application/json' 
+                },
+                body: JSON.stringify({ correo, clave })
+            });
 
-        if (data.status === 'success' && data.usuario) {
-            // Guardar datos de usuario con fallback de seguridad
-            const datosUsuario = {
-                id: data.usuario.id_usuario || data.usuario.id || 1,
-                name: data.usuario.nombre || 'Usuario',
-                role: data.usuario.rol || 'estudiante',
-                ci: data.usuario.ci || '',
-                correo: data.usuario.correo || correo
-            };
-
-            if (window.SEMSAD && typeof window.SEMSAD.setUser === 'function') {
-                window.SEMSAD.setUser(datosUsuario);
-            } else {
-                localStorage.setItem('semsad_user', JSON.stringify(datosUsuario));
+            // Si devuelve 404, pasa al siguiente endpoint sin dar error
+            if (resp.status === 404) {
+                continue;
             }
 
-            mostrarAlerta('¡Inicio de sesión exitoso! Redirigiendo...', 'success');
+            const texto = await resp.text();
+            let data;
 
-            setTimeout(() => {
-                let destino = '../index.html';
-                const rolLower = (datosUsuario.role || '').toLowerCase();
+            try {
+                data = JSON.parse(texto);
+            } catch (e) {
+                console.error('Servidor no devolvió JSON en:', urlEndpoint, resp.status, texto.slice(0, 300));
+                continue;
+            }
 
-                if (window.SEMSAD && typeof window.SEMSAD.destinoSegunRol === 'function') {
-                    destino = window.SEMSAD.destinoSegunRol(datosUsuario.role);
-                } else if (rolLower === 'admin' || rolLower === 'bibliotecario') {
-                    destino = '../admin.html';
+            exitoRespuesta = true;
+
+            if (data.status === 'success' && data.usuario) {
+                const datosUsuario = {
+                    id: data.usuario.id_usuario || data.usuario.id || 1,
+                    name: data.usuario.nombre || 'Usuario',
+                    role: data.usuario.rol || 'estudiante',
+                    ci: data.usuario.ci || '',
+                    correo: data.usuario.correo || correo
+                };
+
+                if (window.SEMSAD && typeof window.SEMSAD.setUser === 'function') {
+                    window.SEMSAD.setUser(datosUsuario);
+                } else {
+                    localStorage.setItem('semsad_user', JSON.stringify(datosUsuario));
                 }
 
-                window.location.href = destino;
-            }, 800);
-        } else {
-            mostrarAlerta(data.mensaje || 'Credenciales incorrectas.', 'error');
-            restaurarBoton(btn);
+                mostrarAlerta('¡Inicio de sesión exitoso! Redirigiendo...', 'success');
+
+                setTimeout(() => {
+                    let destino = '../index.html';
+                    const rolLower = (datosUsuario.role || '').toLowerCase();
+
+                    if (window.SEMSAD && typeof window.SEMSAD.destinoSegunRol === 'function') {
+                        destino = window.SEMSAD.destinoSegunRol(datosUsuario.role);
+                    } else if (rolLower === 'admin' || rolLower === 'bibliotecario') {
+                        destino = '../admin.html';
+                    }
+
+                    window.location.href = destino;
+                }, 800);
+            } else {
+                mostrarAlerta(data.mensaje || 'Credenciales incorrectas.', 'error');
+                restaurarBoton(btn);
+            }
+            break; // Se detiene al recibir una respuesta JSON válida
+        } catch (err) {
+            console.error('Error de conexión probando:', urlEndpoint, err);
         }
-    } catch (err) {
-        console.error('Error de red en el login:', err);
-        mostrarAlerta('No se pudo conectar con el servidor. Revisa la URL configurada.', 'error');
+    }
+
+    if (!exitoRespuesta) {
+        mostrarAlerta('No se encontró login.php en Alwaysdata. Revisa el subdominio en js/config.js.', 'error');
         restaurarBoton(btn);
     }
 }

@@ -19,9 +19,9 @@
             background-color: var(--main-bg);
             font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
             min-height: 100vh;
+            margin: 0;
         }
 
-        /* BARRA LATERAL (SIDEBAR) */
         .sidebar {
             width: 260px;
             background-color: var(--sidebar-bg);
@@ -64,7 +64,6 @@
             width: 25px;
         }
 
-        /* CONTENIDO PRINCIPAL */
         .main-content {
             margin-left: 260px;
             padding: 25px 30px;
@@ -94,6 +93,18 @@
             border-radius: 12px;
             border: none;
             overflow: hidden;
+        }
+
+        @media (max-width: 991.98px) {
+            .sidebar {
+                width: 100%;
+                min-height: auto;
+                position: relative;
+            }
+            .main-content {
+                margin-left: 0;
+                padding: 15px;
+            }
         }
     </style>
 </head>
@@ -134,7 +145,7 @@
                 <span class="badge bg-white text-dark border px-3 py-2 shadow-sm fs-6">
                     <i class="fa-solid fa-user-gear me-2 text-primary"></i>Bibliotecario
                 </span>
-                <a href="../login/index.html" class="btn btn-danger btn-sm px-3 fw-bold">
+                <a href="login/index.html" class="btn btn-danger btn-sm px-3 fw-bold">
                     <i class="fa-solid fa-right-from-bracket me-1"></i>Salir
                 </a>
             </div>
@@ -328,7 +339,7 @@
             tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4"><i class="fa-solid fa-spinner fa-spin me-2 text-primary"></i>Cargando inventario de libros...</td></tr>';
 
             try {
-                const resp = await fetch('../api/obtener_libros.php');
+                const resp = await fetch('api/obtener_libros.php');
                 const res = await resp.json();
 
                 if (res.status === 'success' && res.data.length > 0) {
@@ -362,7 +373,7 @@
             tbody.innerHTML = '<tr><td colspan="4" class="text-center py-4"><i class="fa-solid fa-spinner fa-spin me-2 text-primary"></i>Cargando auditoría...</td></tr>';
 
             try {
-                const resp = await fetch('../api/obtener_auditoria.php');
+                const resp = await fetch('api/obtener_auditoria.php');
                 const res = await resp.json();
 
                 if (res.status === 'success' && res.data.length > 0) {
@@ -397,7 +408,7 @@
             tbody.innerHTML = '<tr><td colspan="4" class="text-center py-4"><i class="fa-solid fa-spinner fa-spin me-2 text-success"></i>Cargando usuarios...</td></tr>';
 
             try {
-                const resp = await fetch('../api/obtener_usuarios.php');
+                const resp = await fetch('api/obtener_usuarios.php');
                 const res = await resp.json();
 
                 if (res.status === 'success' && res.data.length > 0) {

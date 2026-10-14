@@ -1,13 +1,8 @@
 {
-  "functions": {
-    "api/index.php": {
-      "runtime": "vercel-php@0.7.3"
-    }
-  },
-  "routes": [
+  "rewrites": [
     {
       "src": "/api/(.*)",
-      "dest": "/api/index.php"
+      "dest": "https://TU_USUARIO.alwaysdata.net/api/$1"
     }
   ]
 }

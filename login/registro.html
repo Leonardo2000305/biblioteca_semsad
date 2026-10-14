@@ -230,6 +230,7 @@
         </a>
     </div>
 </div>
+<script src="../js/config.js"></script>
 
 <script>
 function toggleVisibilidad(idInput, boton) {
@@ -276,7 +277,7 @@ async function enviarCodigoOTP() {
     btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i> Enviando código al correo...';
 
     try {
-        const resp = await fetch('../api/enviar_codigo.php', {
+        const resp = await fetch(window.SEMSAD_API + '/enviar_codigo.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ correo, codigo_empleado, telefono })
@@ -317,7 +318,7 @@ async function completarRegistro() {
     }
 
     try {
-        const resp = await fetch('../api/registrar_usuario.php', {
+        const resp = await fetch(window.SEMSAD_API + '/registrar_usuario.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)

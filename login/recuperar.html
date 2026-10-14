@@ -136,6 +136,7 @@
         </div> 
     </div>    
  </main>
+<script src="../js/config.js"></script>
 
  <script>
     document.getElementById('form-recuperar').addEventListener('submit', async function(e) {
@@ -151,7 +152,7 @@
         mensajeDiv.className = '';
 
         try {
-            const response = await fetch('../api/solicitar_recuperacion.php', {
+            const response = await fetch(window.SEMSAD_API + '/solicitar_recuperacion.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ correo: correoInput })

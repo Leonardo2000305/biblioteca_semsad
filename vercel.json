@@ -2,7 +2,7 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://semsad.alwaysdata.net/api/:path*"
+      "destination": "https://bibliosemsad.alwaysdata.net/api/:path*"
     }
   ]
 }

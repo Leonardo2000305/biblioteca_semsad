@@ -37,6 +37,9 @@
             transform: translateY(-5px);
             box-shadow: 0 10px 20px rgba(0,0,0,0.08);
         }
+        .extra-small {
+            font-size: 12px;
+        }
     </style>
 </head>
 <body>
@@ -52,7 +55,7 @@
                 <span class="badge bg-secondary px-3 py-2 fs-6">
                     <i class="fa-solid fa-user-graduate me-1"></i>Estudiante
                 </span>
-                <a href="../login/index.html" class="btn btn-outline-light btn-sm fw-bold">
+                <a href="login/index.html" class="btn btn-outline-light btn-sm fw-bold">
                     <i class="fa-solid fa-right-from-bracket me-1"></i>Salir
                 </a>
             </div>
@@ -106,7 +109,7 @@
                 </div>`;
 
             try {
-                const resp = await fetch('../api/obtener_libros.php');
+                const resp = await fetch('api/obtener_libros.php');
                 const res = await resp.json();
 
                 if (res.status === 'success' && res.data.length > 0) {
@@ -130,10 +133,10 @@
 
         function renderizarLibros(lista) {
             const contenedor = document.getElementById('contenedorLibros');
-            if (lista.length === 0) {
+            if (!lista || lista.length === 0) {
                 contenedor.innerHTML = `
                     <div class="col-12 text-center py-4">
-                        <p class="text-muted">No se encontraron libros que coincidan con la búsqueda.</p>
+                        <p class="text-muted fs-5">No se encontraron libros que coincidan con la búsqueda.</p>
                     </div>`;
                 return;
             }
@@ -143,5 +146,41 @@
                 const titulo = libro.titulo || libro.nombre || 'Sin título';
                 const isbn = libro.isbn || libro.codigo_barras || 'Código S/N';
                 const anio = libro.anio_publicacion || libro.anio || 'N/A';
+                const autor = libro.autor || 'Autor no especificado';
 
-                contenedor
+                contenedor.innerHTML += `
+                    <div class="col-12 col-md-6 col-lg-4">
+                        <div class="card book-card h-100 shadow-sm p-3 bg-white">
+                            <div class="card-body d-flex flex-column justify-content-between">
+                                <div>
+                                    <span class="badge bg-success mb-2"><i class="fa-solid fa-circle-check me-1"></i>Disponible</span>
+                                    <h5 class="fw-bold text-dark mb-1">${titulo}</h5>
+                                    <p class="text-muted small mb-2"><i class="fa-solid fa-user-pen me-1"></i>${autor}</p>
+                                    <p class="text-secondary extra-small mb-3"><i class="fa-solid fa-barcode me-1"></i>ISBN: ${isbn} | Año: ${anio}</p>
+                                </div>
+                                <button class="btn btn-outline-primary w-100 fw-bold btn-sm mt-2">
+                                    <i class="fa-solid fa-hand-holding-hand me-1"></i> Solicitar Préstamo
+                                </button>
+                            </div>
+                        </div>
+                    </div>`;
+            });
+        }
+
+        function filtrarLibros() {
+            const texto = document.getElementById('inputBuscar').value.toLowerCase().trim();
+            if (!texto) {
+                renderizarLibros(todosLosLibros);
+                return;
+            }
+            const filtrados = todosLosLibros.filter(libro => {
+                const titulo = (libro.titulo || libro.nombre || '').toLowerCase();
+                const autor = (libro.autor || '').toLowerCase();
+                const isbn = (libro.isbn || libro.codigo_barras || '').toLowerCase();
+                return titulo.includes(texto) || autor.includes(texto) || isbn.includes(texto);
+            });
+            renderizarLibros(filtrados);
+        }
+    </script>
+</body>
+</html>

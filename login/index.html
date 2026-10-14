@@ -175,6 +175,9 @@
 </div>
 
 <script>
+// Dominio de Alwaysdata (Asegúrate de ajustar el subdominio si tu cuenta en Alwaysdata tiene otro nombre)
+const ALWAYSDATA_BASE_URL = 'https://semsad.alwaysdata.net/api';
+
 function toggleVisibilidad(idInput, boton) {
     const input = document.getElementById(idInput);
     const icono = boton.querySelector('i');
@@ -212,41 +215,65 @@ async function realizarLogin(event) {
     btn.disabled = true;
     btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i> Verificando...';
 
-    try {
-        const resp = await fetch('../api/login.php', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ correo, clave })
-        });
+    // Lista de endpoints a probar de forma transparente
+    const endpoints = [
+        '../api/login.php',
+        `${ALWAYSDATA_BASE_URL}/login.php`
+    ];
 
-        const textoRespuesta = await resp.text();
-        let data;
+    let operacionExitosa = false;
+    let mensajeErrorServidor = 'Ocurrió un error al conectar con el servidor.';
 
+    for (const url of endpoints) {
         try {
-            data = JSON.parse(textoRespuesta);
-        } catch (e) {
-            mostrarAlerta('Error en la respuesta del servidor.', 'error');
-            btn.disabled = false;
-            btn.innerHTML = 'Acceder';
-            return;
-        }
+            const resp = await fetch(url, {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({ correo, clave })
+            });
 
-        if (data.status === 'success') {
-            mostrarAlerta('¡Inicio de sesión exitoso! Redirigiendo...', 'success');
-            setTimeout(() => {
-                let destino = data.redirect || '../index.html';
-                if (!destino.startsWith('/') && !destino.startsWith('../') && !destino.startsWith('http')) {
-                    destino = '../' + destino;
-                }
-                window.location.href = destino;
-            }, 1000);
-        } else {
-            mostrarAlerta(data.mensaje || 'Credenciales incorrectas.', 'error');
-            btn.disabled = false;
-            btn.innerHTML = 'Acceder';
+            const textoRespuesta = await resp.text();
+            let data;
+
+            try {
+                data = JSON.parse(textoRespuesta);
+            } catch (e) {
+                // Si la respuesta no es un JSON válido (ej. retorno de página HTML de Vercel), pasa al siguiente endpoint
+                continue;
+            }
+
+            operacionExitosa = true;
+
+            if (data.status === 'success') {
+                mostrarAlerta('¡Inicio de sesión exitoso! Redirigiendo...', 'success');
+                setTimeout(() => {
+                    let destino = data.redirect || '../index.html';
+                    
+                    if (data.usuario && (data.usuario.rol === 'admin' || data.usuario.rol === 'bibliotecario')) {
+                        destino = '../admin.html';
+                    }
+
+                    if (!destino.startsWith('/') && !destino.startsWith('../') && !destino.startsWith('http')) {
+                        destino = '../' + destino;
+                    }
+                    window.location.href = destino;
+                }, 1000);
+            } else {
+                mostrarAlerta(data.mensaje || 'Credenciales incorrectas.', 'error');
+                btn.disabled = false;
+                btn.innerHTML = 'Acceder';
+            }
+            break; // Si respondió un JSON válido (éxito o error de credencial), interrumpe el ciclo de prueba
+        } catch (err) {
+            mensajeErrorServidor = 'Error de red al conectar con el servidor.';
         }
-    } catch (err) {
-        mostrarAlerta('Error de red al conectar con el servidor.', 'error');
+    }
+
+    if (!operacionExitosa) {
+        mostrarAlerta(mensajeErrorServidor, 'error');
         btn.disabled = false;
         btn.innerHTML = 'Acceder';
     }

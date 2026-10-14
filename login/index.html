@@ -218,44 +218,70 @@ async function realizarLogin(event) {
     btn.disabled = true;
     btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i> Verificando...';
 
+    // Normalizar la URL base (elimina barras inclinadas al final si existen)
+    const apiBaseRaw = window.SEMSAD_API || 'https://semsad.alwaysdata.net/api';
+    const apiBase = apiBaseRaw.replace(/\/+$/, '');
+    const urlEndpoint = `${apiBase}/login.php`;
+
     try {
-        const resp = await fetch(`${window.SEMSAD_API}/login.php`, {
+        const resp = await fetch(urlEndpoint, {
             method: 'POST',
-            credentials: 'include',
-            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+            headers: { 
+                'Content-Type': 'application/json', 
+                'Accept': 'application/json' 
+            },
             body: JSON.stringify({ correo, clave })
         });
 
         const texto = await resp.text();
         let data;
+
         try {
             data = JSON.parse(texto);
         } catch (e) {
-            // El servidor respondió, pero no con JSON (página de error, 404, código PHP sin ejecutar...)
             console.error('Respuesta no válida de /login.php', resp.status, texto.slice(0, 300));
-            mostrarAlerta(`El servidor respondió algo inesperado (código ${resp.status}). Revisa que la API esté publicada en AlwaysData.`, 'error');
+            mostrarAlerta(`El servidor respondió algo inesperado (código ${resp.status}). Verifica la URL en config.js.`, 'error');
             restaurarBoton(btn);
             return;
         }
 
         if (data.status === 'success' && data.usuario) {
-            // Guardamos al usuario: las demás páginas lo leen de aquí.
-            SEMSAD.setUser({
-                id: data.usuario.id_usuario,
-                name: data.usuario.nombre,
-                role: data.usuario.rol,
-                ci: data.usuario.ci,
-                correo: data.usuario.correo
-            });
+            // Guardar datos de usuario con fallback de seguridad
+            const datosUsuario = {
+                id: data.usuario.id_usuario || data.usuario.id || 1,
+                name: data.usuario.nombre || 'Usuario',
+                role: data.usuario.rol || 'estudiante',
+                ci: data.usuario.ci || '',
+                correo: data.usuario.correo || correo
+            };
+
+            if (window.SEMSAD && typeof window.SEMSAD.setUser === 'function') {
+                window.SEMSAD.setUser(datosUsuario);
+            } else {
+                localStorage.setItem('semsad_user', JSON.stringify(datosUsuario));
+            }
+
             mostrarAlerta('¡Inicio de sesión exitoso! Redirigiendo...', 'success');
-            setTimeout(() => { window.location.href = SEMSAD.destinoSegunRol(data.usuario.rol); }, 800);
+
+            setTimeout(() => {
+                let destino = '../index.html';
+                const rolLower = (datosUsuario.role || '').toLowerCase();
+
+                if (window.SEMSAD && typeof window.SEMSAD.destinoSegunRol === 'function') {
+                    destino = window.SEMSAD.destinoSegunRol(datosUsuario.role);
+                } else if (rolLower === 'admin' || rolLower === 'bibliotecario') {
+                    destino = '../admin.html';
+                }
+
+                window.location.href = destino;
+            }, 800);
         } else {
             mostrarAlerta(data.mensaje || 'Credenciales incorrectas.', 'error');
             restaurarBoton(btn);
         }
     } catch (err) {
         console.error('Error de red en el login:', err);
-        mostrarAlerta('No se pudo conectar con el servidor. Revisa tu conexión e inténtalo de nuevo.', 'error');
+        mostrarAlerta('No se pudo conectar con el servidor. Revisa la URL configurada.', 'error');
         restaurarBoton(btn);
     }
 }

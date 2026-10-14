@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Biblioteca SEMSAD - Inicio de Sesión</title>
     <!-- Font Awesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -10,33 +10,49 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
     
     <style>
+        * {
+            box-sizing: border-box;
+        }
+
         body {
             background-color: #f1f5f9;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
             min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
             margin: 0;
-            padding: 20px;
+            padding: 15px;
         }
 
         .card-login {
             background: #ffffff;
             border-radius: 20px;
-            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.08);
             width: 100%;
             max-width: 380px;
-            padding: 35px 28px;
+            padding: 30px 22px;
+        }
+
+        @media (min-width: 576px) {
+            .card-login {
+                padding: 35px 28px;
+            }
         }
 
         .login-title {
             font-weight: 800;
             color: #0f172a;
-            font-size: 22px;
-            line-height: 1.3;
+            font-size: 20px;
+            line-height: 1.35;
             text-align: center;
-            margin-bottom: 25px;
+            margin-bottom: 22px;
+        }
+
+        @media (min-width: 576px) {
+            .login-title {
+                font-size: 22px;
+            }
         }
 
         .form-control {
@@ -56,7 +72,6 @@
             box-shadow: 0 0 0 3px rgba(0, 102, 255, 0.15);
         }
 
-        /* Estilo especial para la contraseña con ojito integrado */
         .input-group-password {
             position: relative;
         }
@@ -74,43 +89,39 @@
             background: none;
             border: none;
             color: #94a3b8;
-            font-size: 16px;
+            font-size: 17px;
             cursor: pointer;
             z-index: 10;
-            padding: 0;
+            padding: 5px;
         }
 
         .btn-toggle-eye:hover {
             color: #0066ff;
         }
 
-        /* Botón azul tipo píldora */
         .btn-acceder {
             background-color: #0066ff;
             color: #ffffff;
             font-weight: 700;
             font-size: 16px;
-            padding: 12px;
+            padding: 13px;
             border-radius: 30px;
             border: none;
             width: 100%;
             margin-top: 10px;
-            box-shadow: 0 4px 12px rgba(0, 102, 255, 0.3);
+            box-shadow: 0 4px 12px rgba(0, 102, 255, 0.25);
             transition: all 0.2s ease;
         }
 
         .btn-acceder:hover {
             background-color: #0052cc;
-            box-shadow: 0 6px 16px rgba(0, 102, 255, 0.4);
         }
 
-        /* Enlaces inferiores */
         .link-item {
             color: #0066ff;
             text-decoration: none;
             font-size: 14px;
             font-weight: 600;
-            display: inline-block;
         }
 
         .link-item:hover {
@@ -132,19 +143,15 @@
 <body>
 
 <div class="card-login">
-    <!-- Título idéntico a tu diseño -->
     <h2 class="login-title">Bienvenido a la biblioteca<br>SEMSAD</h2>
 
-    <!-- Área de Alertas -->
     <div id="alerta_mensaje" class="alert d-none mb-3" role="alert"></div>
 
     <form id="formLogin" onsubmit="realizarLogin(event);">
-        <!-- Campo 1: Correo institucional -->
         <div class="mb-3">
             <input type="email" id="correo" class="form-control" placeholder="Correo institucional" required>
         </div>
 
-        <!-- Campo 2: Contraseña con Ojito -->
         <div class="mb-4 input-group-password">
             <input type="password" id="clave" class="form-control" placeholder="Contraseña" required>
             <button class="btn-toggle-eye" type="button" onclick="toggleVisibilidad('clave', this)">
@@ -152,13 +159,11 @@
             </button>
         </div>
 
-        <!-- Botón de Acceder estilo Píldora -->
         <button type="submit" id="btnAcceder" class="btn-acceder">
             Acceder
         </button>
     </form>
 
-    <!-- Enlaces inferiores -->
     <div class="text-center mt-4">
         <div class="mb-2">
             <a href="recuperar.html" class="text-muted-link">
@@ -172,9 +177,7 @@
     </div>
 </div>
 
-<!-- Lógica JavaScript Incorporada -->
 <script>
-// Función para mostrar / ocultar la contraseña con el ojito
 function toggleVisibilidad(idInput, boton) {
     const input = document.getElementById(idInput);
     const icono = boton.querySelector('i');
@@ -190,7 +193,6 @@ function toggleVisibilidad(idInput, boton) {
     }
 }
 
-// Helper para mostrar mensajes de error/éxito
 function mostrarAlerta(mensaje, tipo) {
     const alerta = document.getElementById('alerta_mensaje');
     alerta.className = `alert alert-${tipo === 'success' ? 'success' : 'danger'} py-2 px-3 small text-center`;
@@ -198,7 +200,6 @@ function mostrarAlerta(mensaje, tipo) {
     alerta.classList.remove('d-none');
 }
 
-// Función de Inicio de Sesión
 async function realizarLogin(event) {
     event.preventDefault();
     
@@ -224,7 +225,7 @@ async function realizarLogin(event) {
         const data = await resp.json();
 
         if (data.status === 'success') {
-            mostrarAlerta('¡Inicio de sesión exitoso! Ingresando...', 'success');
+            mostrarAlerta('¡Inicio de sesión exitoso!', 'success');
             setTimeout(() => {
                 window.location.href = data.redirect || 'dashboard.html';
             }, 1000);

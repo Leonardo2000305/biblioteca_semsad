@@ -1,16 +1,17 @@
 <?php
-require_once 'conexion.php';
+require_once __DIR__ . '/conexion.php';
 
-$sql = "SELECT id, correo_ingresado, fecha_hora, estado, ip_origen FROM auditoria_claves ORDER BY fecha_hora DESC";
-$result = $conn->query($sql);
+// La auditoría de seguridad es solo para el personal de la biblioteca.
+semsad_requerir_rol(['Administrador', 'Bibliotecario']);
 
-$auditoria = [];
-if ($result && $result->num_rows > 0) {
-    while ($row = $result->fetch_assoc()) {
-        $auditoria[] = $row;
-    }
+try {
+    $stmt = $conexion->query(
+        'SELECT id, correo_ingresado, fecha_hora, estado, ip_origen
+           FROM auditoria_claves
+       ORDER BY fecha_hora DESC'
+    );
+    semsad_responder(['status' => 'success', 'data' => $stmt->fetchAll()]);
+} catch (PDOException $e) {
+    error_log('[SEMSAD] obtener_auditoria: ' . $e->getMessage());
+    semsad_responder(['status' => 'error', 'mensaje' => 'No se pudo obtener la auditoría.'], 500);
 }
-
-echo json_encode(["status" => "success", "data" => $auditoria]);
-$conn->close();
-?>

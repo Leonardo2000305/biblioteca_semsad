@@ -28,39 +28,42 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 require_once 'conexion.php';
 
 // =========================================================================
-// CONFIGURACIÓN DE RESEND API
+// CONFIGURACIÓN OFICIAL BREVO API (300 CORREOS GRATIS DIARIOS)
 // =========================================================================
-define('RESEND_API_KEY', 're_ScKYq1Bb_JiDNbFfHd8STf2d2hzXhHVC3');
+define('BREVO_API_KEY', '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');
+define('REMITENTE_EMAIL', 'robertleonardoyujra@gmail.com');
+define('REMITENTE_NOMBRE', 'Biblioteca SEMSAD');
 
 /**
- * Función optimizada para cURL en Alwaysdata hacia Resend API
+ * Función para despachar correos garantizados a cualquier dominio vía Brevo HTTPS API
  */
-function enviarCorreoAPI($toEmail, $subject, $bodyHtml, &$detallesError = '') {
-    $url = 'https://api.resend.com/emails';
+function enviarCorreoBrevo($toEmail, $subject, $bodyHtml, &$detallesError = '') {
+    $url = 'https://api.brevo.com/v3/smtp/email';
 
     $payload = [
-        'from'    => 'onboarding@resend.dev',
-        'to'      => [$toEmail],
-        'subject' => $subject,
-        'html'    => $bodyHtml
+        'sender'      => ['name' => REMITENTE_NOMBRE, 'email' => REMITENTE_EMAIL],
+        'to'          => [['email' => $toEmail]],
+        'subject'     => $subject,
+        'htmlContent' => $bodyHtml
     ];
 
     $ch = curl_init($url);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_POST, true);
     curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
-    curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) BibliotecaSEMSAD/1.0');
+    curl_setopt($ch, CURLOPT_USERAGENT, 'BibliotecaSEMSAD/1.0');
     curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
     curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
     curl_setopt($ch, CURLOPT_TIMEOUT, 15);
     curl_setopt($ch, CURLOPT_HTTPHEADER, [
-        'Authorization: Bearer ' . RESEND_API_KEY,
-        'Content-Type: application/json'
+        'accept: application/json',
+        'api-key: ' . BREVO_API_KEY,
+        'content-type: application/json'
     ]);
 
-    $response  = curl_exec($ch);
-    $curlErr   = curl_error($ch);
-    $httpCode  = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $response = curl_exec($ch);
+    $curlErr  = curl_error($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     curl_close($ch);
 
     if ($curlErr) {
@@ -72,11 +75,7 @@ function enviarCorreoAPI($toEmail, $subject, $bodyHtml, &$detallesError = '') {
         return true;
     } else {
         $resData = json_decode($response, true);
-        if (isset($resData['message'])) {
-            $detallesError = $resData['message'];
-        } else {
-            $detallesError = "Respuesta del servidor de correo ($httpCode): " . $response;
-        }
+        $detallesError = isset($resData['message']) ? $resData['message'] : "Error HTTP $httpCode: $response";
         return false;
     }
 }
@@ -112,7 +111,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             exit;
         }
 
-        // 2. Verificar si el teléfono ya está registrado
+        // 2. Verificar que el teléfono no esté duplicado
         $stmtTel = $conexion->prepare("SELECT id_usuario FROM usuario WHERE telefono = :telefono AND telefono != ''");
         $stmtTel->execute([':telefono' => $telefono]);
         if ($stmtTel->fetch()) {
@@ -120,11 +119,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             exit;
         }
 
-        // 3. Generar OTP de 6 dígitos
+        // 3. Generar OTP de 6 dígitos (Válido por 15 min)
         $otp = sprintf("%06d", mt_rand(1, 999999));
         $expiracion = date('Y-m-d H:i:s', time() + (15 * 60));
 
-        // 4. Guardar código temporal
+        // 4. Guardar en Base de Datos
         $stmtDel = $conexion->prepare("DELETE FROM codigo_verificacion WHERE correo = :correo");
         $stmtDel->execute([':correo' => $correo]);
 
@@ -135,7 +134,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ':expiracion' => $expiracion
         ]);
 
-        // 5. Plantilla HTML profesional del correo privado
+        // 5. Plantilla HTML profesional del mensaje privado
         $asunto = "Código de Verificación - Biblioteca SEMSAD";
         $cuerpoHtml = "
         <div style='font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px; background-color: #ffffff;'>
@@ -150,9 +149,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <p style='color: #64748b; font-size: 13px;'>Este código caducará en 15 minutos. No compartas este código con nadie.</p>
         </div>";
 
-        // 6. Enviar vía Resend API
+        // 6. Enviar vía Brevo API
         $detallesError = '';
-        $exito = enviarCorreoAPI($correo, $asunto, $cuerpoHtml, $detallesError);
+        $exito = enviarCorreoBrevo($correo, $asunto, $cuerpoHtml, $detallesError);
 
         if ($exito) {
             echo json_encode([

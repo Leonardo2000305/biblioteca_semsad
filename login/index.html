@@ -117,7 +117,6 @@
             background-color: #0052cc;
         }
 
-        /* Enlaces Azules Interactivos */
         .link-blue {
             color: #0066ff;
             text-decoration: none;
@@ -235,7 +234,11 @@ async function realizarLogin(event) {
         if (data.status === 'success') {
             mostrarAlerta('¡Inicio de sesión exitoso! Redirigiendo...', 'success');
             setTimeout(() => {
-                window.location.href = data.redirect || '../dashboard.html';
+                let destino = data.redirect || '../dashboard.html';
+                if (!destino.startsWith('/') && !destino.startsWith('../') && !destino.startsWith('http')) {
+                    destino = '../' + destino;
+                }
+                window.location.href = destino;
             }, 1000);
         } else {
             mostrarAlerta(data.mensaje || 'Credenciales incorrectas.', 'error');

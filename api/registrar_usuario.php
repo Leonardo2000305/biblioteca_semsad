@@ -1,42 +1,62 @@
 <?php
-require_once 'conexion.php';
+require_once __DIR__ . '/conexion.php';
 
-$data = json_decode(file_get_contents('php://input'), true);
-
-$nombres = trim($data['nombres'] ?? '');
-$apellidos = trim($data['apellidos'] ?? '');
-$correo = trim($data['correo'] ?? '');
-$codigo_empleado = trim($data['codigo_empleado'] ?? '');
-$telefono = trim($data['telefono'] ?? '');
-$clave = $data['clave'] ?? '';
-
-if (empty($nombres) || empty($correo) || empty($clave)) {
-    echo json_encode(["status" => "error", "mensaje" => "Por favor completa todos los campos requeridos."]);
-    exit;
+if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
+    semsad_responder(['status' => 'error', 'mensaje' => 'Método no permitido.'], 405);
 }
 
-// Verificar si el correo ya existe
-$stmtCheck = $conn->prepare("SELECT id FROM usuarios WHERE correo = ? OR codigo_empleado = ?");
-$stmtCheck->bind_param("ss", $correo, $codigo_empleado);
-$stmtCheck->execute();
-if ($stmtCheck->get_result()->num_rows > 0) {
-    echo json_encode(["status" => "error", "mensaje" => "El correo o CI ya está registrado."]);
-    exit;
+$entrada         = semsad_leer_json();
+$nombres         = trim((string)($entrada['nombres'] ?? ''));
+$apellidos       = trim((string)($entrada['apellidos'] ?? ''));
+$correo          = strtolower(trim((string)($entrada['correo'] ?? '')));
+$codigoEmpleado  = trim((string)($entrada['codigo_empleado'] ?? ''));
+$telefono        = trim((string)($entrada['telefono'] ?? ''));
+$clave           = (string)($entrada['clave'] ?? '');
+
+if ($nombres === '' || $correo === '' || $clave === '') {
+    semsad_responder(['status' => 'error', 'mensaje' => 'Por favor completa todos los campos requeridos.']);
+}
+if (!filter_var($correo, FILTER_VALIDATE_EMAIL)) {
+    semsad_responder(['status' => 'error', 'mensaje' => 'El correo no tiene un formato válido.']);
+}
+if (strlen($clave) < 6) {
+    semsad_responder(['status' => 'error', 'mensaje' => 'La contraseña debe tener al menos 6 caracteres.']);
 }
 
-// Encriptar clave
-$claveHash = password_hash($clave, PASSWORD_BCRYPT);
-$rol = 'estudiante';
+try {
+    // ¿Ya existe el correo o el código (CI)?
+    $check = $conexion->prepare(
+        "SELECT id_usuario FROM usuario
+          WHERE LOWER(correo) = :correo
+             OR (:codigo1 <> '' AND codigo_empleado = :codigo2)
+          LIMIT 1"
+    );
+    $check->execute([':correo' => $correo, ':codigo1' => $codigoEmpleado, ':codigo2' => $codigoEmpleado]);
+    if ($check->fetch()) {
+        semsad_responder(['status' => 'error', 'mensaje' => 'El correo o CI ya está registrado.']);
+    }
 
-$stmt = $conn->prepare("INSERT INTO usuarios (nombres, apellidos, correo, codigo_empleado, telefono, clave, rol) VALUES (?, ?, ?, ?, ?, ?, ?)");
-$stmt->bind_param("sssssss", $nombres, $apellidos, $correo, $codigo_empleado, $telefono, $claveHash, $rol);
+    // Todo registro público entra como Estudiante (nunca como administrador).
+    $insert = $conexion->prepare(
+        "INSERT INTO usuario (nombres, apellidos, correo, clave, id_rol, codigo_empleado, telefono, nivel_permiso, estado)
+         VALUES (:nombres, :apellidos, :correo, :clave,
+                 (SELECT id_rol FROM rol WHERE nombre = 'Estudiante' LIMIT 1),
+                 :codigo, :telefono, 1, 'Activo')"
+    );
+    $insert->execute([
+        ':nombres'   => $nombres,
+        ':apellidos' => $apellidos,
+        ':correo'    => $correo,
+        ':clave'     => password_hash($clave, PASSWORD_BCRYPT),
+        ':codigo'    => $codigoEmpleado !== '' ? $codigoEmpleado : null,
+        ':telefono'  => $telefono !== '' ? $telefono : null,
+    ]);
 
-if ($stmt->execute()) {
-    echo json_encode(["status" => "success", "mensaje" => "Registro completado con éxito."]);
-} else {
-    echo json_encode(["status" => "error", "mensaje" => "Error al registrar en la base de datos."]);
+    semsad_responder(['status' => 'success', 'mensaje' => 'Registro completado con éxito.']);
+} catch (PDOException $e) {
+    error_log('[SEMSAD] registrar_usuario: ' . $e->getMessage());
+    semsad_responder([
+        'status'  => 'error',
+        'mensaje' => !empty($cfg['debug']) ? 'Error de base de datos: ' . $e->getMessage() : 'Error al registrar en la base de datos.',
+    ], 500);
 }
-
-$stmt->close();
-$conn->close();
-?>

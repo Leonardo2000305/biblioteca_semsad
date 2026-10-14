@@ -145,7 +145,7 @@
                 <span class="badge bg-white text-dark border px-3 py-2 shadow-sm fs-6">
                     <i class="fa-solid fa-user-gear me-2 text-primary"></i>Bibliotecario
                 </span>
-                <a href="login/index.html" class="btn btn-danger btn-sm px-3 fw-bold">
+                <a href="../login/index.html" onclick="SEMSAD.cerrarSesion(event)" class="btn btn-danger btn-sm px-3 fw-bold">
                     <i class="fa-solid fa-right-from-bracket me-1"></i>Salir
                 </a>
             </div>
@@ -302,6 +302,8 @@
 
     <!-- Bootstrap JS Bundle -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="../js/config.js"></script>
+    <script>SEMSAD.exigirSesion(true);</script>
     <script>
         function verModulo(nombreModulo, elemento) {
             document.querySelectorAll('.modulo-vista').forEach(el => el.classList.add('d-none'));
@@ -339,7 +341,7 @@
             tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4"><i class="fa-solid fa-spinner fa-spin me-2 text-primary"></i>Cargando inventario de libros...</td></tr>';
 
             try {
-                const resp = await fetch('api/obtener_libros.php');
+                const resp = await fetch(window.SEMSAD_API + '/obtener_libros.php', { credentials: 'include' });
                 const res = await resp.json();
 
                 if (res.status === 'success' && res.data.length > 0) {
@@ -373,7 +375,7 @@
             tbody.innerHTML = '<tr><td colspan="4" class="text-center py-4"><i class="fa-solid fa-spinner fa-spin me-2 text-primary"></i>Cargando auditoría...</td></tr>';
 
             try {
-                const resp = await fetch('api/obtener_auditoria.php');
+                const resp = await fetch(window.SEMSAD_API + '/obtener_auditoria.php', { credentials: 'include' });
                 const res = await resp.json();
 
                 if (res.status === 'success' && res.data.length > 0) {
@@ -408,7 +410,7 @@
             tbody.innerHTML = '<tr><td colspan="4" class="text-center py-4"><i class="fa-solid fa-spinner fa-spin me-2 text-success"></i>Cargando usuarios...</td></tr>';
 
             try {
-                const resp = await fetch('api/obtener_usuarios.php');
+                const resp = await fetch(window.SEMSAD_API + '/obtener_usuarios.php', { credentials: 'include' });
                 const res = await resp.json();
 
                 if (res.status === 'success' && res.data.length > 0) {

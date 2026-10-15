@@ -14,9 +14,9 @@ if ($correo === '' || $codigoEmp === '' || $telefono === '') {
     semsad_responder(['status' => 'error', 'mensaje' => 'Complete su Correo, CI y Teléfono antes de pedir el código.']);
 }
 
-// 1. Solo correos institucionales
-if (!filter_var($correo, FILTER_VALIDATE_EMAIL) || !preg_match('/@([a-z0-9-]+\.)?semsad\.edu\.bo$/i', $correo)) {
-    semsad_responder(['status' => 'error', 'mensaje' => 'Solo se permiten correos institucionales (@est.semsad.edu.bo).']);
+// 1. Validar correo electrónico (Acepta cualquier correo: Gmail, Hotmail, etc.)
+if (!filter_var($correo, FILTER_VALIDATE_EMAIL)) {
+    semsad_responder(['status' => 'error', 'mensaje' => 'Ingrese un correo electrónico válido.']);
 }
 
 // 2. Teléfono: 7 a 10 dígitos
@@ -39,7 +39,7 @@ try {
         }
     }
 
-    // 4. Código de 6 dígitos que caduca en 5 minutos (se guarda en codigo_verificacion)
+    // 4. Código de 6 dígitos que caduca en 5 minutos
     $otp        = (string)random_int(100000, 999999);
     $expiracion = date('Y-m-d H:i:s', time() + 300);
 

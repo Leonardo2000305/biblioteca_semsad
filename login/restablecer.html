@@ -106,7 +106,6 @@
     </div>
 
     <script>
-        // Función para cambiar visibilidad de contraseñas
         function togglePassword(inputId, btn) {
             const input = document.getElementById(inputId);
             const isPassword = input.type === 'password';
@@ -169,7 +168,7 @@
                 btnSubmit.disabled = true;
                 btnSubmit.textContent = 'Guardando...';
 
-                // Rutas posibles de la API PHP en Alwaysdata
+                // Endpoints del servidor backend en Alwaysdata
                 const endpoints = [
                     'https://bibliosemsad.alwaysdata.net/api/restablecer_contrasena.php',
                     'https://biblioteca-semsad.alwaysdata.net/api/restablecer_contrasena.php',
@@ -177,7 +176,6 @@
                 ];
 
                 let data = null;
-                let errorMsg = 'No se pudo conectar con el servidor de la base de datos.';
 
                 for (const url of endpoints) {
                     try {
@@ -191,14 +189,18 @@
                             })
                         });
 
-                        const contentType = res.headers.get('content-type') || '';
-                        
-                        if (contentType.includes('application/json')) {
-                            data = await res.json();
-                            break; // Se encontró la ruta correcta y respondió JSON válido
+                        const text = await res.text();
+                        try {
+                            const json = JSON.parse(text);
+                            if (json && json.status) {
+                                data = json;
+                                break;
+                            }
+                        } catch (e) {
+                            // Ignorar respuestas no-JSON
                         }
                     } catch (err) {
-                        console.warn('Intentando siguiente endpoint...', url);
+                        console.warn('Endpoint falló:', url, err);
                     }
                 }
 
@@ -212,7 +214,7 @@
                     btnSubmit.disabled = false;
                     btnSubmit.textContent = 'Guardar Nueva Contraseña';
                 } else {
-                    mostrarMensaje(errorMsg, 'error');
+                    mostrarMensaje('No se pudo conectar con el servidor de la base de datos.', 'error');
                     btnSubmit.disabled = false;
                     btnSubmit.textContent = 'Guardar Nueva Contraseña';
                 }

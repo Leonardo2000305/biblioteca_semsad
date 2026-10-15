@@ -100,45 +100,46 @@
         <div id="mensajeBox" class="msg-alert"></div>
     </div>
 
+    <script src="../js/config.js"></script>
     <script>
         function togglePassword(inputId, btn) {
             const input = document.getElementById(inputId);
-            const isPassword = input.type === 'password';
-            input.type = isPassword ? 'text' : 'password';
-
-            if (isPassword) {
-                btn.innerHTML = `
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858-5.908A10.003 10.003 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M3 3l18 18" />
-                    </svg>
-                `;
-            } else {
-                btn.innerHTML = `
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                    </svg>
-                `;
-            }
+            const ver = input.type === 'password';
+            input.type = ver ? 'text' : 'password';
+            btn.setAttribute('aria-label', ver ? 'Ocultar contraseña' : 'Mostrar contraseña');
+            btn.style.opacity = ver ? '1' : '0.7';
         }
 
         document.addEventListener('DOMContentLoaded', () => {
             const params = new URLSearchParams(window.location.search);
-            const correo = params.get('correo') || '';
-            const codigo = params.get('codigo') || '';
+            const correo = (params.get('correo') || '').trim();
+            const token  = (params.get('token') || '').trim();
 
             const badgeCorreo = document.getElementById('badgeCorreo');
-            const mensajeBox = document.getElementById('mensajeBox');
-            const form = document.getElementById('formRestablecer');
+            const mensajeBox  = document.getElementById('mensajeBox');
+            const form        = document.getElementById('formRestablecer');
+
+            function mostrarMensaje(texto, tipo, enlaceNuevo) {
+                mensajeBox.textContent = texto;
+                mensajeBox.className = 'msg-alert ' + (tipo === 'success' ? 'msg-success' : 'msg-error');
+                mensajeBox.style.display = 'block';
+                if (enlaceNuevo) {
+                    const a = document.createElement('a');
+                    a.href = 'recuperar.html';
+                    a.textContent = ' Pedir un enlace nuevo';
+                    a.style.fontWeight = '700';
+                    mensajeBox.appendChild(a);
+                }
+                SEMSAD.toast(texto, tipo === 'success' ? 'success' : 'error', 6000);
+            }
 
             if (correo) {
-                badgeCorreo.textContent = correo;
+                badgeCorreo.textContent = correo;   // textContent: el correo viene de la URL, no es de fiar
                 badgeCorreo.style.display = 'inline-block';
             }
 
-            if (!correo || !codigo) {
-                mostrarMensaje('Enlace inválido o incompleto. Solicita una nueva recuperación.', 'error');
+            if (!correo || !token) {
+                mostrarMensaje('Enlace inválido o incompleto.', 'error', true);
                 form.style.display = 'none';
                 return;
             }
@@ -146,98 +147,50 @@
             form.addEventListener('submit', async (e) => {
                 e.preventDefault();
 
-                const pass1 = document.getElementById('nuevaPassword').value.trim();
-                const pass2 = document.getElementById('confirmarPassword').value.trim();
+                const pass1 = document.getElementById('nuevaPassword').value;   // sin trim: la contraseña se guarda tal cual
+                const pass2 = document.getElementById('confirmarPassword').value;
 
-                if (pass1 !== pass2) {
-                    mostrarMensaje('Las contraseñas no coinciden. Verifícalas.', 'error');
-                    return;
-                }
+                if (pass1 !== pass2) { mostrarMensaje('Las contraseñas no coinciden. Verifícalas.', 'error'); return; }
+                if (pass1.length < 6) { mostrarMensaje('La contraseña debe tener al menos 6 caracteres.', 'error'); return; }
 
-                if (pass1.length < 6) {
-                    mostrarMensaje('La contraseña debe tener al menos 6 caracteres.', 'error');
-                    return;
-                }
+                const btn = document.getElementById('btnSubmit');
+                btn.disabled = true;
+                btn.textContent = 'Guardando...';
 
-                const btnSubmit = document.getElementById('btnSubmit');
-                btnSubmit.disabled = true;
-                btnSubmit.textContent = 'Guardando...';
+                try {
+                    const resp = await fetch(`${window.SEMSAD_API}/restablecer_contrasena.php`, {
+                        method: 'POST',
+                        credentials: 'include',
+                        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                        body: JSON.stringify({ correo, token, password: pass1 })
+                    });
 
-                const payload = {
-                    correo: correo,
-                    codigo: codigo,
-                    password: pass1
-                };
-
-                const endpoints = [
-                    'https://bibliosemsad.alwaysdata.net/api/restablecer_contrasena.php',
-                    'https://biblioteca-semsad.alwaysdata.net/api/restablecer_contrasena.php',
-                    'https://bibliotecasemsad.alwaysdata.net/api/restablecer_contrasena.php',
-                    'https://semsad.alwaysdata.net/api/restablecer_contrasena.php',
-                    'https://leogutisp.alwaysdata.net/api/restablecer_contrasena.php',
-                    '../api/restablecer_contrasena.php',
-                    '/api/restablecer_contrasena.php'
-                ];
-
-                let respuestaValida = null;
-                let errorServidor = '';
-
-                for (const url of endpoints) {
-                    try {
-                        const res = await fetch(url, {
-                            method: 'POST',
-                            headers: { 
-                                'Content-Type': 'application/json'
-                            },
-                            body: JSON.stringify(payload)
-                        });
-
-                        const text = await res.text();
-                        let json = null;
-                        try {
-                            json = JSON.parse(text);
-                        } catch (e) {
-                            if (text && text.trim().length > 0) {
-                                errorServidor = text.substring(0, 150);
-                            }
-                        }
-
-                        if (json && (json.status === 'success' || json.status === 'error')) {
-                            respuestaValida = json;
-                            break;
-                        } else if (json && json.mensaje) {
-                            respuestaValida = { status: 'error', mensaje: json.mensaje };
-                            break;
-                        }
-                    } catch (err) {
-                        console.warn('Endpoint falló:', url, err);
-                        if (!errorServidor) {
-                            errorServidor = err.message || '';
-                        }
+                    const texto = await resp.text();
+                    let data;
+                    try { data = JSON.parse(texto); }
+                    catch (e) {
+                        console.error('Respuesta no válida', resp.status, texto.slice(0, 300));
+                        mostrarMensaje(`El servidor respondió algo inesperado (código ${resp.status}).`, 'error');
+                        btn.disabled = false; btn.textContent = 'Guardar Nueva Contraseña';
+                        return;
                     }
-                }
 
-                if (respuestaValida && respuestaValida.status === 'success') {
-                    mostrarMensaje('¡Éxito! ' + respuestaValida.mensaje, 'success');
-                    setTimeout(() => {
-                        window.location.href = 'login.html';
-                    }, 2000);
-                } else if (respuestaValida && respuestaValida.status === 'error') {
-                    mostrarMensaje(respuestaValida.mensaje, 'error');
-                    btnSubmit.disabled = false;
-                    btnSubmit.textContent = 'Guardar Nueva Contraseña';
-                } else {
-                    mostrarMensaje(errorServidor || 'No se pudo conectar con el servidor backend en Alwaysdata.', 'error');
-                    btnSubmit.disabled = false;
-                    btnSubmit.textContent = 'Guardar Nueva Contraseña';
+                    if (data.status === 'success') {
+                        mostrarMensaje(data.mensaje, 'success');           // mensaje VERDE
+                        form.style.display = 'none';
+                        setTimeout(() => { window.location.href = 'index.html'; }, 3000);
+                    } else {
+                        mostrarMensaje(data.mensaje || 'No se pudo cambiar la contraseña.', 'error', data.codigo === 'enlace_invalido');  // mensaje ROJO
+                        btn.disabled = false;
+                        btn.textContent = 'Guardar Nueva Contraseña';
+                    }
+                } catch (err) {
+                    console.error('Sin conexión con la API:', err);
+                    mostrarMensaje('No se pudo conectar con el servidor. Revisa tu conexión e inténtalo de nuevo.', 'error');
+                    btn.disabled = false;
+                    btn.textContent = 'Guardar Nueva Contraseña';
                 }
             });
-
-            function mostrarMensaje(texto, tipo) {
-                mensajeBox.textContent = texto;
-                mensajeBox.className = 'msg-alert ' + (tipo === 'success' ? 'msg-success' : 'msg-error');
-                mensajeBox.style.display = 'block';
-            }
         });
     </script>
 </body>

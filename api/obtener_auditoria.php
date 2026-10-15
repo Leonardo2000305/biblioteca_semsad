@@ -5,11 +5,14 @@ require_once __DIR__ . '/conexion.php';
 semsad_requerir_rol(['Administrador', 'Bibliotecario']);
 
 try {
+    // Une cada intento con los datos del usuario (si la cuenta existe) para que el administrador sepa quién fue.
     $stmt = $conexion->query(
-        'SELECT correo_ingresado, fecha_hora, estado, ip_origen
-           FROM auditoria_recuperacion
-       ORDER BY fecha_hora DESC
-          LIMIT 100'
+        'SELECT a.correo_ingresado, a.fecha_hora, a.estado, a.ip_origen,
+                u.nombres, u.apellidos, u.codigo_empleado, u.telefono
+           FROM auditoria_recuperacion a
+      LEFT JOIN usuario u ON u.id_usuario = a.id_usuario
+       ORDER BY a.fecha_hora DESC
+          LIMIT 200'
     );
     semsad_responder(['status' => 'success', 'data' => $stmt->fetchAll()]);
 } catch (PDOException $e) {

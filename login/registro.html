@@ -223,6 +223,9 @@
                 Ingresa el Código de 6 Dígitos recibido en tu Correo:
             </label>
             <input type="text" id="codigo_otp" class="form-control text-center fs-3 fw-bold mb-3" placeholder="000000" maxlength="6" autocomplete="off">
+            <button id="btnReenviar" type="button" onclick="enviarCodigoOTP(true)" class="btn btn-link w-100 mb-2 text-decoration-none" disabled>
+                <i class="fas fa-rotate-right me-1"></i> <span id="txtReenviar">Reenviar código</span>
+            </button>
             <button id="btnConfirmarRegistro" type="button" onclick="completarRegistro()" class="btn btn-success-custom">
                 <i class="fas fa-check-circle me-2"></i> Confirmar y Crear Cuenta
             </button>
@@ -260,6 +263,7 @@ function mostrarAlerta(mensaje, tipo) {
     // textContent (no innerHTML): el mensaje viene del servidor y no debe interpretarse como HTML
     alerta.textContent = mensaje;
     alerta.classList.remove('d-none');
+    SEMSAD.toast(mensaje, tipo === 'success' ? 'success' : 'error', 6000);
 }
 
 // Llama a la API y devuelve el JSON, o lanza un Error con un mensaje claro para el usuario.
@@ -285,7 +289,29 @@ async function llamarApi(archivo, datos) {
     }
 }
 
-async function enviarCodigoOTP() {
+// ── Reenvío del código: cuenta regresiva de 60 s ────────────────────────────
+let temporizadorReenvio = null;
+
+function iniciarCuentaRegresiva(segundos) {
+    const btn = document.getElementById('btnReenviar');
+    const txt = document.getElementById('txtReenviar');
+    clearInterval(temporizadorReenvio);
+    let restante = Math.max(1, Math.ceil(segundos));
+    btn.disabled = true;
+    txt.textContent = `Reenviar código en ${restante} s`;
+    temporizadorReenvio = setInterval(() => {
+        restante--;
+        if (restante <= 0) {
+            clearInterval(temporizadorReenvio);
+            btn.disabled = false;
+            txt.textContent = 'Reenviar código';
+        } else {
+            txt.textContent = `Reenviar código en ${restante} s`;
+        }
+    }, 1000);
+}
+
+async function enviarCodigoOTP(esReenvio = false) {
     const nombres = document.getElementById('nombres').value.trim();
     const apellidos = document.getElementById('apellidos').value.trim();
     const correo = document.getElementById('correo').value.trim();
@@ -308,25 +334,34 @@ async function enviarCodigoOTP() {
     }
 
     const btn = document.getElementById('btnEnviarCodigo');
+    const btnRe = document.getElementById('btnReenviar');
     const textoBtn = '<i class="fas fa-paper-plane me-2"></i> Enviar Código de Verificación';
     btn.disabled = true;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i> Enviando código al correo...';
+    btnRe.disabled = true;
+    if (!esReenvio) btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i> Enviando código al correo...';
 
     try {
         const data = await llamarApi('enviar_codigo.php', { correo, codigo_empleado, telefono });
         if (data.status === 'success') {
-            mostrarAlerta(data.mensaje || 'Código de verificación enviado.', 'success');
+            mostrarAlerta(esReenvio ? 'Te enviamos un código nuevo. El anterior ya no sirve.' : (data.mensaje || 'Código de verificación enviado.'), 'success');
             document.getElementById('seccion_otp').classList.remove('d-none');
+            document.getElementById('codigo_otp').value = '';
+            document.getElementById('codigo_otp').focus();
             btn.classList.add('d-none');
+            iniciarCuentaRegresiva(60);
         } else {
             mostrarAlerta(data.mensaje || 'No se pudo enviar el código.', 'error');
-            btn.disabled = false;
-            btn.innerHTML = textoBtn;
+            if (data.espera) {
+                iniciarCuentaRegresiva(data.espera);     // el servidor dice cuánto falta
+            } else if (esReenvio) {
+                btnRe.disabled = false;
+            }
+            if (!esReenvio) { btn.disabled = false; btn.innerHTML = textoBtn; }
         }
     } catch (err) {
         mostrarAlerta(err.message, 'error');
-        btn.disabled = false;
-        btn.innerHTML = textoBtn;
+        if (esReenvio) btnRe.disabled = false;
+        else { btn.disabled = false; btn.innerHTML = textoBtn; }
     }
 }
 

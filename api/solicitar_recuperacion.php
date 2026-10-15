@@ -1,5 +1,4 @@
 <?php
-ob_start();
 require_once __DIR__ . '/conexion.php';
 
 if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
@@ -10,81 +9,78 @@ $entrada = semsad_leer_json();
 $correo  = strtolower(trim((string)($entrada['correo'] ?? '')));
 
 if ($correo === '' || !filter_var($correo, FILTER_VALIDATE_EMAIL)) {
-    semsad_responder(['status' => 'error', 'mensaje' => 'Ingrese un correo electrónico válido.']);
+    semsad_responder(['status' => 'error', 'mensaje' => 'Ingresa un correo electrónico válido.']);
 }
 
 try {
-    if (!isset($conexion) || !($conexion instanceof PDO)) {
-        semsad_responder(['status' => 'error', 'mensaje' => 'Error de conexión con la base de datos MySQL.'], 500);
-    }
+    $q = $conexion->prepare('SELECT id_usuario, contrasena, estado FROM usuario WHERE LOWER(correo) = :c LIMIT 1');
+    $q->execute([':c' => $correo]);
+    $usuario = $q->fetch();
 
-    // 1. Verificar si el usuario existe en la BD (probando 'correo' y 'email')
-    $stmt = $conexion->prepare('SELECT id_usuario FROM usuario WHERE LOWER(correo) = :c LIMIT 1');
-    $stmt->execute([':c' => $correo]);
-    $usuarioExiste = $stmt->fetch();
-
-    if (!$usuarioExiste) {
-        try {
-            $stmt2 = $conexion->prepare('SELECT id_usuario FROM usuario WHERE LOWER(email) = :c LIMIT 1');
-            $stmt2->execute([':c' => $correo]);
-            $usuarioExiste = $stmt2->fetch();
-        } catch (Exception $ex) {
-            // Ignorar si la columna 'email' no existe
-        }
-    }
-
-    if (!$usuarioExiste) {
+    // 1. La cuenta no existe: queda registrado para el administrador
+    if (!$usuario) {
+        semsad_auditar($conexion, $correo, null, 'Correo No Encontrado');
         semsad_responder(['status' => 'error', 'mensaje' => 'No existe ninguna cuenta registrada con este correo.']);
     }
 
-    // 2. Generar código OTP (Vigencia de 15 minutos)
-    $otp        = (string)random_int(100000, 999999);
-    $expiracion = date('Y-m-d H:i:s', time() + 900);
+    // 2. Cuenta suspendida o bloqueada
+    if (($usuario['estado'] ?? 'Activo') !== 'Activo') {
+        semsad_auditar($conexion, $correo, (int)$usuario['id_usuario'], 'Cuenta no activa');
+        semsad_responder(['status' => 'error', 'mensaje' => 'Tu cuenta no está activa. Contacta a la biblioteca.']);
+    }
 
-    $conexion->prepare('DELETE FROM codigo_verificacion WHERE LOWER(correo) = :c')->execute([':c' => $correo]);
-    $conexion->prepare('INSERT INTO codigo_verificacion (correo, codigo, expiracion) VALUES (:c, :o, :e)')
-             ->execute([':c' => $correo, ':o' => $otp, ':e' => $expiracion]);
+    // 3. Evita el abuso: un enlace por minuto
+    $espera = semsad_espera_recuperacion($conexion, $correo);
+    if ($espera > 0) {
+        semsad_responder([
+            'status'  => 'error',
+            'mensaje' => "Ya te enviamos un enlace hace poco. Espera $espera segundos para pedir otro.",
+            'espera'  => $espera,
+        ]);
+    }
 
-    // 3. Ruta exacta en Vercel
-    $linkWeb = 'https://bibliotecasemsad.vercel.app/login/restablecer.html?correo=' . urlencode($correo) . '&codigo=' . urlencode($otp);
+    // 4. Enlace firmado de un solo uso (15 minutos)
+    $token = semsad_crear_token($cfg, $correo, (string)($usuario['contrasena'] ?? ''), 900);
+    $link  = rtrim($cfg['frontend_url'], '/') . '/login/restablecer.html?correo=' . urlencode($correo) . '&token=' . urlencode($token);
+    $linkH = htmlspecialchars($link, ENT_QUOTES, 'UTF-8');
 
-    // 4. Plantilla de Correo HTML limpia
     $asunto  = '=?UTF-8?B?' . base64_encode('Restablecer Contraseña - Biblioteca SEMSAD') . '?=';
-    $cuerpo  = "
-    <!DOCTYPE html>
-    <html lang='es'>
-    <head><meta charset='UTF-8'></head>
-    <body style='font-family: Arial, sans-serif; background-color: #f4f5f7; padding: 20px; margin: 0;'>
-        <div style='max-width: 480px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; padding: 24px; border: 1px solid #e5e7eb;'>
-            <h2 style='color: #1d4ed8; margin-top: 0;'>Biblioteca SEMSAD</h2>
-            <p style='color: #374151; font-size: 15px;'>Hola,</p>
-            <p style='color: #374151; font-size: 15px;'>Has solicitado restablecer tu contraseña. Haz clic en el siguiente botón para crear una nueva:</p>
-            
-            <div style='text-align: center; margin: 25px 0;'>
-                <a href='$linkWeb' style='background-color: #1d4ed8; color: #ffffff; padding: 12px 24px; text-decoration: none; font-weight: bold; border-radius: 6px; display: inline-block;'>
-                    Restablecer mi Contraseña
-                </a>
-            </div>
-
-            <hr style='border: 0; border-top: 1px solid #e5e7eb; margin: 20px 0;'>
-            <p style='font-size: 12px; color: #9ca3af; margin-bottom: 0;'>Este enlace caduca en <b>15 minutos</b>. Si no solicitaste el cambio, ignora este mensaje.</p>
-        </div>
-    </body>
-    </html>
-    ";
-
-    $headers  = "MIME-Version: 1.0\r\n";
-    $headers .= "Content-Type: text/html; charset=UTF-8\r\n";
-    $headers .= "From: Biblioteca SEMSAD <no-reply@semsad.edu.bo>\r\n";
-    $headers .= "Reply-To: soporte@semsad.edu.bo\r\n";
-    $headers .= "X-Mailer: PHP/" . phpversion();
+    $cuerpo  = "<!DOCTYPE html><html lang='es'><head><meta charset='UTF-8'></head>
+<body style='font-family: Arial, sans-serif; background-color: #f4f5f7; padding: 20px; margin: 0;'>
+  <div style='max-width: 480px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; padding: 24px; border: 1px solid #e5e7eb;'>
+    <h2 style='color: #1d4ed8; margin-top: 0;'>Biblioteca SEMSAD</h2>
+    <p style='color: #374151; font-size: 15px;'>Hola,</p>
+    <p style='color: #374151; font-size: 15px;'>Recibimos una solicitud para restablecer tu contraseña. Haz clic en el botón para crear una nueva:</p>
+    <div style='text-align: center; margin: 25px 0;'>
+      <a href='$linkH' style='background-color: #1d4ed8; color: #ffffff; padding: 12px 24px; text-decoration: none; font-weight: bold; border-radius: 6px; display: inline-block;'>Restablecer mi contraseña</a>
+    </div>
+    <hr style='border: 0; border-top: 1px solid #e5e7eb; margin: 20px 0;'>
+    <p style='font-size: 12px; color: #9ca3af; margin-bottom: 0;'>Este enlace caduca en <b>15 minutos</b> y solo se puede usar una vez. Si no lo solicitaste, ignora este mensaje: tu contraseña no cambiará.</p>
+  </div>
+</body></html>";
+    $headers = "MIME-Version: 1.0\r\nContent-Type: text/html; charset=UTF-8\r\n"
+             . 'From: Biblioteca SEMSAD <' . $cfg['mail_from'] . ">\r\n"
+             . "X-Mailer: PHP/" . phpversion();
 
     $enviado = @mail($correo, $asunto, $cuerpo, $headers);
 
-    semsad_responder(['status' => 'success', 'mensaje' => 'Instrucciones enviadas a tu correo. Revisa tu bandeja de entrada o SPAM.']);
+    if (!$enviado && empty($cfg['otp_demo'])) {
+        error_log('[SEMSAD] mail() no pudo enviar el enlace de recuperación a ' . $correo);
+        semsad_auditar($conexion, $correo, (int)$usuario['id_usuario'], 'Correo no enviado');
+        semsad_responder(['status' => 'error', 'mensaje' => 'No se pudo enviar el correo en este momento. Inténtalo de nuevo en unos minutos.'], 500);
+    }
 
-} catch (PDOException $e) {
-    semsad_responder(['status' => 'error', 'mensaje' => 'Error interno en la base de datos.'], 500);
-} catch (Throwable $t) {
-    semsad_responder(['status' => 'error', 'mensaje' => 'Error interno del servidor.'], 500);
+    semsad_auditar($conexion, $correo, (int)$usuario['id_usuario'], 'Solicitud enviada');
+
+    $respuesta = ['status' => 'success', 'mensaje' => 'Te enviamos un enlace a tu correo. Revisa tu bandeja de entrada o SPAM (caduca en 15 minutos).'];
+    if (!empty($cfg['otp_demo'])) {
+        $respuesta['enlace_demo'] = $link;   // solo en modo prueba
+    }
+    semsad_responder($respuesta);
+} catch (Throwable $e) {
+    error_log('[SEMSAD] solicitar_recuperacion: ' . $e->getMessage());
+    semsad_responder([
+        'status'  => 'error',
+        'mensaje' => !empty($cfg['debug']) ? 'Error: ' . $e->getMessage() : 'Error interno del servidor.',
+    ], 500);
 }

@@ -145,6 +145,7 @@ function mostrarAlerta(mensaje, tipo) {
     alerta.className = `alert alert-${tipo === 'success' ? 'success' : 'danger'} py-2 px-3 small text-center`;
     alerta.textContent = mensaje;
     alerta.classList.remove('d-none');
+    if (tipo !== 'success') SEMSAD.toast(mensaje, 'error', 5000);
 }
 
 function restaurarBoton(btn) {

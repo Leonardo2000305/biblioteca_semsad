@@ -253,7 +253,8 @@
                         <table class="table table-hover align-middle mb-0">
                             <thead class="table-light">
                                 <tr>
-                                    <th>Usuario / Correo Ingresado</th>
+                                    <th>Usuario</th>
+                                    <th>Correo ingresado</th>
                                     <th>Fecha y Hora</th>
                                     <th>Estado del Intento</th>
                                     <th>Dirección IP</th>
@@ -354,10 +355,10 @@
 
                         tbody.innerHTML += `
                             <tr>
-                                <td class="fw-bold text-dark">#${id}</td>
-                                <td class="fw-semibold text-primary">${titulo}</td>
-                                <td class="text-muted font-monospace">${isbn}</td>
-                                <td>${anio}</td>
+                                <td class="fw-bold text-dark">#${SEMSAD.esc(id)}</td>
+                                <td class="fw-semibold text-primary">${SEMSAD.esc(titulo)}</td>
+                                <td class="text-muted font-monospace">${SEMSAD.esc(isbn)}</td>
+                                <td>${SEMSAD.esc(anio)}</td>
                                 <td><span class="badge bg-success py-2 px-3"><i class="fa-solid fa-circle-check me-1"></i>Disponible</span></td>
                             </tr>
                         `;
@@ -372,7 +373,25 @@
 
         async function cargarAuditoria() {
             const tbody = document.getElementById('tablaAuditoriaBody');
-            tbody.innerHTML = '<tr><td colspan="4" class="text-center py-4"><i class="fa-solid fa-spinner fa-spin me-2 text-primary"></i>Cargando auditoría...</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4"><i class="fa-solid fa-spinner fa-spin me-2 text-primary"></i>Cargando auditoría...</td></tr>';
+
+            // Cada estado tiene su color: verde = logró cambiar, rojo = falló, amarillo = solo pidió el enlace
+            function badgeEstado(estado) {
+                const e = (estado || '').toLowerCase();
+                if (e.includes('exitoso')) {
+                    return '<span class="badge bg-success py-2 px-3"><i class="fa-solid fa-circle-check me-1"></i>CAMBIÓ LA CONTRASEÑA CON ÉXITO</span>';
+                }
+                if (e.includes('solicitud')) {
+                    return '<span class="badge bg-warning text-dark py-2 px-3"><i class="fa-solid fa-envelope me-1"></i>SOLICITÓ EL CAMBIO (enlace enviado)</span>';
+                }
+                if (e.includes('no encontrado')) {
+                    return '<span class="badge bg-danger py-2 px-3"><i class="fa-solid fa-circle-xmark me-1"></i>CORREO NO REGISTRADO</span>';
+                }
+                if (e.includes('no activa')) {
+                    return '<span class="badge bg-danger py-2 px-3"><i class="fa-solid fa-ban me-1"></i>CUENTA NO ACTIVA</span>';
+                }
+                return '<span class="badge bg-danger py-2 px-3"><i class="fa-solid fa-circle-xmark me-1"></i>NO PUDO CAMBIAR LA CONTRASEÑA</span>';
+            }
 
             try {
                 const resp = await fetch(window.SEMSAD_API + '/obtener_auditoria.php', { credentials: 'include' });
@@ -381,27 +400,28 @@
                 if (res.status === 'success' && res.data.length > 0) {
                     tbody.innerHTML = '';
                     res.data.forEach(item => {
-                        const estadoTxt = (item.estado || '').toLowerCase();
-                        const esFallido = estadoTxt.includes('no encontrado') || estadoTxt.includes('fallido') || estadoTxt.includes('error');
-                        
-                        const badgeHtml = esFallido 
-                            ? `<span class="badge bg-danger py-2 px-3"><i class="fa-solid fa-circle-xmark me-1"></i>NO PUDO CAMBIAR DE CONTRASEÑA</span>`
-                            : `<span class="badge bg-success py-2 px-3"><i class="fa-solid fa-circle-check me-1"></i>CAMBIÓ CONTRASEÑA CON ÉXITO</span>`;
+                        const nombre = ((item.nombres || '') + ' ' + (item.apellidos || '')).trim();
+                        const usuarioHtml = nombre
+                            ? `<span class="fw-bold text-dark">${SEMSAD.esc(nombre)}</span><br><small class="text-muted">CI/Código: ${SEMSAD.esc(item.codigo_empleado || '—')}${item.telefono ? ' · Tel: ' + SEMSAD.esc(item.telefono) : ''}</small>`
+                            : '<span class="text-muted fst-italic">Sin cuenta asociada</span>';
 
                         tbody.innerHTML += `
                             <tr>
-                                <td class="fw-bold text-dark">${item.correo_ingresado}</td>
-                                <td class="text-muted"><i class="fa-regular fa-clock me-1"></i>${item.fecha_hora}</td>
-                                <td>${badgeHtml}</td>
-                                <td class="font-monospace text-muted small">${item.ip_origen || '166.114.171.21'}</td>
+                                <td>${usuarioHtml}</td>
+                                <td class="text-primary">${SEMSAD.esc(item.correo_ingresado)}</td>
+                                <td class="text-muted"><i class="fa-regular fa-clock me-1"></i>${SEMSAD.esc(item.fecha_hora)}</td>
+                                <td>${badgeEstado(item.estado)}</td>
+                                <td class="font-monospace text-muted small">${SEMSAD.esc(item.ip_origen || '—')}</td>
                             </tr>
                         `;
                     });
+                } else if (res.status === 'success') {
+                    tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-muted">No existen registros de auditoría aún.</td></tr>';
                 } else {
-                    tbody.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-muted">No existen registros de auditoría aún.</td></tr>';
+                    tbody.innerHTML = `<tr><td colspan="5" class="text-center py-4 text-danger">${SEMSAD.esc(res.mensaje || 'Error al cargar datos de auditoría.')}</td></tr>`;
                 }
             } catch (e) {
-                tbody.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-danger">Error al cargar datos de auditoría.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-danger">Error al cargar datos de auditoría.</td></tr>';
             }
         }
 
@@ -417,13 +437,13 @@
                     tbody.innerHTML = '';
                     res.data.forEach(user => {
                         const telefonoMostrar = (user.telefono && user.telefono.trim() !== '') 
-                            ? `<span class="fw-semibold text-dark"><i class="fa-solid fa-phone me-1 text-muted small"></i>${user.telefono}</span>`
+                            ? `<span class="fw-semibold text-dark"><i class="fa-solid fa-phone me-1 text-muted small"></i>${SEMSAD.esc(user.telefono)}</span>`
                             : `<span class="text-muted italic">Sin teléfono</span>`;
 
                         tbody.innerHTML += `
                             <tr>
-                                <td class="fw-bold text-dark">${user.nombres} ${user.apellidos}</td>
-                                <td class="text-primary">${user.correo}</td>
+                                <td class="fw-bold text-dark">${SEMSAD.esc(user.nombres)} ${SEMSAD.esc(user.apellidos)}</td>
+                                <td class="text-primary">${SEMSAD.esc(user.correo)}</td>
                                 <td>${telefonoMostrar}</td>
                                 <td><span class="badge bg-success">Activo</span></td>
                             </tr>

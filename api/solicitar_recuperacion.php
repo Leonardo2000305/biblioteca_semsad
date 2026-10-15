@@ -35,7 +35,7 @@ try {
     // 3. Ruta exacta en Vercel incluyendo la carpeta /login/
     $linkWeb = 'https://bibliotecasemsad.vercel.app/login/restablecer.html?correo=' . urlencode($correo) . '&codigo=' . urlencode($otp);
 
-    // 4. Plantilla de Correo HTML con soporte UTF-8 completo
+    // 4. Plantilla de Correo HTML limpia (Formato Magic Link directo)
     $asunto  = '=?UTF-8?B?' . base64_encode('Restablecer Contraseña - Biblioteca SEMSAD') . '?=';
     $cuerpo  = "
     <!DOCTYPE html>
@@ -53,7 +53,6 @@ try {
                 </a>
             </div>
 
-            <p style='color: #6b7280; font-size: 13px; text-align: center;'>Código manual de verificación: <b style='color: #1e40af;'>$otp</b></p>
             <hr style='border: 0; border-top: 1px solid #e5e7eb; margin: 20px 0;'>
             <p style='font-size: 12px; color: #9ca3af; margin-bottom: 0;'>Este enlace caduca en <b>5 minutos</b>. Si no solicitaste el cambio, ignora este mensaje.</p>
         </div>

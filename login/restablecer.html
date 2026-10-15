@@ -163,17 +163,14 @@
                 btnSubmit.disabled = true;
                 btnSubmit.textContent = 'Guardando...';
 
+                // Servidores backend Alwaysdata exclusivamente
                 const endpoints = [
-                    '../api/restablecer_contrasena.php',
-                    '/api/restablecer_contrasena.php',
-                    'api/restablecer_contrasena.php',
+                    'https://bibliotecasemsad.alwaysdata.net/api/restablecer_contrasena.php',
                     'https://biblioteca-semsad.alwaysdata.net/api/restablecer_contrasena.php',
-                    'https://bibliosemsad.alwaysdata.net/api/restablecer_contrasena.php',
-                    'https://leonardo2000305.alwaysdata.net/api/restablecer_contrasena.php'
+                    'https://bibliosemsad.alwaysdata.net/api/restablecer_contrasena.php'
                 ];
 
                 let data = null;
-                let errorDetalle = '';
 
                 for (const url of endpoints) {
                     try {
@@ -187,23 +184,26 @@
                             })
                         });
 
+                        // Ignorar errores HTTP 403 o 404 que puedan venir de Vercel o de rutas incorrectas
+                        if (!res.ok && res.status !== 400 && res.status !== 500) {
+                            continue;
+                        }
+
                         const text = await res.text();
                         let json = null;
                         try {
                             json = JSON.parse(text);
                         } catch (e) {
-                            // Ignorar
+                            // Ignorar si no es JSON válido
                         }
 
-                        if (json && (json.status || json.mensaje)) {
+                        // Solo aceptamos la respuesta si proviene de nuestro PHP (contiene el campo status)
+                        if (json && json.status) {
                             data = json;
                             break;
-                        } else if (text && text.trim().length > 0) {
-                            errorDetalle = text.substring(0, 150);
                         }
                     } catch (err) {
                         console.warn('Falló endpoint:', url, err);
-                        if (!errorDetalle) errorDetalle = err.message;
                     }
                 }
 
@@ -217,7 +217,7 @@
                     btnSubmit.disabled = false;
                     btnSubmit.textContent = 'Guardar Nueva Contraseña';
                 } else {
-                    mostrarMensaje(errorDetalle || 'No se pudo conectar con el servidor. Verifica tu conexión.', 'error');
+                    mostrarMensaje('No se pudo conectar con la base de datos de Alwaysdata.', 'error');
                     btnSubmit.disabled = false;
                     btnSubmit.textContent = 'Guardar Nueva Contraseña';
                 }

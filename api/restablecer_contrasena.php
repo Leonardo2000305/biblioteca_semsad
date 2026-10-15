@@ -1,4 +1,8 @@
 <?php
+// Desactivar despliegue de errores HTML para garantizar salida JSON pura
+ini_set('display_errors', '0');
+error_reporting(E_ALL);
+
 ob_start();
 
 // Encabezados CORS universales
@@ -13,12 +17,13 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') {
 
 require_once __DIR__ . '/conexion.php';
 
-// Funciones de respaldo si no existen en conexion.php
+// Función de respuesta con CORS garantizado
 if (!function_exists('semsad_responder')) {
     function semsad_responder($data,$code = 200) {
         if (ob_get_length()) ob_clean();
         http_response_code($code);
         header('Content-Type: application/json; charset=utf-8');
+        header("Access-Control-Allow-Origin: *");
         echo json_encode($data, JSON_UNESCAPED_UNICODE);
         exit();
     }
@@ -73,7 +78,7 @@ try {
     // 3. Generar hash de la contraseña con Bcrypt
     $hashPassword = password_hash($nuevaPassword, PASSWORD_BCRYPT);
 
-    // 4. Actualizar contraseña probando los nombres de columna comunes
+    // 4. Actualizar contraseña probando las columnas probables
     $columnasPosibles = ['password', 'contrasena', 'contraseña', 'clave', 'pass', 'clave_usuario'];
     $actualizado = false;
 

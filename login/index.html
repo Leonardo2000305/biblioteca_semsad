@@ -80,6 +80,7 @@
             transition: all 0.2s ease;
         }
         .btn-acceder:hover { background-color: #0052cc; }
+        .btn-acceder:disabled { background-color: #94a3b8; cursor: not-allowed; box-shadow: none; }
         .link-blue {
             color: #0066ff;
             text-decoration: none;
@@ -125,6 +126,8 @@
 
 <script src="../js/config.js"></script>
 <script>
+let timerPenitencia = null;
+
 function toggleVisibilidad(idInput, boton) {
     const input = document.getElementById(idInput);
     const icono = boton.querySelector('i');
@@ -140,18 +143,79 @@ function toggleVisibilidad(idInput, boton) {
     }
 }
 
+function limpiarToastsAnteriores() {
+    // Elimina cuadros de toast flotantes para que no se apilen en pantalla
+    document.querySelectorAll('.toast, .semsad-toast-container, div[class*="toast"]').forEach(el => el.remove());
+}
+
 function mostrarAlerta(mensaje, tipo) {
     const alerta = document.getElementById('alerta_mensaje');
     alerta.className = `alert alert-${tipo === 'success' ? 'success' : 'danger'} py-2 px-3 small text-center`;
     alerta.textContent = mensaje;
     alerta.classList.remove('d-none');
-    if (tipo !== 'success') SEMSAD.toast(mensaje, 'error', 5000);
+
+    limpiarToastsAnteriores();
+    if (tipo !== 'success' && typeof SEMSAD !== 'undefined' && SEMSAD.toast) {
+        SEMSAD.toast(mensaje, 'error', 4000);
+    }
 }
 
 function restaurarBoton(btn) {
-    btn.disabled = false;
-    btn.innerHTML = 'Acceder';
+    if (!sessionStorage.getItem('semsad_bloqueado_hasta')) {
+        btn.disabled = false;
+        btn.innerHTML = 'Acceder';
+    }
 }
+
+function activarPenitencia(segundos) {
+    const btn = document.getElementById('btnAcceder');
+    const inputCorreo = document.getElementById('correo');
+    const inputClave = document.getElementById('clave');
+
+    btn.disabled = true;
+    inputCorreo.disabled = true;
+    inputClave.disabled = true;
+
+    const finTimestamp = Date.now() + (segundos * 1000);
+    sessionStorage.setItem('semsad_bloqueado_hasta', finTimestamp);
+
+    if (timerPenitencia) clearInterval(timerPenitencia);
+
+    const actualizarTimer = () => {
+        const restante = Math.ceil((finTimestamp - Date.now()) / 1000);
+
+        if (restante <= 0) {
+            clearInterval(timerPenitencia);
+            timerPenitencia = null;
+            sessionStorage.removeItem('semsad_bloqueado_hasta');
+
+            btn.disabled = false;
+            inputCorreo.disabled = false;
+            inputClave.disabled = false;
+            btn.innerHTML = 'Acceder';
+
+            mostrarAlerta('Ya puedes volver a intentar iniciar sesión.', 'success');
+        } else {
+            btn.innerHTML = `<i class="fas fa-lock me-2"></i> Espere ${restante}s...`;
+            mostrarAlerta(`Has superado el límite de 3 intentos fallidos. Espera ${restante} segundos.`, 'error');
+        }
+    };
+
+    actualizarTimer();
+    timerPenitencia = setInterval(actualizarTimer, 1000);
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    const bloqueadoHasta = sessionStorage.getItem('semsad_bloqueado_hasta');
+    if (bloqueadoHasta) {
+        const diff = Math.ceil((parseInt(bloqueadoHasta) - Date.now()) / 1000);
+        if (diff > 0) {
+            activarPenitencia(diff);
+        } else {
+            sessionStorage.removeItem('semsad_bloqueado_hasta');
+        }
+    }
+});
 
 async function realizarLogin(event) {
     event.preventDefault();
@@ -181,15 +245,19 @@ async function realizarLogin(event) {
         try {
             data = JSON.parse(texto);
         } catch (e) {
-            // El servidor respondió, pero no con JSON (página de error, 404, código PHP sin ejecutar...)
             console.error('Respuesta no válida de /login.php', resp.status, texto.slice(0, 300));
-            mostrarAlerta(`El servidor respondió algo inesperado (código ${resp.status}). Revisa que la API esté publicada en AlwaysData.`, 'error');
+            mostrarAlerta(`El servidor respondió algo inesperado (código ${resp.status}). Revisa la API en Alwaysdata.`, 'error');
             restaurarBoton(btn);
             return;
         }
 
+        if (data.bloqueado && data.tiempo_restante) {
+            activarPenitencia(data.tiempo_restante);
+            return;
+        }
+
         if (data.status === 'success' && data.usuario) {
-            // Guardamos al usuario: las demás páginas lo leen de aquí.
+            sessionStorage.removeItem('semsad_bloqueado_hasta');
             SEMSAD.setUser({
                 id: data.usuario.id_usuario,
                 name: data.usuario.nombre,

@@ -22,7 +22,7 @@
         }
         .input-wrapper input {
             width: 100%;
-            padding: 10px 42px 10px 14px; /* Espacio a la derecha para el botón */
+            padding: 10px 42px 10px 14px;
             border: 1px solid #d1d5db;
             border-radius: 6px;
             font-size: 14px;
@@ -77,7 +77,6 @@
                 <div class="input-wrapper">
                     <input type="password" id="nuevaPassword" placeholder="Mínimo 6 caracteres" required minlength="6">
                     <button type="button" class="btn-eye" onclick="togglePassword('nuevaPassword', this)" title="Mostrar u ocultar contraseña">
-                        <!-- Icono Ojito Abierto (Por defecto) -->
                         <svg class="icon-eye" xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                             <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
@@ -92,7 +91,6 @@
                 <div class="input-wrapper">
                     <input type="password" id="confirmarPassword" placeholder="Repite tu nueva contraseña" required minlength="6">
                     <button type="button" class="btn-eye" onclick="togglePassword('confirmarPassword', this)" title="Mostrar u ocultar contraseña">
-                        <!-- Icono Ojito Abierto (Por defecto) -->
                         <svg class="icon-eye" xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                             <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
@@ -108,17 +106,13 @@
     </div>
 
     <script>
-        // Función para mostrar / ocultar la contraseña y cambiar el icono
+        // Función para cambiar visibilidad de contraseñas
         function togglePassword(inputId, btn) {
             const input = document.getElementById(inputId);
             const isPassword = input.type === 'password';
-            
-            // Alternar tipo de input
             input.type = isPassword ? 'text' : 'password';
 
-            // Alternar icono SVG (Ojito abierto vs Ojito tachado)
             if (isPassword) {
-                // Mostrar ojito tachado (Ocultar)
                 btn.innerHTML = `
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858-5.908A10.003 10.003 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
@@ -126,7 +120,6 @@
                     </svg>
                 `;
             } else {
-                // Mostrar ojito normal (Ver)
                 btn.innerHTML = `
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -137,7 +130,6 @@
         }
 
         document.addEventListener('DOMContentLoaded', () => {
-            // 1. Obtener parámetros de la URL (?correo=...&codigo=...)
             const params = new URLSearchParams(window.location.search);
             const correo = params.get('correo') || '';
             const codigo = params.get('codigo') || '';
@@ -157,7 +149,6 @@
                 return;
             }
 
-            // 2. Procesar el envío de la nueva contraseña
             form.addEventListener('submit', async (e) => {
                 e.preventDefault();
 
@@ -178,31 +169,50 @@
                 btnSubmit.disabled = true;
                 btnSubmit.textContent = 'Guardando...';
 
-                try {
-                    const res = await fetch('../api/restablecer_contrasena.php', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            correo: correo,
-                            codigo: codigo,
-                            password: pass1
-                        })
-                    });
+                // Rutas posibles de la API PHP en Alwaysdata
+                const endpoints = [
+                    'https://bibliosemsad.alwaysdata.net/api/restablecer_contrasena.php',
+                    'https://biblioteca-semsad.alwaysdata.net/api/restablecer_contrasena.php',
+                    '../api/restablecer_contrasena.php'
+                ];
 
-                    const data = await res.json();
+                let data = null;
+                let errorMsg = 'No se pudo conectar con el servidor de la base de datos.';
 
-                    if (data.status === 'success') {
-                        mostrarMensaje('¡Éxito! ' + data.mensaje, 'success');
-                        setTimeout(() => {
-                            window.location.href = 'login.html';
-                        }, 2000);
-                    } else {
-                        mostrarMensaje(data.mensaje || 'Ocurrió un error al actualizar.', 'error');
-                        btnSubmit.disabled = false;
-                        btnSubmit.textContent = 'Guardar Nueva Contraseña';
+                for (const url of endpoints) {
+                    try {
+                        const res = await fetch(url, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                correo: correo,
+                                codigo: codigo,
+                                password: pass1
+                            })
+                        });
+
+                        const contentType = res.headers.get('content-type') || '';
+                        
+                        if (contentType.includes('application/json')) {
+                            data = await res.json();
+                            break; // Se encontró la ruta correcta y respondió JSON válido
+                        }
+                    } catch (err) {
+                        console.warn('Intentando siguiente endpoint...', url);
                     }
-                } catch (err) {
-                    mostrarMensaje('Error de conexión con el servidor.', 'error');
+                }
+
+                if (data && data.status === 'success') {
+                    mostrarMensaje('¡Éxito! ' + data.mensaje, 'success');
+                    setTimeout(() => {
+                        window.location.href = 'login.html';
+                    }, 2000);
+                } else if (data && data.mensaje) {
+                    mostrarMensaje(data.mensaje, 'error');
+                    btnSubmit.disabled = false;
+                    btnSubmit.textContent = 'Guardar Nueva Contraseña';
+                } else {
+                    mostrarMensaje(errorMsg, 'error');
                     btnSubmit.disabled = false;
                     btnSubmit.textContent = 'Guardar Nueva Contraseña';
                 }

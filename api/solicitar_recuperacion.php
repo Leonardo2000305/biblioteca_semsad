@@ -32,8 +32,8 @@ try {
     $conexion->prepare('INSERT INTO codigo_verificacion (correo, codigo, expiracion) VALUES (:c, :o, :e)')
              ->execute([':c' => $correo, ':o' => $otp, ':e' => $expiracion]);
 
-    // 3. Dominio real de Vercel (SIN GUION) apuntando a restablecer.html
-    $linkWeb = 'https://bibliotecasemsad.vercel.app/restablecer.html?correo=' . urlencode($correo) . '&codigo=' . urlencode($otp);
+    // 3. Ruta exacta en Vercel incluyendo la carpeta /login/
+    $linkWeb = 'https://bibliotecasemsad.vercel.app/login/restablecer.html?correo=' . urlencode($correo) . '&codigo=' . urlencode($otp);
 
     // 4. Plantilla de Correo HTML con soporte UTF-8 completo
     $asunto  = '=?UTF-8?B?' . base64_encode('Restablecer Contraseña - Biblioteca SEMSAD') . '?=';

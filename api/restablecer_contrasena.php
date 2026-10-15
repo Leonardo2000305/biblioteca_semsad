@@ -13,12 +13,25 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') {
 
 require_once __DIR__ . '/conexion.php';
 
-// Configurar PDO para manejar excepciones y evitar Fatal Errors
-if (isset($conexion) && $conexion instanceof PDO) {$conexion->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+// Funciones de respaldo por si no existen en conexion.php
+if (!function_exists('semsad_responder')) {
+    function semsad_responder($data,$code = 200) {
+        if (ob_get_length()) ob_clean();
+        http_response_code($code);
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode($data, JSON_UNESCAPED_UNICODE);
+        exit();
+    }
+}
+
+if (!function_exists('semsad_leer_json')) {
+    function semsad_leer_json() {
+        $raw = file_get_contents('php://input');
+        return json_decode($raw, true) ?? [];
+    }
 }
 
 if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
-    if (ob_get_length()) ob_clean();
     semsad_responder(['status' => 'error', 'mensaje' => 'Método no permitido.'], 405);
 }
 
@@ -28,61 +41,47 @@ $codigo         = trim((string)($entrada['codigo'] ?? ''));
 $nuevaPassword  = trim((string)($entrada['password'] ?? ''));
 
 if ($correo === '' || $codigo === '' \vert{}\vert{}$nuevaPassword === '') {
-    if (ob_get_length()) ob_clean();
     semsad_responder(['status' => 'error', 'mensaje' => 'Faltan datos obligatorios para cambiar la contraseña.']);
 }
 
 if (strlen($nuevaPassword) < 6) {
-    if (ob_get_length()) ob_clean();
     semsad_responder(['status' => 'error', 'mensaje' => 'La nueva contraseña debe tener al menos 6 caracteres.']);
 }
 
 try {
+    if (!isset($conexion) \vert{}\vert{} !($conexion instanceof PDO)) {
+        semsad_responder(['status' => 'error', 'mensaje' => 'Error de conexión con la base de datos MySQL.'], 500);
+    }
+
+    $conexion->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+
     // 1. Obtener registro de verificación
     $stmt = $conexion->prepare(' SELECT expiracion FROM codigo_verificacion WHERE LOWER(correo) = :c AND codigo = :o LIMIT 1 ');$stmt->execute([':c' => $correo, ':o' =>$codigo]);
     $registro =$stmt->fetch(PDO::FETCH_ASSOC);
 
     if (!$registro) {
-        if (ob_get_length()) ob_clean();
         semsad_responder(['status' => 'error', 'mensaje' => 'El enlace o código es inválido. Solicita uno nuevo.']);
     }
 
-    // 2. Validar expiración en PHP
+    // 2. Validar expiración
     $tiempoExpiracion = strtotime($registro['expiracion']);
     if ($tiempoExpiracion < time()) {
         $conexion->prepare('DELETE FROM codigo_verificacion WHERE LOWER(correo) = :c')->execute([':c' =>$correo]);
-        if (ob_get_length()) ob_clean();
         semsad_responder(['status' => 'error', 'mensaje' => 'El enlace ha expirado. Solicita uno nuevo.']);
     }
 
-    // 3. Generar hash de la nueva contraseña con Bcrypt
+    // 3. Generar hash de la contraseña
     $hashPassword = password_hash($nuevaPassword, PASSWORD_BCRYPT);
 
-    // 4. Detectar dinámicamente la columna exacta de contraseña en la tabla 'usuario'
-    $columnaPassword = null;
-    try {
-        $qCols =$conexion->query("DESCRIBE usuario");
-        if ($qCols) {
-            $columnas =$qCols->fetchAll(PDO::FETCH_COLUMN);
-            foreach ($columnas as$col) {
-                $cLow = strtolower($col);
-                if (in_array($cLow, ['password', 'contrasena', 'contraseña', 'clave', 'pass', 'clave_usuario', 'password_usuario'])) {
-                    $columnaPassword =$col;
-                    break;
-                }
-            }
-        }
-    } catch (Exception $e) {
-        // En caso de que DESCRIBE no esté disponible
-    }
-
-    $columnasAProbar = $columnaPassword ? [$columnaPassword] : ['password', 'contrasena', 'contraseña', 'clave', 'pass'];
+    // 4. Actualizar contraseña probando los nombres de columna posibles
+    $columnasPosibles = ['password', 'contrasena', 'contraseña', 'clave', 'pass', 'clave_usuario'];
     $actualizado = false;
 
-    foreach ($columnasAProbar as$col) {
+    foreach ($columnasPosibles as$col) {
         try {
             $update =$conexion->prepare("UPDATE usuario SET `$col` = :p WHERE LOWER(correo) = :c");
-            if ($update && $update->execute([':p' =>$hashPassword, ':c' => $correo])) {$actualizado = true;
+            $res =$update->execute([':p' => $hashPassword, ':c' =>$correo]);
+            if ($res && $update->rowCount() >= 0) {$actualizado = true;
                 break;
             }
         } catch (Exception $ex) {
@@ -91,19 +90,15 @@ try {
     }
 
     if (!$actualizado) {
-        if (ob_get_length()) ob_clean();
         semsad_responder(['status' => 'error', 'mensaje' => 'No se pudo actualizar la contraseña en la base de datos.'], 500);
     }
 
-    // 5. Eliminar el código usado (Un solo uso)
+    // 5. Eliminar el código usado
     $conexion->prepare('DELETE FROM codigo_verificacion WHERE LOWER(correo) = :c')->execute([':c' =>$correo]);
 
-    if (ob_get_length()) ob_clean();
     semsad_responder(['status' => 'success', 'mensaje' => '¡Contraseña restablecida con éxito! Ya puedes iniciar sesión.']);
 
 } catch (PDOException $e) {
-    if (ob_get_length()) ob_clean();
-    semsad_responder(['status' => 'error', 'mensaje' => 'Error en la base de datos: ' . $e->getMessage()], 500); } catch (Throwable$t) {
-    if (ob_get_length()) ob_clean();
-    semsad_responder(['status' => 'error', 'mensaje' => 'Error en el servidor: ' . $t->getMessage()], 500);
+    semsad_responder(['status' => 'error', 'mensaje' => 'Error BD: ' . $e->getMessage()], 500); } catch (Throwable$t) {
+    semsad_responder(['status' => 'error', 'mensaje' => 'Error servidor: ' . $t->getMessage()], 500);
 }

@@ -16,6 +16,7 @@ $cfg = [
     'pass'            => getenv('DB_PASS') ?: '',
     'dsn'             => null,   // opcional: DSN completo (solo para pruebas)
     'debug'           => false,  // true = muestra el error real de la BD en la respuesta
+    'otp_demo'        => false,  // true = el código de verificación se muestra en pantalla (solo pruebas, si el correo no llega)
     'allowed_origins' => [],     // dominios extra permitidos para CORS, ej. 'https://mi-dominio.com'
 ];
 

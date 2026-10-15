@@ -16,7 +16,7 @@ if ($identificador === '' || $clave === '') {
 
 try {
     $stmt = $conexion->prepare(
-        "SELECT u.id_usuario, u.nombres, u.apellidos, u.correo, u.clave, u.codigo_empleado,
+        "SELECT u.id_usuario, u.nombres, u.apellidos, u.correo, u.contrasena, u.codigo_empleado,
                 u.estado, r.nombre AS rol
            FROM usuario u
      INNER JOIN rol r ON r.id_rol = u.id_rol
@@ -32,7 +32,7 @@ try {
         semsad_responder(['status' => 'error', 'mensaje' => $mensajeFallo]);
     }
 
-    $hash  = (string)($usuario['clave'] ?? '');
+    $hash  = (string)($usuario['contrasena'] ?? '');
     $valida = false;
 
     if ($hash !== '') {
@@ -41,7 +41,7 @@ try {
         } elseif (!preg_match('/^\$2[aby]\$/', $hash) && hash_equals($hash, $clave)) {
             // Clave heredada en texto plano: se acepta una vez y se convierte a bcrypt.
             $valida = true;
-            $upd = $conexion->prepare('UPDATE usuario SET clave = :hash WHERE id_usuario = :id');
+            $upd = $conexion->prepare('UPDATE usuario SET contrasena = :hash WHERE id_usuario = :id');
             $upd->execute([':hash' => password_hash($clave, PASSWORD_BCRYPT), ':id' => $usuario['id_usuario']]);
         }
     }

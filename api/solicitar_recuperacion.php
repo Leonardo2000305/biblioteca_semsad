@@ -6,42 +6,41 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
 }
 
 $entrada = semsad_leer_json();
-$correo  = strtolower(trim((string)($entrada['correo'] ?? '')));
+$correo  = trim((string)($entrada['correo'] ?? ''));
 
 if ($correo === '') {
-    semsad_responder(['status' => 'error', 'mensaje' => 'Ingresa tu correo o código.']);
+    semsad_responder(['status' => 'error', 'mensaje' => 'Debes ingresar un correo o código.']);
 }
 
-$ip    = $_SERVER['REMOTE_ADDR'] ?? 'desconocida';
-$fecha = date('Y-m-d H:i:s');
+$ip = $_SERVER['HTTP_X_FORWARDED_FOR'] ?? $_SERVER['REMOTE_ADDR'] ?? 'Desconocida';
+$ip = trim(explode(',', $ip)[0]);
 
 try {
     $stmt = $conexion->prepare(
-        'SELECT id_usuario FROM usuario WHERE LOWER(correo) = :correo OR LOWER(codigo_empleado) = :codigo LIMIT 1'
+        'SELECT id_usuario FROM usuario WHERE LOWER(correo) = :c1 OR LOWER(codigo_empleado) = :c2 LIMIT 1'
     );
-    $stmt->execute([':correo' => $correo, ':codigo' => $correo]);
-    $existe = (bool)$stmt->fetch();
+    $stmt->execute([':c1' => strtolower($correo), ':c2' => strtolower($correo)]);
+    $usuario = $stmt->fetch();
 
-    if ($existe) {
-        $estado = 'CAMBIÓ CONTRASEÑA CON ÉXITO';
-        $status = 'success';
-        $msg    = 'Se han enviado las instrucciones a tu correo registrado.';
-    } else {
-        $estado = 'NO ENCONTRADO - FALLIDO';
-        $status = 'error';
-        $msg    = 'El correo o código ingresado no se encuentra registrado.';
+    // Cada intento queda registrado en auditoria_recuperacion (lo muestra el panel de administración)
+    $log = $conexion->prepare(
+        'INSERT INTO auditoria_recuperacion (correo_ingresado, id_usuario, estado, ip_origen) VALUES (:c, :u, :e, :ip)'
+    );
+    $log->execute([
+        ':c'  => $correo,
+        ':u'  => $usuario ? $usuario['id_usuario'] : null,
+        ':e'  => $usuario ? 'Exitoso' : 'Correo No Encontrado',
+        ':ip' => $ip,
+    ]);
+
+    if ($usuario) {
+        semsad_responder(['status' => 'success', 'mensaje' => 'Se han enviado las instrucciones a tu correo institucional.']);
     }
-
-    $aud = $conexion->prepare(
-        'INSERT INTO auditoria_claves (correo_ingresado, fecha_hora, estado, ip_origen) VALUES (:c, :f, :e, :ip)'
-    );
-    $aud->execute([':c' => $correo, ':f' => $fecha, ':e' => $estado, ':ip' => $ip]);
-
-    semsad_responder(['status' => $status, 'mensaje' => $msg]);
+    semsad_responder(['status' => 'error', 'mensaje' => 'El correo o código ingresado no coincide con ninguna cuenta activa.']);
 } catch (PDOException $e) {
     error_log('[SEMSAD] solicitar_recuperacion: ' . $e->getMessage());
     semsad_responder([
         'status'  => 'error',
-        'mensaje' => !empty($cfg['debug']) ? 'Error de base de datos: ' . $e->getMessage() : 'Error interno del servidor.',
+        'mensaje' => !empty($cfg['debug']) ? 'Error al procesar la solicitud: ' . $e->getMessage() : 'Error interno del servidor.',
     ], 500);
 }

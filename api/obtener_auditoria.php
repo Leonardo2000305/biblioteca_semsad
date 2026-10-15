@@ -6,9 +6,10 @@ semsad_requerir_rol(['Administrador', 'Bibliotecario']);
 
 try {
     $stmt = $conexion->query(
-        'SELECT id, correo_ingresado, fecha_hora, estado, ip_origen
-           FROM auditoria_claves
-       ORDER BY fecha_hora DESC'
+        'SELECT correo_ingresado, fecha_hora, estado, ip_origen
+           FROM auditoria_recuperacion
+       ORDER BY fecha_hora DESC
+          LIMIT 100'
     );
     semsad_responder(['status' => 'success', 'data' => $stmt->fetchAll()]);
 } catch (PDOException $e) {

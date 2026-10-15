@@ -24,18 +24,18 @@ try {
         semsad_responder(['status' => 'error', 'mensaje' => 'No existe ninguna cuenta registrada con este correo.']);
     }
 
-    // 2. Generar código OTP de 6 dígitos (Vigencia 5 min)
+    // 2. Generar código OTP (Vigencia extendida a 15 minutos = 900 seg)
     $otp        = (string)random_int(100000, 999999);
-    $expiracion = date('Y-m-d H:i:s', time() + 300);
+    $expiracion = date('Y-m-d H:i:s', time() + 900);
 
     $conexion->prepare('DELETE FROM codigo_verificacion WHERE LOWER(correo) = :c')->execute([':c' => $correo]);
     $conexion->prepare('INSERT INTO codigo_verificacion (correo, codigo, expiracion) VALUES (:c, :o, :e)')
              ->execute([':c' => $correo, ':o' => $otp, ':e' => $expiracion]);
 
-    // 3. Ruta exacta en Vercel incluyendo la carpeta /login/
+    // 3. Ruta exacta en Vercel
     $linkWeb = 'https://bibliotecasemsad.vercel.app/login/restablecer.html?correo=' . urlencode($correo) . '&codigo=' . urlencode($otp);
 
-    // 4. Plantilla de Correo HTML limpia (Formato Magic Link directo)
+    // 4. Plantilla de Correo HTML limpia
     $asunto  = '=?UTF-8?B?' . base64_encode('Restablecer Contraseña - Biblioteca SEMSAD') . '?=';
     $cuerpo  = "
     <!DOCTYPE html>
@@ -54,7 +54,7 @@ try {
             </div>
 
             <hr style='border: 0; border-top: 1px solid #e5e7eb; margin: 20px 0;'>
-            <p style='font-size: 12px; color: #9ca3af; margin-bottom: 0;'>Este enlace caduca en <b>5 minutos</b>. Si no solicitaste el cambio, ignora este mensaje.</p>
+            <p style='font-size: 12px; color: #9ca3af; margin-bottom: 0;'>Este enlace caduca en <b>15 minutos</b>. Si no solicitaste el cambio, ignora este mensaje.</p>
         </div>
     </body>
     </html>

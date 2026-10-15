@@ -17,7 +17,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') {
 
 require_once __DIR__ . '/conexion.php';
 
-// Función de respuesta con CORS garantizado
+// Función de respuesta universal con CORS garantizado
 if (!function_exists('semsad_responder')) {
     function semsad_responder($data,$code = 200) {
         if (ob_get_length()) ob_clean();
@@ -32,7 +32,11 @@ if (!function_exists('semsad_responder')) {
 if (!function_exists('semsad_leer_json')) {
     function semsad_leer_json() {
         $raw = file_get_contents('php://input');
-        return json_decode($raw, true) ?? [];
+        $json = json_decode($raw, true);
+        if (is_array($json) && !empty($json)) {
+            return $json;
+        }
+        return $_POST ?? [];
     }
 }
 
@@ -68,7 +72,7 @@ try {
         semsad_responder(['status' => 'error', 'mensaje' => 'El enlace o código es inválido. Solicita uno nuevo.']);
     }
 
-    // 2. Validar expiración
+    // 2. Validar expiración (independiente de la zona horaria del servidor SQL)
     $tiempoExpiracion = strtotime($registro['expiracion']);
     if ($tiempoExpiracion < time()) {
         $conexion->prepare('DELETE FROM codigo_verificacion WHERE LOWER(correo) = :c')->execute([':c' =>$correo]);
@@ -78,7 +82,7 @@ try {
     // 3. Generar hash de la contraseña con Bcrypt
     $hashPassword = password_hash($nuevaPassword, PASSWORD_BCRYPT);
 
-    // 4. Actualizar contraseña probando las columnas probables
+    // 4. Actualizar contraseña probando variantes de columnas en 'usuario'
     $columnasPosibles = ['password', 'contrasena', 'contraseña', 'clave', 'pass', 'clave_usuario'];
     $actualizado = false;
 
@@ -90,7 +94,15 @@ try {
                 break;
             }
         } catch (Exception $ex) {
-            continue;
+            try {
+                $update =$conexion->prepare("UPDATE usuario SET `$col` = :p WHERE LOWER(email) = :c");
+                $res =$update->execute([':p' => $hashPassword, ':c' =>$correo]);
+                if ($res) {$actualizado = true;
+                    break;
+                }
+            } catch (Exception $ex2) {
+                continue;
+            }
         }
     }
 
@@ -98,7 +110,7 @@ try {
         semsad_responder(['status' => 'error', 'mensaje' => 'No se pudo actualizar la contraseña en la base de datos.'], 500);
     }
 
-    // 5. Eliminar el código usado
+    // 5. Eliminar el código de verificación usado (un solo uso)
     $conexion->prepare('DELETE FROM codigo_verificacion WHERE LOWER(correo) = :c')->execute([':c' =>$correo]);
 
     semsad_responder(['status' => 'success', 'mensaje' => '¡Contraseña restablecida con éxito! Ya puedes iniciar sesión.']);

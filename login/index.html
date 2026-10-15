@@ -144,20 +144,19 @@ function toggleVisibilidad(idInput, boton) {
 }
 
 function limpiarToastsAnteriores() {
-    // Elimina cuadros de toast flotantes para que no se apilen en pantalla
+    // Elimina cualquier toast flotante que pudiera haber quedado en pantalla
     document.querySelectorAll('.toast, .semsad-toast-container, div[class*="toast"]').forEach(el => el.remove());
 }
 
 function mostrarAlerta(mensaje, tipo) {
+    // Muestra la alerta ÚNICAMENTE dentro de la tarjeta (#alerta_mensaje)
     const alerta = document.getElementById('alerta_mensaje');
     alerta.className = `alert alert-${tipo === 'success' ? 'success' : 'danger'} py-2 px-3 small text-center`;
     alerta.textContent = mensaje;
     alerta.classList.remove('d-none');
 
+    // Limpiamos los avisos flotantes de la derecha para que no estorben
     limpiarToastsAnteriores();
-    if (tipo !== 'success' && typeof SEMSAD !== 'undefined' && SEMSAD.toast) {
-        SEMSAD.toast(mensaje, 'error', 4000);
-    }
 }
 
 function restaurarBoton(btn) {
@@ -175,6 +174,8 @@ function activarPenitencia(segundos) {
     btn.disabled = true;
     inputCorreo.disabled = true;
     inputClave.disabled = true;
+
+    limpiarToastsAnteriores();
 
     const finTimestamp = Date.now() + (segundos * 1000);
     sessionStorage.setItem('semsad_bloqueado_hasta', finTimestamp);

@@ -163,11 +163,15 @@
                 btnSubmit.disabled = true;
                 btnSubmit.textContent = 'Guardando...';
 
-                // Servidores backend Alwaysdata exclusivamente
+                // Lista de dominios posibles de Alwaysdata
                 const endpoints = [
-                    'https://bibliotecasemsad.alwaysdata.net/api/restablecer_contrasena.php',
+                    'https://bibliosemsad.alwaysdata.net/api/restablecer_contrasena.php',
                     'https://biblioteca-semsad.alwaysdata.net/api/restablecer_contrasena.php',
-                    'https://bibliosemsad.alwaysdata.net/api/restablecer_contrasena.php'
+                    'https://bibliotecasemsad.alwaysdata.net/api/restablecer_contrasena.php',
+                    'https://semsad.alwaysdata.net/api/restablecer_contrasena.php',
+                    'https://leogutisp.alwaysdata.net/api/restablecer_contrasena.php',
+                    '../api/restablecer_contrasena.php',
+                    '/api/restablecer_contrasena.php'
                 ];
 
                 let data = null;
@@ -184,20 +188,15 @@
                             })
                         });
 
-                        // Ignorar errores HTTP 403 o 404 que puedan venir de Vercel o de rutas incorrectas
-                        if (!res.ok && res.status !== 400 && res.status !== 500) {
-                            continue;
-                        }
-
                         const text = await res.text();
                         let json = null;
                         try {
                             json = JSON.parse(text);
                         } catch (e) {
-                            // Ignorar si no es JSON válido
+                            // Si no es JSON, continuar probando
                         }
 
-                        // Solo aceptamos la respuesta si proviene de nuestro PHP (contiene el campo status)
+                        // SOLO consideramos la respuesta válida si contiene la propiedad 'status' de nuestro PHP
                         if (json && json.status) {
                             data = json;
                             break;
@@ -217,7 +216,7 @@
                     btnSubmit.disabled = false;
                     btnSubmit.textContent = 'Guardar Nueva Contraseña';
                 } else {
-                    mostrarMensaje('No se pudo conectar con la base de datos de Alwaysdata.', 'error');
+                    mostrarMensaje('No se pudo establecer respuesta con la base de datos de Alwaysdata.', 'error');
                     btnSubmit.disabled = false;
                     btnSubmit.textContent = 'Guardar Nueva Contraseña';
                 }

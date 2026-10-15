@@ -14,7 +14,6 @@
         .form-group { text-align: left; margin-bottom: 18px; }
         label { display: block; font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 6px; }
         
-        /* Contenedor del Input con Ojito */
         .input-wrapper {
             position: relative;
             display: flex;
@@ -33,7 +32,6 @@
             border-color: #2563eb;
         }
         
-        /* Botón del Ojito */
         .btn-eye {
             position: absolute;
             right: 10px;
@@ -56,7 +54,7 @@
         .btn-submit:hover { background-color: #1d4ed8; }
         .btn-submit:disabled { background-color: #93c5fd; cursor: not-allowed; }
         
-        .msg-alert { padding: 10px; border-radius: 6px; font-size: 13px; margin-top: 15px; display: none; }
+        .msg-alert { padding: 10px; border-radius: 6px; font-size: 13px; margin-top: 15px; display: none; word-break: break-word; }
         .msg-error { background-color: #fee2e2; color: #991b1b; border: 1px solid #f87171; }
         .msg-success { background-color: #dcfce7; color: #166534; border: 1px solid #4ade80; }
     </style>
@@ -67,11 +65,9 @@
         <h1>Restablecer Contraseña</h1>
         <p>Ingresa tu nueva contraseña para tu cuenta de la Biblioteca SEMSAD.</p>
 
-        <!-- Correo detectado de la URL -->
         <div id="badgeCorreo" class="correo-badge" style="display: none;"></div>
 
         <form id="formRestablecer">
-            <!-- Campo Nueva Contraseña -->
             <div class="form-group">
                 <label for="nuevaPassword">Nueva Contraseña</label>
                 <div class="input-wrapper">
@@ -85,7 +81,6 @@
                 </div>
             </div>
 
-            <!-- Campo Confirmar Nueva Contraseña -->
             <div class="form-group">
                 <label for="confirmarPassword">Confirmar Nueva Contraseña</label>
                 <div class="input-wrapper">
@@ -168,7 +163,6 @@
                 btnSubmit.disabled = true;
                 btnSubmit.textContent = 'Guardando...';
 
-                // Endpoints del servidor backend en Alwaysdata
                 const endpoints = [
                     'https://bibliosemsad.alwaysdata.net/api/restablecer_contrasena.php',
                     'https://biblioteca-semsad.alwaysdata.net/api/restablecer_contrasena.php',
@@ -192,12 +186,12 @@
                         const text = await res.text();
                         try {
                             const json = JSON.parse(text);
-                            if (json && json.status) {
+                            if (json && (json.status || json.mensaje)) {
                                 data = json;
                                 break;
                             }
                         } catch (e) {
-                            // Ignorar respuestas no-JSON
+                            // Si la respuesta no es JSON, continuar probando
                         }
                     } catch (err) {
                         console.warn('Endpoint falló:', url, err);
@@ -214,7 +208,7 @@
                     btnSubmit.disabled = false;
                     btnSubmit.textContent = 'Guardar Nueva Contraseña';
                 } else {
-                    mostrarMensaje('No se pudo conectar con el servidor de la base de datos.', 'error');
+                    mostrarMensaje('No se pudo establecer respuesta con la base de datos. Verifica la conexión.', 'error');
                     btnSubmit.disabled = false;
                     btnSubmit.textContent = 'Guardar Nueva Contraseña';
                 }

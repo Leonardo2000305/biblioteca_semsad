@@ -13,7 +13,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') {
 
 require_once __DIR__ . '/conexion.php';
 
-// Configurar PDO para manejar excepciones
+// Configurar PDO para manejar excepciones y evitar Fatal Errors
 if (isset($conexion) && $conexion instanceof PDO) {$conexion->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 }
 
@@ -95,7 +95,7 @@ try {
         semsad_responder(['status' => 'error', 'mensaje' => 'No se pudo actualizar la contraseña en la base de datos.'], 500);
     }
 
-    // 5. Eliminar el código usado
+    // 5. Eliminar el código usado (Un solo uso)
     $conexion->prepare('DELETE FROM codigo_verificacion WHERE LOWER(correo) = :c')->execute([':c' =>$correo]);
 
     if (ob_get_length()) ob_clean();

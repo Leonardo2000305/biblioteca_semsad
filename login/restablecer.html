@@ -11,13 +11,51 @@
         h1 { color: #1e3a8a; font-size: 22px; margin-bottom: 8px; }
         p { color: #6b7280; font-size: 14px; margin-bottom: 24px; }
         .correo-badge { background-color: #eff6ff; color: #1d4ed8; padding: 6px 12px; border-radius: 20px; font-weight: 600; display: inline-block; margin-bottom: 20px; font-size: 13px; word-break: break-all; }
-        .form-group { text-align: left; margin-bottom: 16px; }
+        .form-group { text-align: left; margin-bottom: 18px; }
         label { display: block; font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 6px; }
-        input { width: 100%; padding: 10px 14px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; outline: none; transition: border-color 0.2s; }
-        input:focus { border-color: #2563eb; }
-        button { width: 100%; background-color: #2563eb; color: white; border: none; padding: 12px; border-radius: 6px; font-size: 15px; font-weight: 600; cursor: pointer; transition: background-color 0.2s; margin-top: 10px; }
-        button:hover { background-color: #1d4ed8; }
-        button:disabled { background-color: #93c5fd; cursor: not-allowed; }
+        
+        /* Contenedor del Input con Ojito */
+        .input-wrapper {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+        .input-wrapper input {
+            width: 100%;
+            padding: 10px 42px 10px 14px; /* Espacio a la derecha para el botón */
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        .input-wrapper input:focus {
+            border-color: #2563eb;
+        }
+        
+        /* Botón del Ojito */
+        .btn-eye {
+            position: absolute;
+            right: 10px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: #6b7280;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 4px;
+            border-radius: 4px;
+            transition: color 0.2s;
+        }
+        .btn-eye:hover {
+            color: #1d4ed8;
+        }
+
+        .btn-submit { width: 100%; background-color: #2563eb; color: white; border: none; padding: 12px; border-radius: 6px; font-size: 15px; font-weight: 600; cursor: pointer; transition: background-color 0.2s; margin-top: 10px; }
+        .btn-submit:hover { background-color: #1d4ed8; }
+        .btn-submit:disabled { background-color: #93c5fd; cursor: not-allowed; }
+        
         .msg-alert { padding: 10px; border-radius: 6px; font-size: 13px; margin-top: 15px; display: none; }
         .msg-error { background-color: #fee2e2; color: #991b1b; border: 1px solid #f87171; }
         .msg-success { background-color: #dcfce7; color: #166534; border: 1px solid #4ade80; }
@@ -33,23 +71,71 @@
         <div id="badgeCorreo" class="correo-badge" style="display: none;"></div>
 
         <form id="formRestablecer">
+            <!-- Campo Nueva Contraseña -->
             <div class="form-group">
                 <label for="nuevaPassword">Nueva Contraseña</label>
-                <input type="password" id="nuevaPassword" placeholder="Mínimo 6 caracteres" required minlength="6">
+                <div class="input-wrapper">
+                    <input type="password" id="nuevaPassword" placeholder="Mínimo 6 caracteres" required minlength="6">
+                    <button type="button" class="btn-eye" onclick="togglePassword('nuevaPassword', this)" title="Mostrar u ocultar contraseña">
+                        <!-- Icono Ojito Abierto (Por defecto) -->
+                        <svg class="icon-eye" xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                        </svg>
+                    </button>
+                </div>
             </div>
 
+            <!-- Campo Confirmar Nueva Contraseña -->
             <div class="form-group">
                 <label for="confirmarPassword">Confirmar Nueva Contraseña</label>
-                <input type="password" id="confirmarPassword" placeholder="Repite tu nueva contraseña" required minlength="6">
+                <div class="input-wrapper">
+                    <input type="password" id="confirmarPassword" placeholder="Repite tu nueva contraseña" required minlength="6">
+                    <button type="button" class="btn-eye" onclick="togglePassword('confirmarPassword', this)" title="Mostrar u ocultar contraseña">
+                        <!-- Icono Ojito Abierto (Por defecto) -->
+                        <svg class="icon-eye" xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                        </svg>
+                    </button>
+                </div>
             </div>
 
-            <button type="submit" id="btnSubmit">Guardar Nueva Contraseña</button>
+            <button type="submit" id="btnSubmit" class="btn-submit">Guardar Nueva Contraseña</button>
         </form>
 
         <div id="mensajeBox" class="msg-alert"></div>
     </div>
 
     <script>
+        // Función para mostrar / ocultar la contraseña y cambiar el icono
+        function togglePassword(inputId, btn) {
+            const input = document.getElementById(inputId);
+            const isPassword = input.type === 'password';
+            
+            // Alternar tipo de input
+            input.type = isPassword ? 'text' : 'password';
+
+            // Alternar icono SVG (Ojito abierto vs Ojito tachado)
+            if (isPassword) {
+                // Mostrar ojito tachado (Ocultar)
+                btn.innerHTML = `
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858-5.908A10.003 10.003 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M3 3l18 18" />
+                    </svg>
+                `;
+            } else {
+                // Mostrar ojito normal (Ver)
+                btn.innerHTML = `
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    </svg>
+                `;
+            }
+        }
+
         document.addEventListener('DOMContentLoaded', () => {
             // 1. Obtener parámetros de la URL (?correo=...&codigo=...)
             const params = new URLSearchParams(window.location.search);
@@ -60,13 +146,11 @@
             const mensajeBox = document.getElementById('mensajeBox');
             const form = document.getElementById('formRestablecer');
 
-            // Mostrar el correo en pantalla si está presente
             if (correo) {
                 badgeCorreo.textContent = correo;
                 badgeCorreo.style.display = 'inline-block';
             }
 
-            // Validar que la URL tenga datos válidos
             if (!correo || !codigo) {
                 mostrarMensaje('Enlace inválido o incompleto. Solicita una nueva recuperación.', 'error');
                 form.style.display = 'none';
@@ -95,7 +179,7 @@
                 btnSubmit.textContent = 'Guardando...';
 
                 try {
-                    const res = await fetch('api/restablecer_contrasena.php', {
+                    const res = await fetch('../api/restablecer_contrasena.php', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({

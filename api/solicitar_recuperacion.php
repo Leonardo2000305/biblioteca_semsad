@@ -24,7 +24,7 @@ try {
         semsad_responder(['status' => 'error', 'mensaje' => 'No existe ninguna cuenta registrada con este correo.']);
     }
 
-    // 2. Generar código OTP de 6 dígitos que caduca en 5 minutos
+    // 2. Generar código OTP de 6 dígitos (Vigencia 5 min)
     $otp        = (string)random_int(100000, 999999);
     $expiracion = date('Y-m-d H:i:s', time() + 300);
 
@@ -32,10 +32,10 @@ try {
     $conexion->prepare('INSERT INTO codigo_verificacion (correo, codigo, expiracion) VALUES (:c, :o, :e)')
              ->execute([':c' => $correo, ':o' => $otp, ':e' => $expiracion]);
 
-    // 3. Crear enlace directo hacia restablecer.html (Ubicado en la raíz)
-    $linkWeb = 'https://biblioteca-semsad.vercel.app/restablecer.html?correo=' . urlencode($correo) . '&codigo=' . urlencode($otp);
+    // 3. Dominio real de Vercel (SIN GUION) apuntando a restablecer.html
+    $linkWeb = 'https://bibliotecasemsad.vercel.app/restablecer.html?correo=' . urlencode($correo) . '&codigo=' . urlencode($otp);
 
-    // 4. Correo en formato HTML elegante con UTF-8
+    // 4. Plantilla de Correo HTML con soporte UTF-8 completo
     $asunto  = '=?UTF-8?B?' . base64_encode('Restablecer Contraseña - Biblioteca SEMSAD') . '?=';
     $cuerpo  = "
     <!DOCTYPE html>

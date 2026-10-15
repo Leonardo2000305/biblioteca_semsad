@@ -23,27 +23,38 @@ if (strlen($nuevaPassword) < 6) {
 }
 
 try {
-    // 1. Validar que el código sea correcto y no haya expirado
+    // 1. Obtener el registro del código de verificación
     $stmt = $conexion->prepare('
-        SELECT id FROM codigo_verificacion 
-        WHERE LOWER(correo) = :c AND codigo = :o AND expiracion > NOW() 
+        SELECT id, expiracion 
+        FROM codigo_verificacion 
+        WHERE LOWER(correo) = :c AND codigo = :o 
         LIMIT 1
     ');
     $stmt->execute([':c' => $correo, ':o' => $codigo]);
+    $registro = $stmt->fetch(PDO::FETCH_ASSOC);
 
-    if (!$stmt->fetch()) {
+    // 2. Validar existencia del token
+    if (!$registro) {
         if (ob_get_length()) ob_clean();
-        semsad_responder(['status' => 'error', 'mensaje' => 'El enlace o código es inválido o ya expiró. Solicita uno nuevo.']);
+        semsad_responder(['status' => 'error', 'mensaje' => 'El enlace o código es inválido. Solicita uno nuevo.']);
     }
 
-    // 2. Encriptar la nueva contraseña con Bcrypt (mismo formato del sistema)
+    // 3. Validar expiración en PHP (previene errores de zona horaria de MySQL)
+    $tiempoExpiracion = strtotime($registro['expiracion']);
+    if ($tiempoExpiracion < time()) {
+        $conexion->prepare('DELETE FROM codigo_verificacion WHERE LOWER(correo) = :c')->execute([':c' => $correo]);
+        if (ob_get_length()) ob_clean();
+        semsad_responder(['status' => 'error', 'mensaje' => 'El enlace ha expirado (más de 15 min). Solicita uno nuevo.']);
+    }
+
+    // 4. Encriptar la nueva contraseña con Bcrypt
     $hashPassword = password_hash($nuevaPassword, PASSWORD_BCRYPT);
 
-    // 3. Actualizar en la tabla usuario
+    // 5. Actualizar la contraseña en la tabla usuario
     $update = $conexion->prepare('UPDATE usuario SET password = :p WHERE LOWER(correo) = :c');
     $update->execute([':p' => $hashPassword, ':c' => $correo]);
 
-    // 4. Eliminar el código para que no se use dos veces
+    // 6. Eliminar el código usado (Un solo uso)
     $conexion->prepare('DELETE FROM codigo_verificacion WHERE LOWER(correo) = :c')->execute([':c' => $correo]);
 
     if (ob_get_length()) ob_clean();

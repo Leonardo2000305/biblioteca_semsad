@@ -24,7 +24,7 @@ try {
         semsad_responder(['status' => 'error', 'mensaje' => 'No existe ninguna cuenta registrada con este correo.']);
     }
 
-    // 2. Generar código de recuperación de 6 dígitos (caduca en 5 min)
+    // 2. Generar código OTP de 6 dígitos
     $otp        = (string)random_int(100000, 999999);
     $expiracion = date('Y-m-d H:i:s', time() + 300);
 
@@ -32,8 +32,8 @@ try {
     $conexion->prepare('INSERT INTO codigo_verificacion (correo, codigo, expiracion) VALUES (:c, :o, :e)')
              ->execute([':c' => $correo, ':o' => $otp, ':e' => $expiracion]);
 
-    // 3. Envío por la API de Brevo
-    $apiKeyBrevo = 'TU_API_KEY_DE_BREVO_AQUI'; // PEGA AQUÍ TU API KEY
+    // 3. Tomar la API Key de Brevo configurada en config.php / conexion.php
+    $apiKeyBrevo = $cfg['brevo_api_key'] ?? $cfg['brevo_key'] ?? $cfg['api_key_brevo'] ?? '';
 
     $dataBrevo = [
         'sender' => [
@@ -65,6 +65,7 @@ try {
     curl_close($ch);
 
     if (ob_get_length()) ob_clean();
+
     if ($httpCode >= 200 && $httpCode < 300) {
         semsad_responder(['status' => 'success', 'mensaje' => 'Código de recuperación enviado a tu correo.']);
     } else {

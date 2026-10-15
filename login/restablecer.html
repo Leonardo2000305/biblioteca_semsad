@@ -164,12 +164,16 @@
                 btnSubmit.textContent = 'Guardando...';
 
                 const endpoints = [
-                    'https://bibliosemsad.alwaysdata.net/api/restablecer_contrasena.php',
+                    '../api/restablecer_contrasena.php',
+                    '/api/restablecer_contrasena.php',
+                    'api/restablecer_contrasena.php',
                     'https://biblioteca-semsad.alwaysdata.net/api/restablecer_contrasena.php',
-                    '../api/restablecer_contrasena.php'
+                    'https://bibliosemsad.alwaysdata.net/api/restablecer_contrasena.php',
+                    'https://leonardo2000305.alwaysdata.net/api/restablecer_contrasena.php'
                 ];
 
                 let data = null;
+                let errorDetalle = '';
 
                 for (const url of endpoints) {
                     try {
@@ -184,17 +188,22 @@
                         });
 
                         const text = await res.text();
+                        let json = null;
                         try {
-                            const json = JSON.parse(text);
-                            if (json && (json.status || json.mensaje)) {
-                                data = json;
-                                break;
-                            }
+                            json = JSON.parse(text);
                         } catch (e) {
-                            // Continuar probando si no es JSON válido
+                            // Ignorar
+                        }
+
+                        if (json && (json.status || json.mensaje)) {
+                            data = json;
+                            break;
+                        } else if (text && text.trim().length > 0) {
+                            errorDetalle = text.substring(0, 150);
                         }
                     } catch (err) {
-                        console.warn('Endpoint falló:', url, err);
+                        console.warn('Falló endpoint:', url, err);
+                        if (!errorDetalle) errorDetalle = err.message;
                     }
                 }
 
@@ -208,7 +217,7 @@
                     btnSubmit.disabled = false;
                     btnSubmit.textContent = 'Guardar Nueva Contraseña';
                 } else {
-                    mostrarMensaje('No se pudo establecer respuesta con la base de datos. Verifica la conexión.', 'error');
+                    mostrarMensaje(errorDetalle || 'No se pudo conectar con el servidor. Verifica tu conexión.', 'error');
                     btnSubmit.disabled = false;
                     btnSubmit.textContent = 'Guardar Nueva Contraseña';
                 }

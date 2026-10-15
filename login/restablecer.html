@@ -180,15 +180,13 @@
                 ];
 
                 let respuestaValida = null;
-                let ultimoErrorTexto = '';
 
                 for (const url of endpoints) {
                     try {
                         const res = await fetch(url, {
                             method: 'POST',
                             headers: { 
-                                'Content-Type': 'application/json',
-                                'Accept': 'application/json'
+                                'Content-Type': 'application/json'
                             },
                             body: JSON.stringify(payload)
                         });
@@ -198,9 +196,7 @@
                         try {
                             json = JSON.parse(text);
                         } catch (e) {
-                            if (text && text.trim().length > 0) {
-                                ultimoErrorTexto = text.substring(0, 180);
-                            }
+                            // Ignorar respuestas no-JSON
                         }
 
                         if (json && (json.status === 'success' || json.status === 'error')) {
@@ -211,10 +207,7 @@
                             break;
                         }
                     } catch (err) {
-                        console.warn('Endpoint no respondió:', url, err);
-                        if (!ultimoErrorTexto) {
-                            ultimoErrorTexto = err.message || 'Error de conexión';
-                        }
+                        console.warn('Endpoint falló:', url, err);
                     }
                 }
 
@@ -228,7 +221,7 @@
                     btnSubmit.disabled = false;
                     btnSubmit.textContent = 'Guardar Nueva Contraseña';
                 } else {
-                    mostrarMensaje(ultimoErrorTexto || 'No se pudo conectar con Alwaysdata. Revisa la conexión.', 'error');
+                    mostrarMensaje('No se pudo conectar con el servidor backend en Alwaysdata.', 'error');
                     btnSubmit.disabled = false;
                     btnSubmit.textContent = 'Guardar Nueva Contraseña';
                 }

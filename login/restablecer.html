@@ -163,11 +163,10 @@
                 btnSubmit.disabled = true;
                 btnSubmit.textContent = 'Guardando...';
 
-                // Lista de dominios posibles de Alwaysdata
                 const endpoints = [
-                    'https://bibliosemsad.alwaysdata.net/api/restablecer_contrasena.php',
-                    'https://biblioteca-semsad.alwaysdata.net/api/restablecer_contrasena.php',
                     'https://bibliotecasemsad.alwaysdata.net/api/restablecer_contrasena.php',
+                    'https://biblioteca-semsad.alwaysdata.net/api/restablecer_contrasena.php',
+                    'https://bibliosemsad.alwaysdata.net/api/restablecer_contrasena.php',
                     'https://semsad.alwaysdata.net/api/restablecer_contrasena.php',
                     'https://leogutisp.alwaysdata.net/api/restablecer_contrasena.php',
                     '../api/restablecer_contrasena.php',
@@ -175,6 +174,7 @@
                 ];
 
                 let data = null;
+                let ultimoError = '';
 
                 for (const url of endpoints) {
                     try {
@@ -193,16 +193,15 @@
                         try {
                             json = JSON.parse(text);
                         } catch (e) {
-                            // Si no es JSON, continuar probando
+                            ultimoError = text;
                         }
 
-                        // SOLO consideramos la respuesta válida si contiene la propiedad 'status' de nuestro PHP
-                        if (json && json.status) {
+                        if (json && (json.status || json.mensaje)) {
                             data = json;
                             break;
                         }
                     } catch (err) {
-                        console.warn('Falló endpoint:', url, err);
+                        ultimoError = err.message || 'Error de red';
                     }
                 }
 
@@ -211,12 +210,12 @@
                     setTimeout(() => {
                         window.location.href = 'login.html';
                     }, 2000);
-                } else if (data && data.mensaje) {
-                    mostrarMensaje(data.mensaje, 'error');
+                } else if (data && (data.mensaje || data.status === 'error')) {
+                    mostrarMensaje(data.mensaje || 'Ocurrió un error al actualizar.', 'error');
                     btnSubmit.disabled = false;
                     btnSubmit.textContent = 'Guardar Nueva Contraseña';
                 } else {
-                    mostrarMensaje('No se pudo establecer respuesta con la base de datos de Alwaysdata.', 'error');
+                    mostrarMensaje(ultimoError || 'No se pudo conectar con el servidor backend.', 'error');
                     btnSubmit.disabled = false;
                     btnSubmit.textContent = 'Guardar Nueva Contraseña';
                 }

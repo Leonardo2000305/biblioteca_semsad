@@ -163,29 +163,33 @@
                 btnSubmit.disabled = true;
                 btnSubmit.textContent = 'Guardando...';
 
+                const payload = {
+                    correo: correo,
+                    codigo: codigo,
+                    password: pass1
+                };
+
                 const endpoints = [
-                    'https://bibliotecasemsad.alwaysdata.net/api/restablecer_contrasena.php',
-                    'https://biblioteca-semsad.alwaysdata.net/api/restablecer_contrasena.php',
                     'https://bibliosemsad.alwaysdata.net/api/restablecer_contrasena.php',
+                    'https://biblioteca-semsad.alwaysdata.net/api/restablecer_contrasena.php',
+                    'https://bibliotecasemsad.alwaysdata.net/api/restablecer_contrasena.php',
                     'https://semsad.alwaysdata.net/api/restablecer_contrasena.php',
                     'https://leogutisp.alwaysdata.net/api/restablecer_contrasena.php',
                     '../api/restablecer_contrasena.php',
                     '/api/restablecer_contrasena.php'
                 ];
 
-                let data = null;
-                let ultimoError = '';
+                let respuestaValida = null;
 
                 for (const url of endpoints) {
                     try {
                         const res = await fetch(url, {
                             method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                correo: correo,
-                                codigo: codigo,
-                                password: pass1
-                            })
+                            headers: { 
+                                'Content-Type': 'application/json',
+                                'Accept': 'application/json'
+                            },
+                            body: JSON.stringify(payload)
                         });
 
                         const text = await res.text();
@@ -193,29 +197,30 @@
                         try {
                             json = JSON.parse(text);
                         } catch (e) {
-                            ultimoError = text;
+                            // Ignorar respuestas que no son JSON
                         }
 
-                        if (json && (json.status || json.mensaje)) {
-                            data = json;
+                        // Validar si la respuesta proviene de nuestro PHP (contiene el atributo status)
+                        if (json && (json.status === 'success' || json.status === 'error')) {
+                            respuestaValida = json;
                             break;
                         }
                     } catch (err) {
-                        ultimoError = err.message || 'Error de red';
+                        console.warn('Endpoint no respondió:', url, err);
                     }
                 }
 
-                if (data && data.status === 'success') {
-                    mostrarMensaje('¡Éxito! ' + data.mensaje, 'success');
+                if (respuestaValida && respuestaValida.status === 'success') {
+                    mostrarMensaje('¡Éxito! ' + respuestaValida.mensaje, 'success');
                     setTimeout(() => {
                         window.location.href = 'login.html';
                     }, 2000);
-                } else if (data && (data.mensaje || data.status === 'error')) {
-                    mostrarMensaje(data.mensaje || 'Ocurrió un error al actualizar.', 'error');
+                } else if (respuestaValida && respuestaValida.status === 'error') {
+                    mostrarMensaje(respuestaValida.mensaje, 'error');
                     btnSubmit.disabled = false;
                     btnSubmit.textContent = 'Guardar Nueva Contraseña';
                 } else {
-                    mostrarMensaje(ultimoError || 'No se pudo conectar con el servidor backend.', 'error');
+                    mostrarMensaje('Error al conectar con la base de datos. Pide un nuevo correo de recuperación.', 'error');
                     btnSubmit.disabled = false;
                     btnSubmit.textContent = 'Guardar Nueva Contraseña';
                 }

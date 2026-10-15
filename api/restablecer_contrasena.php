@@ -13,7 +13,6 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') {
 
 require_once __DIR__ . '/conexion.php';
 
-// Funciones de respaldo por si no existen en conexion.php
 if (!function_exists('semsad_responder')) {
     function semsad_responder($data,$code = 200) {
         if (ob_get_length()) ob_clean();
@@ -73,7 +72,7 @@ try {
     // 3. Generar hash de la contraseña
     $hashPassword = password_hash($nuevaPassword, PASSWORD_BCRYPT);
 
-    // 4. Actualizar contraseña probando los nombres de columna posibles
+    // 4. Actualizar contraseña probando las columnas comunes en 'usuario'
     $columnasPosibles = ['password', 'contrasena', 'contraseña', 'clave', 'pass', 'clave_usuario'];
     $actualizado = false;
 

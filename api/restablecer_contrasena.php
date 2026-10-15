@@ -7,50 +7,49 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
     semsad_responder(['status' => 'error', 'mensaje' => 'Método no permitido.'], 405);
 }
 
-$entrada    = semsad_leer_json();
-$correo     = strtolower(trim((string)($entrada['correo'] ?? '')));
-$codigoOtp  = trim((string)($entrada['codigo_otp'] ?? '')));
-$nuevaClave = (string)($entrada['nueva_clave'] ?? '');
+$entrada        = semsad_leer_json();
+$correo         = strtolower(trim((string)($entrada['correo'] ?? '')));
+$codigo         = trim((string)($entrada['codigo'] ?? ''));
+$nuevaPassword  = trim((string)($entrada['password'] ?? ''));
 
-if ($correo === '' || $codigoOtp === '' || $nuevaClave === '') {
+if ($correo === '' || $codigo === '' || $nuevaPassword === '') {
     if (ob_get_length()) ob_clean();
-    semsad_responder(['status' => 'error', 'mensaje' => 'Todos los campos son obligatorios.']);
+    semsad_responder(['status' => 'error', 'mensaje' => 'Faltan datos obligatorios para cambiar la contraseña.']);
 }
 
-if (strlen($nuevaClave) < 6) {
+if (strlen($nuevaPassword) < 6) {
     if (ob_get_length()) ob_clean();
     semsad_responder(['status' => 'error', 'mensaje' => 'La nueva contraseña debe tener al menos 6 caracteres.']);
 }
 
 try {
-    // 1. Validar el código OTP
-    $q = $conexion->prepare('SELECT codigo, expiracion FROM codigo_verificacion WHERE LOWER(correo) = :c');
-    $q->execute([':c' => $correo]);
-    $otpValido = false;
+    // 1. Validar que el código sea correcto y no haya expirado
+    $stmt = $conexion->prepare('
+        SELECT id FROM codigo_verificacion 
+        WHERE LOWER(correo) = :c AND codigo = :o AND expiracion > NOW() 
+        LIMIT 1
+    ');
+    $stmt->execute([':c' => $correo, ':o' => $codigo]);
 
-    foreach ($q->fetchAll() as $fila) {
-        if (hash_equals((string)$fila['codigo'], $codigoOtp) && strtotime($fila['expiracion']) >= time()) {
-            $otpValido = true;
-            break;
-        }
-    }
-
-    if (!$otpValido) {
+    if (!$stmt->fetch()) {
         if (ob_get_length()) ob_clean();
-        semsad_responder(['status' => 'error', 'mensaje' => 'El código de verificación es incorrecto o ha expirado.']);
+        semsad_responder(['status' => 'error', 'mensaje' => 'El enlace o código es inválido o ya expiró. Solicita uno nuevo.']);
     }
 
-    // 2. Actualizar la contraseña encriptada con Bcrypt
-    $hashClave = password_hash($nuevaClave, PASSWORD_BCRYPT);
-    $upd = $conexion->prepare('UPDATE usuario SET contrasena = :p WHERE LOWER(correo) = :c');
-    $upd->execute([':p' => $hashClave, ':c' => $correo]);
+    // 2. Encriptar la nueva contraseña con Bcrypt (mismo formato del sistema)
+    $hashPassword = password_hash($nuevaPassword, PASSWORD_BCRYPT);
 
-    // 3. Eliminar el código OTP usado
+    // 3. Actualizar en la tabla usuario
+    $update = $conexion->prepare('UPDATE usuario SET password = :p WHERE LOWER(correo) = :c');
+    $update->execute([':p' => $hashPassword, ':c' => $correo]);
+
+    // 4. Eliminar el código para que no se use dos veces
     $conexion->prepare('DELETE FROM codigo_verificacion WHERE LOWER(correo) = :c')->execute([':c' => $correo]);
 
     if (ob_get_length()) ob_clean();
-    semsad_responder(['status' => 'success', 'mensaje' => '¡Contraseña actualizada con éxito! Ya puedes iniciar sesión.']);
+    semsad_responder(['status' => 'success', 'mensaje' => '¡Contraseña restablecida con éxito! Ya puedes iniciar sesión.']);
+
 } catch (PDOException $e) {
     if (ob_get_length()) ob_clean();
-    semsad_responder(['status' => 'error', 'mensaje' => 'Error al actualizar la contraseña.'], 500);
+    semsad_responder(['status' => 'error', 'mensaje' => 'Error al guardar la nueva contraseña.'], 500);
 }

@@ -36,7 +36,7 @@ if (!function_exists('semsad_leer_json')) {
         if (is_array($json) && !empty($json)) {
             return $json;
         }
-        return $_POST ?? [];
+        return array_merge($_GET ?? [], $_POST ?? []);
     }
 }
 

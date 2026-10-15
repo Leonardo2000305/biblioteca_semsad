@@ -180,6 +180,7 @@
                 ];
 
                 let respuestaValida = null;
+                let ultimoErrorTexto = '';
 
                 for (const url of endpoints) {
                     try {
@@ -197,16 +198,23 @@
                         try {
                             json = JSON.parse(text);
                         } catch (e) {
-                            // Ignorar respuestas que no son JSON
+                            if (text && text.trim().length > 0) {
+                                ultimoErrorTexto = text.substring(0, 180);
+                            }
                         }
 
-                        // Validar si la respuesta proviene de nuestro PHP (contiene el atributo status)
                         if (json && (json.status === 'success' || json.status === 'error')) {
                             respuestaValida = json;
+                            break;
+                        } else if (json && json.mensaje) {
+                            respuestaValida = { status: 'error', mensaje: json.mensaje };
                             break;
                         }
                     } catch (err) {
                         console.warn('Endpoint no respondió:', url, err);
+                        if (!ultimoErrorTexto) {
+                            ultimoErrorTexto = err.message || 'Error de conexión';
+                        }
                     }
                 }
 
@@ -220,7 +228,7 @@
                     btnSubmit.disabled = false;
                     btnSubmit.textContent = 'Guardar Nueva Contraseña';
                 } else {
-                    mostrarMensaje('Error al conectar con la base de datos. Pide un nuevo correo de recuperación.', 'error');
+                    mostrarMensaje(ultimoErrorTexto || 'No se pudo conectar con Alwaysdata. Revisa la conexión.', 'error');
                     btnSubmit.disabled = false;
                     btnSubmit.textContent = 'Guardar Nueva Contraseña';
                 }

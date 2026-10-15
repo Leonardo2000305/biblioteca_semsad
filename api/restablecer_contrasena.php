@@ -13,6 +13,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') {
 
 require_once __DIR__ . '/conexion.php';
 
+// Funciones de respaldo si no existen en conexion.php
 if (!function_exists('semsad_responder')) {
     function semsad_responder($data,$code = 200) {
         if (ob_get_length()) ob_clean();
@@ -69,10 +70,10 @@ try {
         semsad_responder(['status' => 'error', 'mensaje' => 'El enlace ha expirado. Solicita uno nuevo.']);
     }
 
-    // 3. Generar hash de la contraseña
+    // 3. Generar hash de la contraseña con Bcrypt
     $hashPassword = password_hash($nuevaPassword, PASSWORD_BCRYPT);
 
-    // 4. Actualizar contraseña probando las columnas comunes en 'usuario'
+    // 4. Actualizar contraseña probando los nombres de columna comunes
     $columnasPosibles = ['password', 'contrasena', 'contraseña', 'clave', 'pass', 'clave_usuario'];
     $actualizado = false;
 

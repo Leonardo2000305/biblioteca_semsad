@@ -3,7 +3,6 @@ ob_start();
 require_once __DIR__ . '/conexion.php';
 
 if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
-    if (ob_get_length()) ob_clean();
     semsad_responder(['status' => 'error', 'mensaje' => 'Método no permitido.'], 405);
 }
 
@@ -11,20 +10,34 @@ $entrada = semsad_leer_json();
 $correo  = strtolower(trim((string)($entrada['correo'] ?? '')));
 
 if ($correo === '' || !filter_var($correo, FILTER_VALIDATE_EMAIL)) {
-    if (ob_get_length()) ob_clean();
     semsad_responder(['status' => 'error', 'mensaje' => 'Ingrese un correo electrónico válido.']);
 }
 
 try {
-    // 1. Verificar si el usuario existe en la BD
+    if (!isset($conexion) || !($conexion instanceof PDO)) {
+        semsad_responder(['status' => 'error', 'mensaje' => 'Error de conexión con la base de datos MySQL.'], 500);
+    }
+
+    // 1. Verificar si el usuario existe en la BD (probando 'correo' y 'email')
     $stmt = $conexion->prepare('SELECT id_usuario FROM usuario WHERE LOWER(correo) = :c LIMIT 1');
     $stmt->execute([':c' => $correo]);
-    if (!$stmt->fetch()) {
-        if (ob_get_length()) ob_clean();
+    $usuarioExiste = $stmt->fetch();
+
+    if (!$usuarioExiste) {
+        try {
+            $stmt2 = $conexion->prepare('SELECT id_usuario FROM usuario WHERE LOWER(email) = :c LIMIT 1');
+            $stmt2->execute([':c' => $correo]);
+            $usuarioExiste = $stmt2->fetch();
+        } catch (Exception $ex) {
+            // Ignorar si la columna 'email' no existe
+        }
+    }
+
+    if (!$usuarioExiste) {
         semsad_responder(['status' => 'error', 'mensaje' => 'No existe ninguna cuenta registrada con este correo.']);
     }
 
-    // 2. Generar código OTP (Vigencia extendida a 15 minutos = 900 seg)
+    // 2. Generar código OTP (Vigencia de 15 minutos)
     $otp        = (string)random_int(100000, 999999);
     $expiracion = date('Y-m-d H:i:s', time() + 900);
 
@@ -68,10 +81,10 @@ try {
 
     $enviado = @mail($correo, $asunto, $cuerpo, $headers);
 
-    if (ob_get_length()) ob_clean();
     semsad_responder(['status' => 'success', 'mensaje' => 'Instrucciones enviadas a tu correo. Revisa tu bandeja de entrada o SPAM.']);
 
 } catch (PDOException $e) {
-    if (ob_get_length()) ob_clean();
+    semsad_responder(['status' => 'error', 'mensaje' => 'Error interno en la base de datos.'], 500);
+} catch (Throwable $t) {
     semsad_responder(['status' => 'error', 'mensaje' => 'Error interno del servidor.'], 500);
 }

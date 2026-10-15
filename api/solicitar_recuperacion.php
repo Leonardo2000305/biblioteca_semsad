@@ -32,8 +32,8 @@ try {
     $conexion->prepare('INSERT INTO codigo_verificacion (correo, codigo, expiracion) VALUES (:c, :o, :e)')
              ->execute([':c' => $correo, ':o' => $otp, ':e' => $expiracion]);
 
-    // 3. Crear enlace hacia la subpágina de restablecer contraseña
-    $linkWeb = 'https://biblioteca-semsad.vercel.app/restablecer.html?correo=' . urlencode($correo) . '&codigo=' . urlencode($otp);
+    // 3. Crear enlace apuntando a la carpeta /login/ en Vercel
+    $linkWeb = 'https://biblioteca-semsad.vercel.app/login/restablecer.html?correo=' . urlencode($correo) . '&codigo=' . urlencode($otp);
 
     // 4. Correo en formato HTML elegante con tildes, ñ y botón azul
     $asunto  = '=?UTF-8?B?' . base64_encode('Restablecer Contraseña - Biblioteca SEMSAD') . '?=';

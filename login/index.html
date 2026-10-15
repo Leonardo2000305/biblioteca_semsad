@@ -128,6 +128,7 @@
 function toggleVisibilidad(idInput, boton) {
     const input = document.getElementById(idInput);
     const icono = boton.querySelector('i');
+
     if (input.type === 'password') {
         input.type = 'text';
         icono.classList.remove('fa-eye');
@@ -166,84 +167,44 @@ async function realizarLogin(event) {
     btn.disabled = true;
     btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i> Verificando...';
 
-    // Obtener la URL configurada en js/config.js
-    const apiBaseRaw = window.SEMSAD_API || 'https://bibliosemsad.alwaysdata.net/api';
-    const apiBase = apiBaseRaw.replace(/\/+$/, '');
-    const targetUrl = `${apiBase}/login.php`;
-
     try {
-        const resp = await fetch(targetUrl, {
+        const resp = await fetch(`${window.SEMSAD_API}/login.php`, {
             method: 'POST',
-            headers: { 
-                'Content-Type': 'application/json',
-                'Accept': 'application/json'
-            },
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
             body: JSON.stringify({ correo, clave })
         });
 
-        // 1. Si la ruta no existe en Alwaysdata
-        if (resp.status === 404) {
-            mostrarAlerta(`No se encontró el archivo en: ${targetUrl} (Error 404)`, 'error');
-            restaurarBoton(btn);
-            return;
-        }
-
-        // 2. Si PHP falló por error de base de datos o servidor
-        if (resp.status === 500) {
-            mostrarAlerta('Error interno en Alwaysdata (Error 500). Revisa conexion.php.', 'error');
-            restaurarBoton(btn);
-            return;
-        }
-
         const texto = await resp.text();
         let data;
-
         try {
             data = JSON.parse(texto);
         } catch (e) {
-            console.error('Respuesta no JSON de Alwaysdata:', texto);
-            mostrarAlerta('El servidor respondió texto plano en vez de JSON. Revisa login.php.', 'error');
+            // El servidor respondió, pero no con JSON (página de error, 404, código PHP sin ejecutar...)
+            console.error('Respuesta no válida de /login.php', resp.status, texto.slice(0, 300));
+            mostrarAlerta(`El servidor respondió algo inesperado (código ${resp.status}). Revisa que la API esté publicada en AlwaysData.`, 'error');
             restaurarBoton(btn);
             return;
         }
 
-        // 3. Respuesta correcta en JSON
         if (data.status === 'success' && data.usuario) {
-            const datosUsuario = {
-                id: data.usuario.id_usuario || data.usuario.id || 1,
-                name: data.usuario.nombre || 'Usuario',
-                role: data.usuario.rol || 'estudiante',
-                ci: data.usuario.ci || '',
-                correo: data.usuario.correo || correo
-            };
-
-            if (window.SEMSAD && typeof window.SEMSAD.setUser === 'function') {
-                window.SEMSAD.setUser(datosUsuario);
-            } else {
-                localStorage.setItem('semsad_user', JSON.stringify(datosUsuario));
-            }
-
+            // Guardamos al usuario: las demás páginas lo leen de aquí.
+            SEMSAD.setUser({
+                id: data.usuario.id_usuario,
+                name: data.usuario.nombre,
+                role: data.usuario.rol,
+                ci: data.usuario.ci,
+                correo: data.usuario.correo
+            });
             mostrarAlerta('¡Inicio de sesión exitoso! Redirigiendo...', 'success');
-
-            setTimeout(() => {
-                let destino = '../index.html';
-                const rolLower = (datosUsuario.role || '').toLowerCase();
-
-                if (window.SEMSAD && typeof window.SEMSAD.destinoSegunRol === 'function') {
-                    destino = window.SEMSAD.destinoSegunRol(datosUsuario.role);
-                } else if (rolLower === 'admin' || rolLower === 'bibliotecario') {
-                    destino = '../admin.html';
-                }
-
-                window.location.href = destino;
-            }, 800);
+            setTimeout(() => { window.location.href = SEMSAD.destinoSegunRol(data.usuario.rol); }, 800);
         } else {
             mostrarAlerta(data.mensaje || 'Credenciales incorrectas.', 'error');
             restaurarBoton(btn);
         }
     } catch (err) {
-        console.error('Error de red:', err);
-        mostrarAlerta('Error de red o bloqueo CORS al conectar con Alwaysdata.', 'error');
+        console.error('Error de red en el login:', err);
+        mostrarAlerta('No se pudo conectar con el servidor. Revisa tu conexión e inténtalo de nuevo.', 'error');
         restaurarBoton(btn);
     }
 }

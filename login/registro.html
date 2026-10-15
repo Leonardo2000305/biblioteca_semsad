@@ -239,11 +239,6 @@
 <script src="../js/config.js"></script>
 
 <script>
-function getApiBase() {
-    const raw = window.SEMSAD_API || 'https://semsad.alwaysdata.net/api';
-    return raw.replace(/\/+$/, '');
-}
-
 function toggleVisibilidad(idInput, boton) {
     const input = document.getElementById(idInput);
     const icono = boton.querySelector('i');
@@ -262,8 +257,32 @@ function toggleVisibilidad(idInput, boton) {
 function mostrarAlerta(mensaje, tipo) {
     const alerta = document.getElementById('alerta_mensaje');
     alerta.className = `alert alert-${tipo === 'success' ? 'success' : 'danger'} alert-dismissible fade show small`;
-    alerta.innerHTML = `<i class="fas fa-${tipo === 'success' ? 'check-circle' : 'exclamation-circle'} me-2"></i> ${mensaje}`;
+    // textContent (no innerHTML): el mensaje viene del servidor y no debe interpretarse como HTML
+    alerta.textContent = mensaje;
     alerta.classList.remove('d-none');
+}
+
+// Llama a la API y devuelve el JSON, o lanza un Error con un mensaje claro para el usuario.
+async function llamarApi(archivo, datos) {
+    let resp;
+    try {
+        resp = await fetch(`${window.SEMSAD_API}/${archivo}`, {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+            body: JSON.stringify(datos)
+        });
+    } catch (e) {
+        console.error('Sin conexión con la API:', e);
+        throw new Error('No se pudo conectar con el servidor. Revisa tu conexión e inténtalo de nuevo.');
+    }
+    const texto = await resp.text();
+    try {
+        return JSON.parse(texto);
+    } catch (e) {
+        console.error('Respuesta no válida de', archivo, resp.status, texto.slice(0, 300));
+        throw new Error(`El servidor respondió algo inesperado (código ${resp.status}).`);
+    }
 }
 
 async function enviarCodigoOTP() {
@@ -279,61 +298,35 @@ async function enviarCodigoOTP() {
         mostrarAlerta('Por favor, completa todos los campos del formulario.', 'error');
         return;
     }
-
+    if (clave.length < 6) {
+        mostrarAlerta('La contraseña debe tener al menos 6 caracteres.', 'error');
+        return;
+    }
     if (clave !== confirmar_clave) {
         mostrarAlerta('Las contraseñas no coinciden. Por favor verifica.', 'error');
         return;
     }
 
     const btn = document.getElementById('btnEnviarCodigo');
+    const textoBtn = '<i class="fas fa-paper-plane me-2"></i> Enviar Código de Verificación';
     btn.disabled = true;
     btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i> Enviando código al correo...';
 
-    const apiBase = getApiBase();
-    const rutas = [`${apiBase}/enviar_codigo.php`, `${apiBase}/solicitar_codigo.php`];
-    let respuestaValida = false;
-
-    for (const url of rutas) {
-        try {
-            const resp = await fetch(url, {
-                method: 'POST',
-                headers: { 
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json' 
-                },
-                body: JSON.stringify({ correo, codigo_empleado, telefono, nombres, apellidos })
-            });
-
-            const texto = await resp.text();
-            let data;
-
-            try {
-                data = JSON.parse(texto);
-            } catch (e) {
-                continue;
-            }
-
-            respuestaValida = true;
-
-            if (data.status === 'success') {
-                mostrarAlerta(data.mensaje || 'Código de verificación enviado.', 'success');
-                document.getElementById('seccion_otp').classList.remove('d-none');
-                btn.classList.add('d-none');
-            } else {
-                mostrarAlerta(data.mensaje || 'No se pudo enviar el código.', 'error');
-                btn.disabled = false;
-                btn.innerHTML = '<i class="fas fa-paper-plane me-2"></i> Enviar Código de Verificación';
-            }
-            break;
-        } catch (err) {
-            console.error('Error al conectar con:', url, err);
+    try {
+        const data = await llamarApi('enviar_codigo.php', { correo, codigo_empleado, telefono });
+        if (data.status === 'success') {
+            mostrarAlerta(data.mensaje || 'Código de verificación enviado.', 'success');
+            document.getElementById('seccion_otp').classList.remove('d-none');
+            btn.classList.add('d-none');
+        } else {
+            mostrarAlerta(data.mensaje || 'No se pudo enviar el código.', 'error');
+            btn.disabled = false;
+            btn.innerHTML = textoBtn;
         }
-    }
-
-    if (!respuestaValida) {
-        mostrarAlerta('Error de conexión con el servidor al solicitar el código.', 'error');
+    } catch (err) {
+        mostrarAlerta(err.message, 'error');
         btn.disabled = false;
-        btn.innerHTML = '<i class="fas fa-paper-plane me-2"></i> Enviar Código de Verificación';
+        btn.innerHTML = textoBtn;
     }
 }
 
@@ -341,13 +334,11 @@ async function completarRegistro() {
     const payload = {
         nombres: document.getElementById('nombres').value.trim(),
         apellidos: document.getElementById('apellidos').value.trim(),
-        nombre: `${document.getElementById('nombres').value.trim()} ${document.getElementById('apellidos').value.trim()}`,
         correo: document.getElementById('correo').value.trim(),
         codigo_empleado: document.getElementById('codigo_empleado').value.trim(),
         telefono: document.getElementById('telefono').value.trim(),
         clave: document.getElementById('clave').value,
-        codigo_otp: document.getElementById('codigo_otp').value.trim(),
-        rol: 'estudiante'
+        codigo_otp: document.getElementById('codigo_otp').value.trim()
     };
 
     if (!payload.codigo_otp) {
@@ -355,54 +346,25 @@ async function completarRegistro() {
         return;
     }
 
-    const btnConfirmar = document.getElementById('btnConfirmarRegistro');
-    btnConfirmar.disabled = true;
-    btnConfirmar.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i> Verificando código y creando cuenta...';
+    const btn = document.getElementById('btnConfirmarRegistro');
+    const textoBtn = '<i class="fas fa-check-circle me-2"></i> Confirmar y Crear Cuenta';
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i> Verificando código y creando cuenta...';
 
-    const apiBase = getApiBase();
-    const rutas = [`${apiBase}/registrar_usuario.php`, `${apiBase}/registro.php`];
-    let respuestaValida = false;
-
-    for (const url of rutas) {
-        try {
-            const resp = await fetch(url, {
-                method: 'POST',
-                headers: { 
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json' 
-                },
-                body: JSON.stringify(payload)
-            });
-
-            const texto = await resp.text();
-            let data;
-
-            try {
-                data = JSON.parse(texto);
-            } catch (e) {
-                continue;
-            }
-
-            respuestaValida = true;
-
-            if (data.status === 'success') {
-                mostrarAlerta('¡Cuenta creada con éxito! Redirigiendo al inicio de sesión...', 'success');
-                setTimeout(() => { window.location.href = 'index.html'; }, 1800);
-            } else {
-                mostrarAlerta(data.mensaje || 'No se pudo crear la cuenta.', 'error');
-                btnConfirmar.disabled = false;
-                btnConfirmar.innerHTML = '<i class="fas fa-check-circle me-2"></i> Confirmar y Crear Cuenta';
-            }
-            break;
-        } catch (err) {
-            console.error('Error al registrar usuario:', err);
+    try {
+        const data = await llamarApi('registrar_usuario.php', payload);
+        if (data.status === 'success') {
+            mostrarAlerta('¡Cuenta creada con éxito! Redirigiendo al inicio de sesión...', 'success');
+            setTimeout(() => { window.location.href = 'index.html'; }, 1800);
+        } else {
+            mostrarAlerta(data.mensaje || 'No se pudo crear la cuenta.', 'error');
+            btn.disabled = false;
+            btn.innerHTML = textoBtn;
         }
-    }
-
-    if (!respuestaValida) {
-        mostrarAlerta('Error del servidor al procesar el registro.', 'error');
-        btnConfirmar.disabled = false;
-        btnConfirmar.innerHTML = '<i class="fas fa-check-circle me-2"></i> Confirmar y Crear Cuenta';
+    } catch (err) {
+        mostrarAlerta(err.message, 'error');
+        btn.disabled = false;
+        btn.innerHTML = textoBtn;
     }
 }
 </script>

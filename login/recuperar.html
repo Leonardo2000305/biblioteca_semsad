@@ -147,73 +147,39 @@
             const btn = document.getElementById('btn-enviar');
             const mensajeDiv = document.getElementById('recuperar-mensaje');
 
-            if (!correoInput) {
+            function mostrar(texto, clase) {
                 mensajeDiv.style.display = 'block';
-                mensajeDiv.className = 'msg-error';
-                mensajeDiv.textContent = 'Por favor, ingresa tu correo o código.';
+                mensajeDiv.className = clase;
+                mensajeDiv.textContent = texto;
+            }
+
+            if (!correoInput) {
+                mostrar('Por favor, ingresa tu correo o código.', 'msg-error');
                 return;
             }
 
             btn.disabled = true;
             btn.textContent = 'Verificando...';
             mensajeDiv.style.display = 'none';
-            mensajeDiv.className = '';
 
-            // Limpieza y normalización de la URL base definida en config.js
-            const apiBaseRaw = window.SEMSAD_API || 'https://semsad.alwaysdata.net/api';
-            const apiBase = apiBaseRaw.replace(/\/+$/, '');
+            try {
+                const resp = await fetch(`${window.SEMSAD_API}/solicitar_recuperacion.php`, {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                    body: JSON.stringify({ correo: correoInput })
+                });
+                const data = JSON.parse(await resp.text());
 
-            // Endpoints soportados para evitar 404 si la ruta cambia de nombre en AlwaysData
-            const rutasAPI = [
-                `${apiBase}/recuperar.php`,
-                `${apiBase}/solicitar_recuperacion.php`
-            ];
-
-            let peticionExitosa = false;
-
-            for (const url of rutasAPI) {
-                try {
-                    const response = await fetch(url, {
-                        method: 'POST',
-                        headers: { 
-                            'Content-Type': 'application/json',
-                            'Accept': 'application/json' 
-                        },
-                        body: JSON.stringify({ correo: correoInput })
-                    });
-
-                    const texto = await response.text();
-                    let data;
-
-                    try {
-                        data = JSON.parse(texto);
-                    } catch (e) {
-                        // Si la respuesta fue HTML (404/500 de AlwaysData), intenta con la siguiente ruta
-                        continue;
-                    }
-
-                    peticionExitosa = true;
-                    mensajeDiv.style.display = 'block';
-
-                    if (data.status === 'success') {
-                        mensajeDiv.className = 'msg-success';
-                        mensajeDiv.textContent = data.mensaje || 'Instrucciones enviadas correctamente.';
-                        document.getElementById('form-recuperar').reset();
-                    } else {
-                        mensajeDiv.className = 'msg-error';
-                        mensajeDiv.textContent = data.mensaje || 'No se encontró la cuenta ingresada.';
-                    }
-
-                    break; // Interrumpe el ciclo si respondió un JSON válido
-                } catch (err) {
-                    console.error('Error al conectar con:', url, err);
+                if (data.status === 'success') {
+                    mostrar(data.mensaje || 'Instrucciones enviadas correctamente.', 'msg-success');
+                    document.getElementById('form-recuperar').reset();
+                } else {
+                    mostrar(data.mensaje || 'No se encontró la cuenta ingresada.', 'msg-error');
                 }
-            }
-
-            if (!peticionExitosa) {
-                mensajeDiv.style.display = 'block';
-                mensajeDiv.className = 'msg-error';
-                mensajeDiv.textContent = 'No se pudo conectar con el servidor de base de datos.';
+            } catch (err) {
+                console.error('Error en la recuperación:', err);
+                mostrar('No se pudo conectar con el servidor. Inténtalo de nuevo en un momento.', 'msg-error');
             }
 
             btn.disabled = false;

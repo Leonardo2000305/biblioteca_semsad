@@ -180,6 +180,7 @@
                 ];
 
                 let respuestaValida = null;
+                let errorServidor = '';
 
                 for (const url of endpoints) {
                     try {
@@ -196,7 +197,9 @@
                         try {
                             json = JSON.parse(text);
                         } catch (e) {
-                            // Ignorar respuestas no-JSON
+                            if (text && text.trim().length > 0) {
+                                errorServidor = text.substring(0, 150);
+                            }
                         }
 
                         if (json && (json.status === 'success' || json.status === 'error')) {
@@ -208,6 +211,9 @@
                         }
                     } catch (err) {
                         console.warn('Endpoint falló:', url, err);
+                        if (!errorServidor) {
+                            errorServidor = err.message || '';
+                        }
                     }
                 }
 
@@ -221,7 +227,7 @@
                     btnSubmit.disabled = false;
                     btnSubmit.textContent = 'Guardar Nueva Contraseña';
                 } else {
-                    mostrarMensaje('No se pudo conectar con el servidor backend en Alwaysdata.', 'error');
+                    mostrarMensaje(errorServidor || 'No se pudo conectar con el servidor backend en Alwaysdata.', 'error');
                     btnSubmit.disabled = false;
                     btnSubmit.textContent = 'Guardar Nueva Contraseña';
                 }

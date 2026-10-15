@@ -81,7 +81,7 @@ try {
         try {
             $update =$conexion->prepare("UPDATE usuario SET `$col` = :p WHERE LOWER(correo) = :c");
             $res =$update->execute([':p' => $hashPassword, ':c' =>$correo]);
-            if ($res && $update->rowCount() >= 0) {$actualizado = true;
+            if ($res) {$actualizado = true;
                 break;
             }
         } catch (Exception $ex) {

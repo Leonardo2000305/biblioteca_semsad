@@ -4,108 +4,23 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Panel Operativo - Biblioteca SEMSAD</title>
-    <!-- Bootstrap 5 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- FontAwesome Iconos -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        :root {
-            --sidebar-bg: #0f172a;
-            --sidebar-hover: #1e293b;
-            --main-bg: #f8fafc;
-        }
-
-        body {
-            background-color: var(--main-bg);
-            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-            min-height: 100vh;
-            margin: 0;
-        }
-
-        .sidebar {
-            width: 260px;
-            background-color: var(--sidebar-bg);
-            min-height: 100vh;
-            position: fixed;
-            top: 0;
-            left: 0;
-            z-index: 1000;
-            transition: all 0.3s;
-        }
-
-        .sidebar-brand {
-            padding: 20px 15px;
-            color: #ffffff;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        .sidebar-menu .nav-link {
-            color: #94a3b8;
-            padding: 12px 20px;
-            border-radius: 8px;
-            margin: 4px 10px;
-            font-weight: 500;
-            display: flex;
-            align-items: center;
-            transition: all 0.2s;
-        }
-
-        .sidebar-menu .nav-link:hover {
-            color: #ffffff;
-            background-color: var(--sidebar-hover);
-        }
-
-        .sidebar-menu .nav-link.active {
-            color: #ffffff;
-            background-color: #2563eb;
-        }
-
-        .sidebar-menu .nav-link i {
-            width: 25px;
-        }
-
-        .main-content {
-            margin-left: 260px;
-            padding: 25px 30px;
-        }
-
-        .stat-card {
-            border: none;
-            border-radius: 12px;
-            transition: transform 0.2s;
-        }
-
-        .stat-card:hover {
-            transform: translateY(-3px);
-        }
-
-        .icon-box {
-            width: 50px;
-            height: 50px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.3rem;
-        }
-
-        .table-card {
-            border-radius: 12px;
-            border: none;
-            overflow: hidden;
-        }
-
-        @media (max-width: 991.98px) {
-            .sidebar {
-                width: 100%;
-                min-height: auto;
-                position: relative;
-            }
-            .main-content {
-                margin-left: 0;
-                padding: 15px;
-            }
-        }
+        :root { --sidebar-bg: #0f172a; --sidebar-hover: #1e293b; --main-bg: #f8fafc; }
+        body { background-color: var(--main-bg); font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; min-height: 100vh; margin: 0; }
+        .sidebar { width: 260px; background-color: var(--sidebar-bg); min-height: 100vh; position: fixed; top: 0; left: 0; z-index: 1000; transition: all 0.3s; }
+        .sidebar-brand { padding: 20px 15px; color: #ffffff; border-bottom: 1px solid rgba(255, 255, 255, 0.1); }
+        .sidebar-menu .nav-link { color: #94a3b8; padding: 12px 20px; border-radius: 8px; margin: 4px 10px; font-weight: 500; display: flex; align-items: center; transition: all 0.2s; }
+        .sidebar-menu .nav-link:hover { color: #ffffff; background-color: var(--sidebar-hover); }
+        .sidebar-menu .nav-link.active { color: #ffffff; background-color: #2563eb; }
+        .sidebar-menu .nav-link i { width: 25px; }
+        .main-content { margin-left: 260px; padding: 25px 30px; }
+        .stat-card { border: none; border-radius: 12px; transition: transform 0.2s; }
+        .stat-card:hover { transform: translateY(-3px); }
+        .icon-box { width: 50px; height: 50px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; }
+        .table-card { border-radius: 12px; border: none; overflow: hidden; }
+        @media print { .sidebar, .btn, .no-print { display: none !important; } .main-content { margin-left: 0; padding: 0; } }
     </style>
 </head>
 <body>
@@ -118,21 +33,11 @@
         </div>
 
         <div class="sidebar-menu mt-3">
-            <a href="#" class="nav-link active" id="btnNavDashboard" onclick="verModulo('dashboard', this)">
-                <i class="fa-solid fa-chart-line"></i> Dashboard
-            </a>
-            <a href="#" class="nav-link" id="btnNavInventario" onclick="verModulo('inventario', this)">
-                <i class="fa-solid fa-boxes-stacked"></i> Inventario
-            </a>
-            <a href="#" class="nav-link" id="btnNavVentanilla" onclick="verModulo('ventanilla', this)">
-                <i class="fa-solid fa-right-left"></i> Ventanilla
-            </a>
-            <a href="#" class="nav-link" id="btnNavAuditoria" onclick="verModulo('auditoria', this)">
-                <i class="fa-solid fa-shield-halved"></i> Auditoría Claves
-            </a>
-            <a href="#" class="nav-link" id="btnNavUsuarios" onclick="verModulo('usuarios', this)">
-                <i class="fa-solid fa-users"></i> Usuarios Registrados
-            </a>
+            <a href="#" class="nav-link active" onclick="verModulo('dashboard', this)"><i class="fa-solid fa-chart-line"></i> Dashboard</a>
+            <a href="#" class="nav-link" onclick="verModulo('inventario', this)"><i class="fa-solid fa-boxes-stacked"></i> Inventario</a>
+            <a href="#" class="nav-link" onclick="verModulo('ventanilla', this)"><i class="fa-solid fa-right-left"></i> Ventanilla</a>
+            <a href="#" class="nav-link" onclick="verModulo('auditoria', this)"><i class="fa-solid fa-shield-halved"></i> Auditoría Claves</a>
+            <a href="#" class="nav-link" onclick="verModulo('usuarios', this)"><i class="fa-solid fa-users"></i> Usuarios Registrados</a>
         </div>
     </aside>
 
@@ -142,10 +47,13 @@
         <div class="d-flex justify-content-between align-items-center mb-4 pb-3 border-bottom">
             <h3 class="fw-bold text-dark mb-0" id="tituloPagina">Dashboard</h3>
             <div class="d-flex align-items-center gap-3">
+                <button class="btn btn-outline-dark btn-sm fw-bold no-print" onclick="window.print()">
+                    <i class="fa-solid fa-print me-1"></i>Imprimir Reporte
+                </button>
                 <span class="badge bg-white text-dark border px-3 py-2 shadow-sm fs-6">
                     <i class="fa-solid fa-user-gear me-2 text-primary"></i>Bibliotecario
                 </span>
-                <a href="../login/index.html" onclick="SEMSAD.cerrarSesion(event)" class="btn btn-danger btn-sm px-3 fw-bold">
+                <a href="../login/index.html" onclick="SEMSAD.cerrarSesion(event)" class="btn btn-danger btn-sm px-3 fw-bold no-print">
                     <i class="fa-solid fa-right-from-bracket me-1"></i>Salir
                 </a>
             </div>
@@ -155,7 +63,7 @@
         <div id="secDashboard" class="modulo-vista">
             <div class="d-flex justify-content-between align-items-center mb-3">
                 <h5 class="fw-bold text-dark mb-0">Resumen General</h5>
-                <button class="btn btn-sm btn-outline-primary fw-semibold" onclick="cargarDashboard()">
+                <button class="btn btn-sm btn-outline-primary fw-semibold no-print" onclick="cargarDashboard()">
                     <i class="fa-solid fa-rotate me-1"></i>Actualizar Dashboard
                 </button>
             </div>
@@ -167,9 +75,7 @@
                                 <small class="text-muted fw-bold d-block">Total Libros</small>
                                 <span class="fs-2 fw-bold text-primary" id="statTotalLibros">0</span>
                             </div>
-                            <div class="icon-box bg-primary text-white">
-                                <i class="fa-solid fa-book"></i>
-                            </div>
+                            <div class="icon-box bg-primary text-white"><i class="fa-solid fa-book"></i></div>
                         </div>
                     </div>
                 </div>
@@ -180,9 +86,7 @@
                                 <small class="text-muted fw-bold d-block">Disponibles</small>
                                 <span class="fs-2 fw-bold text-success" id="statDisponibles">0</span>
                             </div>
-                            <div class="icon-box bg-success text-white">
-                                <i class="fa-solid fa-circle-check"></i>
-                            </div>
+                            <div class="icon-box bg-success text-white"><i class="fa-solid fa-circle-check"></i></div>
                         </div>
                     </div>
                 </div>
@@ -193,9 +97,7 @@
                                 <small class="text-muted fw-bold d-block">Préstamos Activos</small>
                                 <span class="fs-2 fw-bold text-warning" id="statPrestamos">0</span>
                             </div>
-                            <div class="icon-box bg-warning text-white">
-                                <i class="fa-solid fa-hand-holding"></i>
-                            </div>
+                            <div class="icon-box bg-warning text-white"><i class="fa-solid fa-hand-holding"></i></div>
                         </div>
                     </div>
                 </div>
@@ -209,9 +111,10 @@
                     <h5 class="fw-bold mb-0 text-dark">
                         <i class="fa-solid fa-boxes-stacked text-primary me-2"></i>Inventario Bibliográfico
                     </h5>
-                    <button class="btn btn-sm btn-outline-primary" onclick="cargarInventario()">
-                        <i class="fa-solid fa-rotate me-1"></i>Actualizar Libros
-                    </button>
+                    <div class="d-flex gap-2 no-print">
+                        <button class="btn btn-sm btn-success fw-bold" onclick="abrirModalLibro()"><i class="fa-solid fa-plus me-1"></i>Nuevo Libro</button>
+                        <button class="btn btn-sm btn-outline-primary" onclick="cargarInventario()"><i class="fa-solid fa-rotate me-1"></i>Actualizar</button>
+                    </div>
                 </div>
                 <div class="card-body p-0">
                     <div class="table-responsive">
@@ -220,14 +123,14 @@
                                 <tr>
                                     <th># ID</th>
                                     <th>Título del Libro</th>
+                                    <th>Autor(es)</th>
                                     <th>Código / ISBN</th>
-                                    <th>Año Publicación</th>
+                                    <th>Año</th>
                                     <th>Estado</th>
+                                    <th class="text-center no-print">Acciones</th>
                                 </tr>
                             </thead>
-                            <tbody id="tablaInventarioBody">
-                                <!-- Se carga dinámicamente -->
-                            </tbody>
+                            <tbody id="tablaInventarioBody"></tbody>
                         </table>
                     </div>
                 </div>
@@ -241,9 +144,7 @@
                     <h5 class="fw-bold mb-0 text-dark">
                         <i class="fa-solid fa-right-left text-primary me-2"></i>Ventanilla: Préstamos Activos y Reservas
                     </h5>
-                    <button class="btn btn-sm btn-outline-primary" onclick="cargarVentanilla()">
-                        <i class="fa-solid fa-rotate me-1"></i>Actualizar Ventanilla
-                    </button>
+                    <button class="btn btn-sm btn-outline-primary no-print" onclick="cargarVentanilla()"><i class="fa-solid fa-rotate me-1"></i>Actualizar</button>
                 </div>
                 <div class="card-body p-0">
                     <div class="table-responsive">
@@ -252,32 +153,26 @@
                                 <tr>
                                     <th>Estudiante / Usuario</th>
                                     <th>CI / Registro</th>
-                                    <th>Teléfono / Celular</th>
+                                    <th>Teléfono</th>
                                     <th>Libro Reservado</th>
                                     <th>Fecha Límite</th>
                                     <th>Estado</th>
-                                    <th class="text-center">Acción</th>
+                                    <th class="text-center no-print">Acción</th>
                                 </tr>
                             </thead>
-                            <tbody id="tablaVentanillaBody">
-                                <!-- Se carga dinámicamente -->
-                            </tbody>
+                            <tbody id="tablaVentanillaBody"></tbody>
                         </table>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- MÓDULO 4: AUDITORÍA DE CLAVES -->
+        <!-- MÓDULO 4: AUDITORÍA -->
         <div id="secAuditoria" class="modulo-vista d-none">
             <div class="card table-card shadow-sm bg-white">
                 <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center border-bottom">
-                    <h5 class="fw-bold mb-0 text-dark">
-                        <i class="fa-solid fa-shield-halved text-primary me-2"></i>Auditoría de Seguridad: Intentos de Recuperación
-                    </h5>
-                    <button class="btn btn-sm btn-outline-secondary" onclick="cargarAuditoria()">
-                        <i class="fa-solid fa-rotate me-1"></i>Actualizar
-                    </button>
+                    <h5 class="fw-bold mb-0 text-dark"><i class="fa-solid fa-shield-halved text-primary me-2"></i>Auditoría de Seguridad</h5>
+                    <button class="btn btn-sm btn-outline-secondary no-print" onclick="cargarAuditoria()"><i class="fa-solid fa-rotate me-1"></i>Actualizar</button>
                 </div>
                 <div class="card-body p-0">
                     <div class="table-responsive">
@@ -291,25 +186,22 @@
                                     <th>Dirección IP</th>
                                 </tr>
                             </thead>
-                            <tbody id="tablaAuditoriaBody">
-                                <!-- Se carga dinámicamente -->
-                            </tbody>
+                            <tbody id="tablaAuditoriaBody"></tbody>
                         </table>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- MÓDULO 5: PADRÓN DE USUARIOS REGISTRADOS -->
+        <!-- MÓDULO 5: PADRÓN DE USUARIOS -->
         <div id="secUsuarios" class="modulo-vista d-none">
             <div class="card table-card shadow-sm bg-white">
                 <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center border-bottom">
-                    <h5 class="fw-bold mb-0 text-dark">
-                        <i class="fa-solid fa-address-book text-success me-2"></i>Registro de Usuarios de la Biblioteca
-                    </h5>
-                    <button class="btn btn-sm btn-outline-success" onclick="cargarUsuariosRegistrados()">
-                        <i class="fa-solid fa-rotate me-1"></i>Actualizar Lista
-                    </button>
+                    <h5 class="fw-bold mb-0 text-dark"><i class="fa-solid fa-address-book text-success me-2"></i>Registro de Usuarios</h5>
+                    <div class="d-flex gap-2 no-print">
+                        <button class="btn btn-sm btn-success fw-bold" onclick="abrirModalUsuario()"><i class="fa-solid fa-user-plus me-1"></i>Nuevo Usuario</button>
+                        <button class="btn btn-sm btn-outline-success" onclick="cargarUsuariosRegistrados()"><i class="fa-solid fa-rotate me-1"></i>Actualizar</button>
+                    </div>
                 </div>
                 <div class="card-body p-0">
                     <div class="table-responsive">
@@ -318,13 +210,13 @@
                                 <tr>
                                     <th>Nombre Completo</th>
                                     <th>Correo Institucional</th>
-                                    <th>Teléfono / Celular</th>
-                                    <th>Estado Cuenta</th>
+                                    <th>Teléfono</th>
+                                    <th>Rol</th>
+                                    <th>Estado</th>
+                                    <th class="text-center no-print">Acción</th>
                                 </tr>
                             </thead>
-                            <tbody id="tablaUsuariosBody">
-                                <!-- Se carga dinámicamente -->
-                            </tbody>
+                            <tbody id="tablaUsuariosBody"></tbody>
                         </table>
                     </div>
                 </div>
@@ -332,12 +224,116 @@
         </div>
     </main>
 
+    <!-- MODAL NUEVO / EDITAR LIBRO -->
+    <div class="modal fade" id="modalLibro" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title fw-bold" id="modalLibroTitulo">Registrar Nuevo Libro</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="formLibro">
+                        <input type="hidden" id="lib_id" value="0">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Título del Libro *</label>
+                            <input type="text" class="form-control" id="lib_titulo" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Autor(es) *</label>
+                            <input type="text" class="form-control" id="lib_autores" required>
+                        </div>
+                        <div class="row">
+                            <div class="col-6 mb-3">
+                                <label class="form-label fw-bold">ISBN / Código</label>
+                                <input type="text" class="form-control" id="lib_isbn">
+                            </div>
+                            <div class="col-6 mb-3">
+                                <label class="form-label fw-bold">Año Publicación</label>
+                                <input type="number" class="form-control" id="lib_anio" value="2024">
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Cantidad de Copias / Ejemplares</label>
+                            <input type="number" class="form-control" id="lib_copias" value="1" min="1">
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100 fw-bold">Guardar Libro</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL NUEVO / EDITAR USUARIO -->
+    <div class="modal fade" id="modalUsuario" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title fw-bold" id="modalUsuarioTitulo">Registrar Nuevo Usuario</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="formUsuario">
+                        <input type="hidden" id="usr_id" value="0">
+                        <div class="row">
+                            <div class="col-6 mb-3">
+                                <label class="form-label fw-bold">Nombres *</label>
+                                <input type="text" class="form-control" id="usr_nombres" required>
+                            </div>
+                            <div class="col-6 mb-3">
+                                <label class="form-label fw-bold">Apellidos</label>
+                                <input type="text" class="form-control" id="usr_apellidos">
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Correo Institucional *</label>
+                            <input type="email" class="form-control" id="usr_correo" required>
+                        </div>
+                        <div class="row">
+                            <div class="col-6 mb-3">
+                                <label class="form-label fw-bold">Contraseña</label>
+                                <input type="password" class="form-control" id="usr_password" placeholder="Opcional">
+                            </div>
+                            <div class="col-6 mb-3">
+                                <label class="form-label fw-bold">CI / Registro</label>
+                                <input type="text" class="form-control" id="usr_codigo">
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-6 mb-3">
+                                <label class="form-label fw-bold">Teléfono</label>
+                                <input type="text" class="form-control" id="usr_telefono">
+                            </div>
+                            <div class="col-6 mb-3">
+                                <label class="form-label fw-bold">Rol de Usuario</label>
+                                <select class="form-select" id="usr_rol">
+                                    <option value="3" selected>Estudiante</option>
+                                    <option value="2">Bibliotecario</option>
+                                    <option value="1">Administrador</option>
+                                </select>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-success w-100 fw-bold">Guardar Usuario</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Bootstrap JS Bundle -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="../js/config.js"></script>
     <script>SEMSAD.exigirSesion(true);</script>
     <script>
+        let modalLibroBS, modalUsuarioBS;
+
         document.addEventListener('DOMContentLoaded', () => {
+            modalLibroBS = new bootstrap.Modal(document.getElementById('modalLibro'));
+            modalUsuarioBS = new bootstrap.Modal(document.getElementById('modalUsuario'));
+            
+            document.getElementById('formLibro').addEventListener('submit', guardarLibroSubmit);
+            document.getElementById('formUsuario').addEventListener('submit', guardarUsuarioSubmit);
+
             cargarDashboard();
         });
 
@@ -383,76 +379,157 @@
                     document.getElementById('statDisponibles').innerText = res.disponibles;
                     document.getElementById('statPrestamos').innerText = res.prestamos_activos;
                 }
+            } catch (e) { console.error("Error dashboard:", e); }
+        }
+
+        async function cargarInventario() {
+            const tbody = document.getElementById('tablaInventarioBody');
+            tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4">Cargando inventario...</td></tr>';
+
+            try {
+                const resp = await fetch(window.SEMSAD_API + '/obtener_libros.php', { credentials: 'include' });
+                const res = await resp.json();
+                const lista = res.libros || [];
+
+                if (res.status === 'success' && lista.length > 0) {
+                    tbody.innerHTML = '';
+                    lista.forEach(libro => {
+                        const stockDisp = libro.stock_disponible !== undefined ? libro.stock_disponible : (libro.disponible || 0);
+                        const badge = stockDisp > 0
+                            ? `<span class="badge bg-success py-2 px-3">Disponible (${stockDisp})</span>`
+                            : `<span class="badge bg-danger py-2 px-3">Agotado</span>`;
+
+                        tbody.innerHTML += `
+                            <tr>
+                                <td class="fw-bold">#${SEMSAD.esc(libro.id_material)}</td>
+                                <td class="fw-bold text-primary">${SEMSAD.esc(libro.titulo)}</td>
+                                <td>${SEMSAD.esc(libro.autores)}</td>
+                                <td class="font-monospace text-muted">${SEMSAD.esc(libro.isbn)}</td>
+                                <td>${SEMSAD.esc(libro.agno_publicacion)}</td>
+                                <td>${badge}</td>
+                                <td class="text-center no-print">
+                                    <button class="btn btn-warning btn-sm fw-bold me-1" onclick="editarLibro(${libro.id_material}, '${SEMSAD.esc(libro.titulo)}', '${SEMSAD.esc(libro.autores)}', '${SEMSAD.esc(libro.isbn)}', ${libro.agno_publicacion}, ${libro.total_ejemplares || 1})"><i class="fa-solid fa-pen-to-square"></i></button>
+                                    <button class="btn btn-danger btn-sm fw-bold" onclick="eliminarLibro(${libro.id_material}, '${SEMSAD.esc(libro.titulo)}')"><i class="fa-solid fa-trash"></i></button>
+                                </td>
+                            </tr>`;
+                    });
+                } else {
+                    tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4 text-muted">No existen libros registrados.</td></tr>';
+                }
             } catch (e) {
-                console.error("Error al cargar dashboard:", e);
+                tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4 text-danger">Error al consultar el inventario.</td></tr>';
             }
+        }
+
+        function abrirModalLibro() {
+            document.getElementById('modalLibroTitulo').innerText = 'Registrar Nuevo Libro';
+            document.getElementById('lib_id').value = 0;
+            document.getElementById('formLibro').reset();
+            modalLibroBS.show();
+        }
+
+        function editarLibro(id, titulo, autores, isbn, anio, totalCopias) {
+            document.getElementById('modalLibroTitulo').innerText = 'Editar Libro';
+            document.getElementById('lib_id').value = id;
+            document.getElementById('lib_titulo').value = titulo;
+            document.getElementById('lib_autores').value = autores;
+            document.getElementById('lib_isbn').value = isbn;
+            document.getElementById('lib_anio').value = anio;
+            document.getElementById('lib_copias').value = totalCopias;
+            modalLibroBS.show();
+        }
+
+        async function guardarLibroSubmit(e) {
+            e.preventDefault();
+            const data = {
+                id_material: parseInt(document.getElementById('lib_id').value) || 0,
+                titulo: document.getElementById('lib_titulo').value,
+                autores: document.getElementById('lib_autores').value,
+                isbn: document.getElementById('lib_isbn').value,
+                agno_publicacion: parseInt(document.getElementById('lib_anio').value) || 2024,
+                num_ejemplares: parseInt(document.getElementById('lib_copias').value) || 1
+            };
+
+            try {
+                const resp = await fetch(window.SEMSAD_API + '/guardar_libro.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify(data)
+                });
+                const res = await resp.json();
+
+                if (res.status === 'success') {
+                    SEMSAD.toast(res.mensaje, 'success');
+                    modalLibroBS.hide();
+                    cargarInventario();
+                    cargarDashboard();
+                } else {
+                    alert(res.mensaje || 'Error al guardar libro.');
+                }
+            } catch (ex) { alert("Error de conexión al guardar libro."); }
+        }
+
+        async function eliminarLibro(id, titulo) {
+            if (!confirm(`¿Estás seguro de eliminar el libro "${titulo}" y sus copias?`)) return;
+
+            try {
+                const resp = await fetch(window.SEMSAD_API + '/eliminar_libro.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ id_material: id })
+                });
+                const res = await resp.json();
+
+                if (res.status === 'success') {
+                    SEMSAD.toast(res.mensaje, 'success');
+                    cargarInventario();
+                    cargarDashboard();
+                } else {
+                    alert(res.mensaje || 'Error al eliminar libro.');
+                }
+            } catch (ex) { alert("Error de conexión al eliminar libro."); }
         }
 
         async function cargarVentanilla() {
             const tbody = document.getElementById('tablaVentanillaBody');
-            tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4"><i class="fa-solid fa-spinner fa-spin me-2 text-primary"></i>Cargando préstamos activos...</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4">Cargando ventanilla...</td></tr>';
 
             try {
                 const resp = await fetch(window.SEMSAD_API + '/listar_prestamos.php', { credentials: 'include' });
                 const res = await resp.json();
-                const lista = res.prestamos || res.datos || res.data || [];
+                const lista = res.prestamos || [];
 
                 if (res.status === 'success' && lista.length > 0) {
                     tbody.innerHTML = '';
                     lista.forEach(p => {
-                        const idPrestamo = p.id || p.id_prestamo;
-                        const usuario = p.userName || p.usuario || 'Estudiante';
-                        const correo = p.userCorreo || p.correo || '';
-                        const ci = p.userCi || 'EST-202401';
-                        
-                        const telVal = (p.userTelefono && p.userTelefono !== 'Sin teléfono' && p.userTelefono !== 'Sin dato') 
-                            ? p.userTelefono 
-                            : '';
-
-                        const telefonoHtml = telVal 
-                            ? `<span class="fw-bold text-dark"><i class="fa-solid fa-phone me-1 text-success"></i>${SEMSAD.esc(telVal)}</span>`
-                            : `<span class="text-muted fst-italic">Sin teléfono</span>`;
-
-                        const libro = p.bookTitle || p.libro || 'Libro';
-                        const fechaLimite = p.dueDate || p.fecha_limite || 'S/F';
                         const estado = p.status || p.estado || 'Activo';
-
-                        const badgeEstado = (estado === 'Vencido' || estado === 'Con Mora')
-                            ? `<span class="badge bg-danger py-2 px-3"><i class="fa-solid fa-triangle-exclamation me-1"></i>${SEMSAD.esc(estado)}</span>`
-                            : `<span class="badge bg-primary py-2 px-3"><i class="fa-solid fa-clock me-1"></i>${SEMSAD.esc(estado)}</span>`;
+                        const badge = (estado === 'Vencido') 
+                            ? `<span class="badge bg-danger py-2 px-3">Vencido</span>` 
+                            : `<span class="badge bg-primary py-2 px-3">Activo</span>`;
 
                         tbody.innerHTML += `
                             <tr>
-                                <td>
-                                    <div class="fw-bold text-dark">${SEMSAD.esc(usuario)}</div>
-                                    ${correo ? `<small class="text-muted">${SEMSAD.esc(correo)}</small>` : ''}
+                                <td><div class="fw-bold">${SEMSAD.esc(p.userName)}</div><small class="text-muted">${SEMSAD.esc(p.userCorreo)}</small></td>
+                                <td><span class="badge bg-light text-dark border">${SEMSAD.esc(p.userCi)}</span></td>
+                                <td>${SEMSAD.esc(p.userTelefono || 'Sin teléfono')}</td>
+                                <td class="fw-bold text-primary">${SEMSAD.esc(p.bookTitle)}</td>
+                                <td class="text-muted">${SEMSAD.esc(p.dueDate)}</td>
+                                <td>${badge}</td>
+                                <td class="text-center no-print">
+                                    <button class="btn btn-success btn-sm fw-bold px-3" onclick="registrarDevolucion(${p.id}, '${SEMSAD.esc(p.bookTitle)}')"><i class="fa-solid fa-rotate-left me-1"></i> Devuelto</button>
                                 </td>
-                                <td><span class="badge bg-light text-dark border font-monospace fs-6">${SEMSAD.esc(ci)}</span></td>
-                                <td>${telefonoHtml}</td>
-                                <td class="fw-bold text-primary">${SEMSAD.esc(libro)}</td>
-                                <td class="text-muted"><i class="fa-regular fa-calendar-days me-1"></i>${SEMSAD.esc(fechaLimite)}</td>
-                                <td>${badgeEstado}</td>
-                                <td class="text-center">
-                                    <button class="btn btn-success btn-sm fw-bold px-3 shadow-sm" onclick="registrarDevolucion(${idPrestamo}, '${SEMSAD.esc(libro)}')">
-                                        <i class="fa-solid fa-rotate-left me-1"></i> Devuelto
-                                    </button>
-                                </td>
-                            </tr>
-                        `;
+                            </tr>`;
                     });
                 } else {
-                    tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4 text-muted"><i class="fa-solid fa-inbox fa-2x mb-2 d-block"></i>No hay reservas ni préstamos activos en este momento.</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4 text-muted">No hay préstamos activos.</td></tr>';
                 }
-            } catch (e) {
-                console.error("Error en cargarVentanilla:", e);
-                tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4 text-danger">Error al cargar datos de ventanilla.</td></tr>';
-            }
+            } catch (e) { tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4 text-danger">Error al cargar ventanilla.</td></tr>'; }
         }
 
-        async function registrarDevolucion(idPrestamo, tituloLibro) {
-            if (!confirm(`¿Confirmas la recepción del libro "${tituloLibro}"? El ejemplar volverá a estar libre de inmediato en el catálogo.`)) {
-                return;
-            }
+        async function registrarDevolucion(idPrestamo, titulo) {
+            if (!confirm(`¿Confirmas la devolución del libro "${titulo}"?`)) return;
 
             try {
                 const resp = await fetch(window.SEMSAD_API + '/devolver_libro.php', {
@@ -461,149 +538,133 @@
                     credentials: 'include',
                     body: JSON.stringify({ id_prestamo: idPrestamo })
                 });
-
                 const res = await resp.json();
-
                 if (res.status === 'success') {
-                    if (typeof SEMSAD !== 'undefined' && SEMSAD.toast) {
-                        SEMSAD.toast(res.mensaje, 'success');
-                    } else {
-                        alert(res.mensaje);
-                    }
+                    SEMSAD.toast(res.mensaje, 'success');
                     cargarVentanilla();
                     cargarDashboard();
-                } else {
-                    alert(res.mensaje || 'Error al registrar la devolución.');
-                }
-            } catch (e) {
-                console.error("Error al registrar devolución:", e);
-                alert("Error de conexión al procesar la devolución.");
-            }
-        }
-
-        async function cargarInventario() {
-            const tbody = document.getElementById('tablaInventarioBody');
-            tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4"><i class="fa-solid fa-spinner fa-spin me-2 text-primary"></i>Cargando inventario de libros...</td></tr>';
-
-            try {
-                const resp = await fetch(window.SEMSAD_API + '/obtener_libros.php', { credentials: 'include' });
-                const res = await resp.json();
-                const lista = res.libros || res.data || res.datos || [];
-
-                if (res.status === 'success' && lista.length > 0) {
-                    tbody.innerHTML = '';
-                    lista.forEach(libro => {
-                        const titulo = libro.titulo || libro.nombre || 'Sin título';
-                        const isbn = libro.isbn || libro.codigo_isbn_issn || libro.codigo_barras || 'S/N';
-                        const id = libro.id_material || libro.id || 'N/A';
-                        const anio = libro.agno_publicacion || libro.anio_publicacion || libro.anio || 'N/A';
-                        const stockDisp = libro.stock_disponible !== undefined ? libro.stock_disponible : (libro.disponible || 0);
-
-                        const badge = stockDisp > 0
-                            ? `<span class="badge bg-success py-2 px-3"><i class="fa-solid fa-circle-check me-1"></i>Disponible (${stockDisp})</span>`
-                            : `<span class="badge bg-danger py-2 px-3"><i class="fa-solid fa-circle-xmark me-1"></i>Agotado</span>`;
-
-                        tbody.innerHTML += `
-                            <tr>
-                                <td class="fw-bold text-dark">#${SEMSAD.esc(id)}</td>
-                                <td class="fw-semibold text-primary">${SEMSAD.esc(titulo)}</td>
-                                <td class="text-muted font-monospace">${SEMSAD.esc(isbn)}</td>
-                                <td>${SEMSAD.esc(anio)}</td>
-                                <td>${badge}</td>
-                            </tr>
-                        `;
-                    });
-                } else {
-                    tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-muted">No existen libros registrados en la base de datos.</td></tr>';
-                }
-            } catch (e) {
-                tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-danger">Error al consultar el inventario de libros.</td></tr>';
-            }
+                } else { alert(res.mensaje); }
+            } catch (ex) { alert("Error al procesar devolución."); }
         }
 
         async function cargarAuditoria() {
             const tbody = document.getElementById('tablaAuditoriaBody');
-            tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4"><i class="fa-solid fa-spinner fa-spin me-2 text-primary"></i>Cargando auditoría...</td></tr>';
-
-            function badgeEstado(estado) {
-                const e = (estado || '').toLowerCase();
-                if (e.includes('exitoso')) {
-                    return '<span class="badge bg-success py-2 px-3"><i class="fa-solid fa-circle-check me-1"></i>CAMBIÓ LA CONTRASEÑA CON ÉXITO</span>';
-                }
-                if (e.includes('solicitud')) {
-                    return '<span class="badge bg-warning text-dark py-2 px-3"><i class="fa-solid fa-envelope me-1"></i>SOLICITÓ EL CAMBIO (enlace enviado)</span>';
-                }
-                if (e.includes('no encontrado')) {
-                    return '<span class="badge bg-danger py-2 px-3"><i class="fa-solid fa-circle-xmark me-1"></i>CORREO NO REGISTRADO</span>';
-                }
-                if (e.includes('no activa')) {
-                    return '<span class="badge bg-danger py-2 px-3"><i class="fa-solid fa-ban me-1"></i>CUENTA NO ACTIVA</span>';
-                }
-                return '<span class="badge bg-danger py-2 px-3"><i class="fa-solid fa-circle-xmark me-1"></i>NO PUDO CAMBIAR LA CONTRASEÑA</span>';
-            }
-
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4">Cargando auditoría...</td></tr>';
             try {
                 const resp = await fetch(window.SEMSAD_API + '/obtener_auditoria.php', { credentials: 'include' });
                 const res = await resp.json();
-
                 if (res.status === 'success' && res.data.length > 0) {
                     tbody.innerHTML = '';
                     res.data.forEach(item => {
-                        const nombre = ((item.nombres || '') + ' ' + (item.apellidos || '')).trim();
-                        const usuarioHtml = nombre
-                            ? `<span class="fw-bold text-dark">${SEMSAD.esc(nombre)}</span><br><small class="text-muted">CI/Código: ${SEMSAD.esc(item.codigo_empleado || '—')}${item.telefono ? ' · Tel: ' + SEMSAD.esc(item.telefono) : ''}</small>`
-                            : '<span class="text-muted fst-italic">Sin cuenta asociada</span>';
-
                         tbody.innerHTML += `
                             <tr>
-                                <td>${usuarioHtml}</td>
+                                <td>${SEMSAD.esc((item.nombres || '') + ' ' + (item.apellidos || ''))}</td>
                                 <td class="text-primary">${SEMSAD.esc(item.correo_ingresado)}</td>
-                                <td class="text-muted"><i class="fa-regular fa-clock me-1"></i>${SEMSAD.esc(item.fecha_hora)}</td>
-                                <td>${badgeEstado(item.estado)}</td>
-                                <td class="font-monospace text-muted small">${SEMSAD.esc(item.ip_origen || '—')}</td>
-                            </tr>
-                        `;
+                                <td class="text-muted">${SEMSAD.esc(item.fecha_hora)}</td>
+                                <td><span class="badge bg-secondary">${SEMSAD.esc(item.estado)}</span></td>
+                                <td class="font-monospace small">${SEMSAD.esc(item.ip_origen || '—')}</td>
+                            </tr>`;
                     });
-                } else if (res.status === 'success') {
-                    tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-muted">No existen registros de auditoría aún.</td></tr>';
-                } else {
-                    tbody.innerHTML = `<tr><td colspan="5" class="text-center py-4 text-danger">${SEMSAD.esc(res.mensaje || 'Error al cargar datos de auditoría.')}</td></tr>`;
-                }
-            } catch (e) {
-                tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-danger">Error al cargar datos de auditoría.</td></tr>';
-            }
+                } else { tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-muted">Sin registros de auditoría.</td></tr>'; }
+            } catch (e) { tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-danger">Error auditoría.</td></tr>'; }
         }
 
         async function cargarUsuariosRegistrados() {
             const tbody = document.getElementById('tablaUsuariosBody');
-            tbody.innerHTML = '<tr><td colspan="4" class="text-center py-4"><i class="fa-solid fa-spinner fa-spin me-2 text-success"></i>Cargando usuarios...</td></tr>';
-
+            tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4">Cargando usuarios...</td></tr>';
             try {
                 const resp = await fetch(window.SEMSAD_API + '/obtener_usuarios.php', { credentials: 'include' });
                 const res = await resp.json();
-
                 if (res.status === 'success' && res.data.length > 0) {
                     tbody.innerHTML = '';
-                    res.data.forEach(user => {
-                        const telefonoMostrar = (user.telefono && user.telefono.trim() !== '') 
-                            ? `<span class="fw-semibold text-dark"><i class="fa-solid fa-phone me-1 text-muted small"></i>${SEMSAD.esc(user.telefono)}</span>`
-                            : `<span class="text-muted italic">Sin teléfono</span>`;
+                    res.data.forEach(u => {
+                        const estadoStr = u.estado || 'Activo';
+                        const badge = (estadoStr === 'Activo') 
+                            ? '<span class="badge bg-success">Activo</span>' 
+                            : '<span class="badge bg-danger">Inactivo</span>';
+
+                        const rolStr = u.id_rol == 1 ? 'Admin' : (u.id_rol == 2 ? 'Bibliotecario' : 'Estudiante');
 
                         tbody.innerHTML += `
                             <tr>
-                                <td class="fw-bold text-dark">${SEMSAD.esc(user.nombres)} ${SEMSAD.esc(user.apellidos)}</td>
-                                <td class="text-primary">${SEMSAD.esc(user.correo)}</td>
-                                <td>${telefonoMostrar}</td>
-                                <td><span class="badge bg-success">Activo</span></td>
-                            </tr>
-                        `;
+                                <td class="fw-bold text-dark">${SEMSAD.esc(u.nombres)} ${SEMSAD.esc(u.apellidos || '')}</td>
+                                <td class="text-primary">${SEMSAD.esc(u.correo)}</td>
+                                <td>${SEMSAD.esc(u.telefono || 'Sin teléfono')}</td>
+                                <td><span class="badge bg-dark">${rolStr}</span></td>
+                                <td>${badge}</td>
+                                <td class="text-center no-print">
+                                    <button class="btn btn-warning btn-sm me-1 fw-bold" onclick="editarUsuario(${u.id_usuario}, '${SEMSAD.esc(u.nombres)}', '${SEMSAD.esc(u.apellidos || '')}', '${SEMSAD.esc(u.correo)}', '${SEMSAD.esc(u.telefono || '')}', '${SEMSAD.esc(u.codigo_empleado || '')}', ${u.id_rol})"><i class="fa-solid fa-pen"></i></button>
+                                    <button class="btn btn-${estadoStr === 'Activo' ? 'danger' : 'success'} btn-sm fw-bold" onclick="cambiarEstadoUsuario(${u.id_usuario}, '${estadoStr === 'Activo' ? 'Inactivo' : 'Activo'}')">${estadoStr === 'Activo' ? 'Desactivar' : 'Activar'}</button>
+                                </td>
+                            </tr>`;
                     });
-                } else {
-                    tbody.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-muted">No existen usuarios registrados.</td></tr>';
-                }
-            } catch (e) {
-                tbody.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-danger">Error al obtener lista de usuarios.</td></tr>';
-            }
+                } else { tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-muted">No existen usuarios.</td></tr>'; }
+            } catch (e) { tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-danger">Error usuarios.</td></tr>'; }
+        }
+
+        function abrirModalUsuario() {
+            document.getElementById('modalUsuarioTitulo').innerText = 'Registrar Nuevo Usuario';
+            document.getElementById('usr_id').value = 0;
+            document.getElementById('formUsuario').reset();
+            modalUsuarioBS.show();
+        }
+
+        function editarUsuario(id, nombres, apellidos, correo, telefono, codigo, idRol) {
+            document.getElementById('modalUsuarioTitulo').innerText = 'Editar Usuario';
+            document.getElementById('usr_id').value = id;
+            document.getElementById('usr_nombres').value = nombres;
+            document.getElementById('usr_apellidos').value = apellidos;
+            document.getElementById('usr_correo').value = correo;
+            document.getElementById('usr_telefono').value = telefono;
+            document.getElementById('usr_codigo').value = codigo;
+            document.getElementById('usr_rol').value = idRol;
+            modalUsuarioBS.show();
+        }
+
+        async function guardarUsuarioSubmit(e) {
+            e.preventDefault();
+            const data = {
+                id_usuario: parseInt(document.getElementById('usr_id').value) || 0,
+                nombres: document.getElementById('usr_nombres').value,
+                apellidos: document.getElementById('usr_apellidos').value,
+                correo: document.getElementById('usr_correo').value,
+                password: document.getElementById('usr_password').value,
+                telefono: document.getElementById('usr_telefono').value,
+                codigo_empleado: document.getElementById('usr_codigo').value,
+                id_rol: parseInt(document.getElementById('usr_rol').value) || 3
+            };
+
+            try {
+                const resp = await fetch(window.SEMSAD_API + '/guardar_usuario.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify(data)
+                });
+                const res = await resp.json();
+                if (res.status === 'success') {
+                    SEMSAD.toast(res.mensaje, 'success');
+                    modalUsuarioBS.hide();
+                    cargarUsuariosRegistrados();
+                } else { alert(res.mensaje); }
+            } catch (ex) { alert("Error al guardar usuario."); }
+        }
+
+        async function cambiarEstadoUsuario(id, nuevoEstado) {
+            if (!confirm(`¿Cambiar estado del usuario a ${nuevoEstado}?`)) return;
+            try {
+                const resp = await fetch(window.SEMSAD_API + '/cambiar_estado_usuario.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ id_usuario: id, estado: nuevoEstado })
+                });
+                const res = await resp.json();
+                if (res.status === 'success') {
+                    SEMSAD.toast(res.mensaje, 'success');
+                    cargarUsuariosRegistrados();
+                } else { alert(res.mensaje); }
+            } catch (ex) { alert("Error al cambiar estado."); }
         }
     </script>
 </body>

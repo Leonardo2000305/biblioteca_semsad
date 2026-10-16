@@ -1,8 +1,19 @@
 <?php
-session_start();
-header("Access-Control-Allow-Origin: *");
+if (session_status() === PHP_SESSION_NONE) {
+    ini_set('session.cookie_samesite', 'None');
+    ini_set('session.cookie_secure', 'True');
+    session_start();
+}
+
+if (isset($_SERVER['HTTP_ORIGIN'])) {
+    header("Access-Control-Allow-Origin: " . $_SERVER['HTTP_ORIGIN']);
+} else {
+    header("Access-Control-Allow-Origin: *");
+}
+
+header("Access-Control-Allow-Credentials: true");
 header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
-header("Access-Control-Allow-Headers: Content-Type");
+header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
 header('Content-Type: application/json; charset=utf-8');
 
 require_once 'conexion.php';
@@ -14,17 +25,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     
-    $id_usuario = isset($_GET['usuario']) ? $_GET['usuario'] : null;
+    $id_usuario = isset($_GET['usuario']) ? $_GET['usuario'] : (isset($_GET['id_usuario']) ? $_GET['id_usuario'] : null);
 
     try {
-        // Tablas convertidas a minúsculas para compatibilidad con Alwaysdata/Linux
-        $sql = "SELECT p.id_prestamo, p.fecha_salida, p.fecha_limite, p.estado, 
-                        mb.titulo as bookTitle, u.nombres as userName, u.codigo_empleado as userCi
-                FROM prestamo p
-                INNER JOIN detalle_prestamo dp ON p.id_prestamo = dp.id_prestamo
-                INNER JOIN ejemplar e ON dp.id_ejemplar = e.id_ejemplar
-                INNER JOIN materialbibliografico mb ON e.id_material = mb.id_material
-                INNER JOIN usuario u ON p.id_usuario = u.id_usuario
+        // Tablas alineadas con el esquema oficial de Alwaysdata
+        $sql = "SELECT p.id_prestamo, 
+                       p.fecha_salida, 
+                       p.fecha_limite, 
+                       p.estado, 
+                       mb.titulo AS bookTitle, 
+                       CONCAT(u.nombres, ' ', u.apellidos) AS userName, 
+                       COALESCE(u.codigo_empleado, 'Sin Código') AS userCi
+                FROM Prestamo p
+                INNER JOIN Detalle_Prestamo dp ON p.id_prestamo = dp.id_prestamo
+                INNER JOIN Ejemplar e ON dp.id_ejemplar = e.id_ejemplar
+                INNER JOIN MaterialBibliografico mb ON e.id_material = mb.id_material
+                INNER JOIN Usuario u ON p.id_usuario = u.id_usuario
                 WHERE p.estado != 'Devuelto'"; 
         
         $params = [];
@@ -33,9 +49,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
             $params[':id_usuario'] = $id_usuario;
         }
 
+        $sql .= " ORDER BY p.id_prestamo DESC";
+
         $stmt = $conexion->prepare($sql);
         $stmt->execute($params);
-        $prestamos = $stmt->fetchAll();
+        $prestamos = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
         $formateados = array_map(function($p) {
             $now = time();
@@ -45,31 +63,40 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
             $overdueDays = $daysLeft < 0 ? abs($daysLeft) : 0;
             $status = $p['estado'];
             
-            if ($overdueDays > 0 && $status == 'Activo') {
+            if ($overdueDays > 0 && $status === 'Activo') {
                 $status = 'Vencido';
             }
 
+            $issueDate = $p['fecha_salida'] ? substr($p['fecha_salida'], 0, 10) : date('Y-m-d');
+            $dueDate = $p['fecha_limite'] ? substr($p['fecha_limite'], 0, 10) : date('Y-m-d');
+
             return [
-                'id' => $p['id_prestamo'],
-                'userCi' => $p['userCi'],
-                'userName' => $p['userName'],
-                'bookTitle' => $p['bookTitle'],
-                'issueDate' => substr($p['fecha_salida'], 0, 10),
-                'dueDate' => substr($p['fecha_limite'], 0, 10),
-                'daysLeft' => $daysLeft,
+                'id'          => (int)$p['id_prestamo'],
+                'id_prestamo' => (int)$p['id_prestamo'],
+                'userCi'      => $p['userCi'],
+                'userName'    => $p['userName'],
+                'bookTitle'   => $p['bookTitle'],
+                'issueDate'   => $issueDate,
+                'dueDate'     => $dueDate,
+                'daysLeft'    => $daysLeft,
                 'overdueDays' => $overdueDays,
-                'status' => $status,
-                'code' => 'PRE-00' . $p['id_prestamo']
+                'status'      => $status,
+                'code'        => 'PRE-' . str_pad($p['id_prestamo'], 3, '0', STR_PAD_LEFT)
             ];
         }, $prestamos);
 
         echo json_encode([
-            'status' => 'success',
-            'datos' => $formateados
+            'status'    => 'success',
+            'total'     => count($formateados),
+            'datos'     => $formateados,
+            'prestamos' => $formateados,
+            'data'      => $formateados
         ]);
 
     } catch (PDOException $e) {
-        echo json_encode(['status' => 'error', 'mensaje' => 'Error: ' . $e->getMessage()]);
+        echo json_encode(['status' => 'error', 'mensaje' => 'Error al consultar préstamos: ' . $e->getMessage()]);
     }
+} else {
+    echo json_encode(['status' => 'error', 'mensaje' => 'Método no permitido. Use GET.']);
 }
 ?>

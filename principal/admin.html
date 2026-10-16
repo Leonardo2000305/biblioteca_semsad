@@ -335,6 +335,13 @@
             document.getElementById('formUsuario').addEventListener('submit', guardarUsuarioSubmit);
 
             cargarDashboard();
+
+            // Se actualiza sola cada 15 s: así el panel y la ventanilla muestran los préstamos nuevos sin recargar.
+            setInterval(() => {
+                if (document.hidden) return;
+                if (!document.getElementById('secDashboard').classList.contains('d-none')) cargarDashboard();
+                if (!document.getElementById('secVentanilla').classList.contains('d-none')) cargarVentanilla(true);
+            }, 15000);
         });
 
         function verModulo(nombreModulo, elemento) {
@@ -492,9 +499,9 @@
             } catch (ex) { alert("Error de conexión al eliminar libro."); }
         }
 
-        async function cargarVentanilla() {
+        async function cargarVentanilla(silencioso) {
             const tbody = document.getElementById('tablaVentanillaBody');
-            tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4">Cargando ventanilla...</td></tr>';
+            if (silencioso !== true) tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4">Cargando ventanilla...</td></tr>';
 
             try {
                 const resp = await fetch(window.SEMSAD_API + '/listar_prestamos.php', { credentials: 'include' });

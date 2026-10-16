@@ -742,6 +742,9 @@
             document.getElementById('lib_tipo').value = '1';
             if (!document.getElementById('lib_categoria').value && document.getElementById('lib_categoria').options.length) document.getElementById('lib_categoria').selectedIndex = 0;
             document.getElementById('lib_editorial').value = '0';
+            const metadata = (opcionesCatalogacionCache && opcionesCatalogacionCache.metadatos_avanzados) || {};
+            document.getElementById('lib_edicion').disabled = metadata.edicion !== true;
+            document.getElementById('lib_idioma').disabled = metadata.idioma !== true;
             document.getElementById('lib_anio').value = new Date().getFullYear();
             document.getElementById('lib_copias').value = '1';
             modalLibroBS.show();
@@ -766,9 +769,9 @@
             document.getElementById('lib_categoria').value = String(libro.id_categoria || '');
             document.getElementById('lib_edicion').value = libro.edicion || '';
             document.getElementById('lib_idioma').value = libro.idioma || '';
-            const advanced = libro.tiene_metadatos_avanzados === true;
-            document.getElementById('lib_edicion').disabled = !advanced;
-            document.getElementById('lib_idioma').disabled = !advanced;
+            const metadata = (opcionesCatalogacionCache && opcionesCatalogacionCache.metadatos_avanzados) || {};
+            document.getElementById('lib_edicion').disabled = metadata.edicion !== true;
+            document.getElementById('lib_idioma').disabled = metadata.idioma !== true;
             modalLibroBS.show();
         }
 

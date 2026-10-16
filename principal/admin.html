@@ -160,7 +160,7 @@
                         <div class="d-flex justify-content-between align-items-center">
                             <div>
                                 <small class="text-muted fw-bold d-block">Total Libros</small>
-                                <span class="fs-2 fw-bold text-primary">3</span>
+                                <span class="fs-2 fw-bold text-primary" id="statTotalLibros">0</span>
                             </div>
                             <div class="icon-box bg-primary text-white">
                                 <i class="fa-solid fa-book"></i>
@@ -173,7 +173,7 @@
                         <div class="d-flex justify-content-between align-items-center">
                             <div>
                                 <small class="text-muted fw-bold d-block">Disponibles</small>
-                                <span class="fs-2 fw-bold text-success">2</span>
+                                <span class="fs-2 fw-bold text-success" id="statDisponibles">0</span>
                             </div>
                             <div class="icon-box bg-success text-white">
                                 <i class="fa-solid fa-circle-check"></i>
@@ -186,7 +186,7 @@
                         <div class="d-flex justify-content-between align-items-center">
                             <div>
                                 <small class="text-muted fw-bold d-block">Préstamos Activos</small>
-                                <span class="fs-2 fw-bold text-warning">0</span>
+                                <span class="fs-2 fw-bold text-warning" id="statPrestamos">0</span>
                             </div>
                             <div class="icon-box bg-warning text-white">
                                 <i class="fa-solid fa-hand-holding"></i>
@@ -332,6 +332,10 @@
     <script src="../js/config.js"></script>
     <script>SEMSAD.exigirSesion(true);</script>
     <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            cargarDashboard();
+        });
+
         function verModulo(nombreModulo, elemento) {
             document.querySelectorAll('.modulo-vista').forEach(el => el.classList.add('d-none'));
             document.querySelectorAll('.sidebar-menu .nav-link').forEach(link => link.classList.remove('active'));
@@ -361,6 +365,21 @@
                 cargarVentanilla();
             } else {
                 document.getElementById('secDashboard').classList.remove('d-none');
+                cargarDashboard();
+            }
+        }
+
+        async function cargarDashboard() {
+            try {
+                const resp = await fetch(window.SEMSAD_API + '/obtener_dashboard.php', { credentials: 'include' });
+                const res = await resp.json();
+                if (res.status === 'success') {
+                    document.getElementById('statTotalLibros').innerText = res.total_libros;
+                    document.getElementById('statDisponibles').innerText = res.disponibles;
+                    document.getElementById('statPrestamos').innerText = res.prestamos_activos;
+                }
+            } catch (e) {
+                console.error("Error al cargar dashboard:", e);
             }
         }
 
@@ -447,6 +466,7 @@
                         alert(res.mensaje);
                     }
                     cargarVentanilla();
+                    cargarDashboard();
                 } else {
                     alert(res.mensaje || 'Error al registrar la devolución.');
                 }

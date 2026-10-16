@@ -1,53 +1,55 @@
 <?php
-require_once 'conexion.php';
-semsad_iniciar_sesion();
-header('Content-Type: application/json; charset=utf-8');
+require_once __DIR__ . '/conexion.php';
+semsad_requerir_rol(['Administrador', 'Bibliotecario']);
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $input = json_decode(file_get_contents('php://input') ?: '', true) ?: [];
-    $id_material = (int)($input['id_material'] ?? $_POST['id_material'] ?? 0);
-
-    if ($id_material <= 0) {
-        semsad_responder(['status' => 'error', 'mensaje' => 'ID de libro no válido.']);
-    }
-
-    try {
-        $stmtActivos = $conexion->prepare("
-            SELECT COUNT(*) 
-            FROM Prestamo p
-            INNER JOIN Detalle_Prestamo dp ON p.id_prestamo = dp.id_prestamo
-            INNER JOIN Ejemplar e ON dp.id_ejemplar = e.id_ejemplar
-            WHERE e.id_material = :id AND p.estado = 'Activo'
-        ");
-        $stmtActivos->execute([':id' => $id_material]);
-        if ((int)$stmtActivos->fetchColumn() > 0) {
-            semsad_responder([
-                'status'  => 'error',
-                'mensaje' => 'No se puede eliminar este libro porque tiene préstamos activos pendientes de devolución.'
-            ]);
-        }
-
-        $conexion->beginTransaction();
-
-        $conexion->exec("
-            DELETE FROM Detalle_Prestamo 
-            WHERE id_ejemplar IN (SELECT id_ejemplar FROM Ejemplar WHERE id_material = $id_material)
-        ");
-
-        $stmtE = $conexion->prepare("DELETE FROM Ejemplar WHERE id_material = :id");
-        $stmtE->execute([':id' => $id_material]);
-
-        $stmtM = $conexion->prepare("DELETE FROM MaterialBibliografico WHERE id_material = :id");
-        $stmtM->execute([':id' => $id_material]);
-
-        $conexion->commit();
-
-        semsad_responder(['status' => 'success', 'mensaje' => 'El libro y sus ejemplares han sido eliminados correctamente del inventario.']);
-
-    } catch (Exception $e) {
-        if ($conexion->inTransaction()) $conexion->rollBack();
-        semsad_responder(['status' => 'error', 'mensaje' => 'Error al eliminar libro: ' . $e->getMessage()], 500);
-    }
-} else {
+if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
     semsad_responder(['status' => 'error', 'mensaje' => 'Método no permitido.'], 405);
 }
+$input = semsad_leer_json();
+$id_material = (int)($input['id_material'] ?? 0);
+if ($id_material <= 0) {
+    semsad_responder(['status' => 'error', 'mensaje' => 'ID de libro no válido.'], 400);
+}
+
+try {
+    $stmtExists = $conexion->prepare("SELECT titulo FROM MaterialBibliografico WHERE id_material = :id LIMIT 1");
+    $stmtExists->execute([':id' => $id_material]);
+    $titulo = $stmtExists->fetchColumn();
+    if (!$titulo) semsad_responder(['status' => 'error', 'mensaje' => 'El libro no existe.'], 404);
+
+    $stmtPrestamos = $conexion->prepare("
+        SELECT COUNT(*)
+        FROM Detalle_Prestamo dp
+        INNER JOIN Ejemplar e ON e.id_ejemplar = dp.id_ejemplar
+        WHERE e.id_material = :id
+    ");
+    $stmtPrestamos->execute([':id' => $id_material]);
+    if ((int)$stmtPrestamos->fetchColumn() > 0) {
+        semsad_responder([
+            'status' => 'error',
+            'mensaje' => 'No se elimina este libro porque tiene historial de préstamos. Para conservar la auditoría, marca sus ejemplares como Baja en el inventario.'
+        ], 409);
+    }
+
+    $stmtReservas = $conexion->prepare("SELECT COUNT(*) FROM Reserva WHERE id_material = :id");
+    $stmtReservas->execute([':id' => $id_material]);
+    if ((int)$stmtReservas->fetchColumn() > 0) {
+        semsad_responder([
+            'status' => 'error',
+            'mensaje' => 'No se elimina este libro porque tiene reservas registradas. Conserva los datos históricos.'
+        ], 409);
+    }
+
+    $conexion->beginTransaction();
+    $conexion->prepare("DELETE FROM Material_Autor WHERE id_material = :id")->execute([':id' => $id_material]);
+    $conexion->prepare("DELETE FROM Ejemplar WHERE id_material = :id")->execute([':id' => $id_material]);
+    $conexion->prepare("DELETE FROM MaterialBibliografico WHERE id_material = :id")->execute([':id' => $id_material]);
+    $conexion->commit();
+
+    semsad_responder(['status' => 'success', 'mensaje' => "El libro \"$titulo\" se eliminó del inventario."]);
+} catch (Throwable $e) {
+    if ($conexion->inTransaction()) $conexion->rollBack();
+    error_log('[SEMSAD] eliminar_libro: ' . $e->getMessage());
+    semsad_responder(['status' => 'error', 'mensaje' => 'No se pudo eliminar el libro. No se alteró el historial de la biblioteca.'], 500);
+}
+?>

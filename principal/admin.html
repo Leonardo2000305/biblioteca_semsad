@@ -211,6 +211,19 @@
                     </div>
                 </div>
             </div>
+            <div class="card table-card shadow-sm bg-white mt-4">
+                <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center border-bottom">
+                    <h5 class="fw-bold mb-0 text-dark"><i class="fa-solid fa-right-to-bracket text-primary me-2"></i>Últimos accesos al sistema</h5>
+                    <button class="btn btn-sm btn-outline-secondary no-print" onclick="cargarHistorialAccesos()"><i class="fa-solid fa-rotate me-1"></i>Actualizar</button>
+                </div>
+                <div class="card-body p-0">
+                    <div id="notaHistorialAcceso" class="alert alert-warning m-3 d-none"></div>
+                    <div class="table-responsive"><table class="table table-hover align-middle mb-0" id="tablaHistorialAccesos">
+                        <thead class="table-light"><tr><th>Usuario</th><th>Correo</th><th>Fecha y hora</th><th>IP</th><th>Navegador / agente</th></tr></thead>
+                        <tbody id="tablaHistorialAccesosBody"><tr><td colspan="5" class="text-center py-4 text-muted">Pulsa Actualizar para consultar los accesos.</td></tr></tbody>
+                    </table></div>
+                </div>
+            </div>
         </div>
 
         <!-- MÓDULO 5: PADRÓN DE USUARIOS -->
@@ -471,6 +484,7 @@
             } else if (nombreModulo === 'auditoria') {
                 document.getElementById('secAuditoria').classList.remove('d-none');
                 cargarAuditoria();
+                cargarHistorialAccesos();
             } else if (nombreModulo === 'usuarios') {
                 document.getElementById('secUsuarios').classList.remove('d-none');
                 cargarUsuariosRegistrados();
@@ -858,6 +872,35 @@
             } catch (e) { tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-danger">Error auditoría.</td></tr>'; }
         }
 
+        async function cargarHistorialAccesos() {
+            const tbody = document.getElementById('tablaHistorialAccesosBody');
+            const note = document.getElementById('notaHistorialAcceso');
+            if (!tbody) return;
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4">Cargando accesos...</td></tr>';
+            try {
+                const resp = await fetch(window.SEMSAD_API + '/obtener_historial_accesos.php', { credentials: 'include', cache: 'no-store' });
+                const res = await resp.json();
+                if (res.status === 'success' && res.disponible === false) {
+                    note.textContent = res.mensaje || 'Para habilitar el historial, revisa la migración opcional del proyecto.';
+                    note.classList.remove('d-none');
+                    tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-muted">El historial no está habilitado en la estructura SQL actual.</td></tr>';
+                    return;
+                }
+                note.classList.add('d-none');
+                const rows = res.registros || [];
+                tbody.innerHTML = rows.length ? rows.map(r => `<tr>
+                    <td class="fw-bold">${SEMSAD.esc((r.nombres || '') + ' ' + (r.apellidos || ''))}</td>
+                    <td>${SEMSAD.esc(r.correo || '')}</td>
+                    <td>${SEMSAD.esc(r.fecha_hora || '')}</td>
+                    <td class="font-monospace small">${SEMSAD.esc(r.ip_origen || '—')}</td>
+                    <td class="small text-muted">${SEMSAD.esc(r.agente_usuario || '')}</td>
+                </tr>`).join('') : '<tr><td colspan="5" class="text-center py-4 text-muted">No hay accesos registrados.</td></tr>';
+                if (res.status !== 'success') { tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-danger">' + SEMSAD.esc(res.mensaje || 'Error al consultar accesos.') + '</td></tr>'; }
+            } catch (e) {
+                console.error('Error al cargar historial de accesos:', e);
+                tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-danger">No se pudo cargar el historial de accesos.</td></tr>';
+            }
+        }
         async function cargarUsuariosRegistrados() {
             const tbody = document.getElementById('tablaUsuariosBody');
             tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4">Cargando usuarios...</td></tr>';

@@ -94,7 +94,6 @@
     <!-- Bootstrap JS Bundle -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="../js/config.js"></script>
-    <script>SEMSAD.exigirSesion(false);</script>
     <script>
         let todosLosLibros = [];
 
@@ -102,83 +101,51 @@
             cargarCatalogo();
         });
 
-        // Detector seguro de sesión de estudiante
         function obtenerUsuarioLogueado() {
-            function esUsuarioValido(u) {
-                if (!u || typeof u !== 'object') return false;
-                const email = String(u.correo || u.email || u.userCorreo || '').trim();
-                const id = parseInt(u.id_usuario || u.id || u.usuario_id || u.user_id || 0);
-                if (email && email.includes('@')) return true;
-                if (id > 0 && (u.nombres || u.nombre || u.apellidos || u.id_rol || u.rol)) return true;
-                return false;
-            }
-
-            function normalizarUsuario(u) {
-                if (!u) return null;
-                if (typeof u === 'string') {
-                    try { u = JSON.parse(u); } catch(e) { return null; }
-                }
-                if (!u || typeof u !== 'object') return null;
-
-                if (u.usuario && typeof u.usuario === 'object' && esUsuarioValido(u.usuario)) u = u.usuario;
-                else if (u.user && typeof u.user === 'object' && esUsuarioValido(u.user)) u = u.user;
-                else if (u.datos && typeof u.datos === 'object' && esUsuarioValido(u.datos)) u = u.datos;
-                else if (u.data && typeof u.data === 'object' && esUsuarioValido(u.data)) u = u.data;
-
-                if (!esUsuarioValido(u)) return null;
-
-                return {
-                    id_usuario: parseInt(u.id_usuario || u.id || u.usuario_id || u.user_id || 0),
-                    correo: String(u.correo || u.email || u.userCorreo || '').trim(),
-                    nombres: u.nombres || u.nombre || '',
-                    apellidos: u.apellidos || ''
-                };
-            }
-
-            // 1. Probar objeto SEMSAD global
-            if (typeof SEMSAD !== 'undefined') {
-                if (typeof SEMSAD.obtenerUsuario === 'function') {
-                    const u = normalizarUsuario(SEMSAD.obtenerUsuario());
-                    if (u) return u;
-                }
-                if (typeof SEMSAD.getUser === 'function') {
-                    const u = normalizarUsuario(SEMSAD.getUser());
-                    if (u) return u;
-                }
-                if (SEMSAD.usuario) {
-                    const u = normalizarUsuario(SEMSAD.usuario);
-                    if (u) return u;
-                }
-                if (SEMSAD.user) {
-                    const u = normalizarUsuario(SEMSAD.user);
-                    if (u) return u;
-                }
-                if (SEMSAD.sesion) {
-                    const u = normalizarUsuario(SEMSAD.sesion);
-                    if (u) return u;
+            const storages = [localStorage, sessionStorage];
+            const keys = ['semsad_usuario', 'usuario', 'semsad_sesion', 'sesion', 'semsad_user', 'user', 'userData'];
+            
+            for (let store of storages) {
+                for (let k of keys) {
+                    try {
+                        const raw = store.getItem(k);
+                        if (raw) {
+                            let parsed = JSON.parse(raw);
+                            if (parsed && typeof parsed === 'object') {
+                                if (parsed.usuario) parsed = parsed.usuario;
+                                if (parsed.user) parsed = parsed.user;
+                                if (parsed.datos) parsed = parsed.datos;
+                                
+                                const id = parsed.id_usuario || parsed.id || parsed.usuario_id || parsed.user_id || 0;
+                                const correo = parsed.correo || parsed.email || parsed.userCorreo || '';
+                                if (id > 0 || correo !== '') {
+                                    return { id_usuario: parseInt(id) || 0, correo: String(correo).trim() };
+                                }
+                            }
+                        }
+                    } catch(e) {}
                 }
             }
 
-            // 2. Probar llaves específicas de sesión en el almacenamiento local
-            const targetKeys = [
-                'semsad_usuario', 'semsad_sesion', 'semsad_user', 'usuario', 'sesion', 'user',
-                'semsad_login', 'login_data', 'user_data', 'userData', 'user_session'
-            ];
-
-            for (let k of targetKeys) {
-                const itemLocal = localStorage.getItem(k);
-                if (itemLocal) {
-                    const u = normalizarUsuario(itemLocal);
-                    if (u) return u;
-                }
-                const itemSession = sessionStorage.getItem(k);
-                if (itemSession) {
-                    const u = normalizarUsuario(itemSession);
-                    if (u) return u;
+            for (let store of storages) {
+                for (let i = 0; i < store.length; i++) {
+                    try {
+                        const key = store.key(i);
+                        let parsed = JSON.parse(store.getItem(key));
+                        if (parsed && typeof parsed === 'object') {
+                            if (parsed.usuario) parsed = parsed.usuario;
+                            if (parsed.user) parsed = parsed.user;
+                            
+                            const id = parsed.id_usuario || parsed.id || parsed.usuario_id || parsed.user_id || 0;
+                            const correo = parsed.correo || parsed.email || parsed.userCorreo || '';
+                            if ((id > 0 || correo.includes('@')) && (parsed.nombres || parsed.nombre)) {
+                                return { id_usuario: parseInt(id) || 0, correo: String(correo).trim() };
+                            }
+                        }
+                    } catch(e) {}
                 }
             }
-
-            return null;
+            return { id_usuario: 0, correo: '' };
         }
 
         async function cargarCatalogo() {
@@ -277,15 +244,6 @@
         async function solicitarPrestamo(idMaterial, tituloLibro) {
             const userObj = obtenerUsuarioLogueado();
 
-            if (!userObj || (!userObj.id_usuario && !userObj.correo)) {
-                alert("No se detectó una sesión activa de estudiante. Por favor, inicia sesión nuevamente.");
-                window.location.href = '../login/index.html';
-                return;
-            }
-
-            const idUsuario = userObj.id_usuario || 0;
-            const correoUsuario = userObj.correo || '';
-
             if (!confirm(`¿Confirmas que deseas solicitar el préstamo de "${tituloLibro}" por 7 días?`)) {
                 return;
             }
@@ -297,8 +255,8 @@
                     credentials: 'include',
                     body: JSON.stringify({
                         id_material: idMaterial,
-                        id_usuario: idUsuario,
-                        correo: correoUsuario,
+                        id_usuario: userObj.id_usuario || 0,
+                        correo: userObj.correo || '',
                         dias_prestamo: 7
                     })
                 });

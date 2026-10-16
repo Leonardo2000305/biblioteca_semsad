@@ -101,15 +101,43 @@
     <script>
         let todosLosLibros = [];
 
-        document.addEventListener('DOMContentLoaded', () => {
-            const user = obtenerUsuarioLogueado();
-            if (user) {
-                document.getElementById('nombreUsuarioHeader').innerText = user.nombreCompleto || user.correo;
-            } else {
-                document.getElementById('nombreUsuarioHeader').innerText = "Estudiante";
+        document.addEventListener('DOMContentLoaded', iniciarVistaEstudiante);
+
+        async function iniciarVistaEstudiante() {
+            try {
+                // La sesión del servidor es la fuente de verdad. localStorage solo guarda datos para la interfaz.
+                const resp = await fetch(window.SEMSAD_API + '/verificar_sesion.php', {
+                    credentials: 'include',
+                    cache: 'no-store'
+                });
+                const data = await resp.json();
+                if (data.status !== 'success' || !data.sesion_activa || !data.usuario) {
+                    localStorage.removeItem('semsad_user');
+                    alert('Tu sesión no está activa. Inicia sesión nuevamente para entrar a la biblioteca.');
+                    window.location.replace('../login/index.html');
+                    return;
+                }
+                const u = data.usuario;
+                if (['Administrador', 'Bibliotecario'].includes(u.rol)) {
+                    window.location.replace('./admin.html');
+                    return;
+                }
+                localStorage.setItem('semsad_user', JSON.stringify({
+                    id: u.id_usuario,
+                    name: u.nombreCompleto || u.nombre,
+                    role: u.rol,
+                    ci: u.ci,
+                    correo: u.correo,
+                    nombres: u.nombres,
+                    apellidos: u.apellidos
+                }));
+                document.getElementById('nombreUsuarioHeader').innerText = u.nombreCompleto || u.nombre || u.correo;
+                await cargarCatalogo();
+            } catch (error) {
+                console.error('No se pudo verificar la sesión:', error);
+                document.getElementById('contenedorLibros').innerHTML = '<div class="col-12 text-center py-5"><i class="fa-solid fa-circle-exclamation fa-3x text-danger mb-3"></i><p class="text-danger fs-5">No se pudo verificar la sesión con el servidor. Comprueba tu conexión e inténtalo de nuevo.</p><a class="btn btn-outline-primary" href="../login/index.html">Volver al inicio de sesión</a></div>';
             }
-            cargarCatalogo();
-        });
+        }
 
         function obtenerUsuarioLogueado() {
             function extraerUser(candidate) {
@@ -179,9 +207,7 @@
         }
 
         async function cargarCatalogo() {
-            const userObj = obtenerUsuarioLogueado();
-            const idUsuario = userObj ? userObj.id_usuario : 0;
-            const correoUsuario = userObj ? userObj.correo : '';
+            // La identidad se valida por cookie/sesión en el backend; no enviar el ID desde el navegador.
 
             const contenedor = document.getElementById('contenedorLibros');
             contenedor.innerHTML = `
@@ -191,8 +217,7 @@
                 </div>`;
 
             try {
-                const url = window.SEMSAD_API + '/obtener_libros.php?id_usuario=' + idUsuario + '&correo=' + encodeURIComponent(correoUsuario);
-                const resp = await fetch(url, { credentials: 'include' });
+                const resp = await fetch(window.SEMSAD_API + '/obtener_libros.php', { credentials: 'include', cache: 'no-store' });
                 const res = await resp.json();
 
                 const listaLibros = res.libros || res.data || res.datos || [];
@@ -236,27 +261,27 @@
                 const autor = libro.autores || libro.autor || 'Autor no especificado';
                 
                 const stockDisponible = (libro.stock_disponible !== undefined) ? parseInt(libro.stock_disponible) : parseInt(libro.disponible || 0);
-                const reservadoPorMi = libro.reservado_por_mi === true;
-                const estaDisponible = stockDisponible > 0 && !reservadoPorMi;
-
+                const tengoPrestamo = libro.tengo_prestamo_activo === true || libro.reservado_por_mi === true;
+                const tengoReserva = libro.tengo_reserva_pendiente === true;
+                const hayReservasPendientes = libro.hay_reservas_pendientes === true;
                 let badgeHTML = '';
                 let botonHTML = '';
 
-                if (reservadoPorMi) {
-                    badgeHTML = `<span class="badge bg-warning text-dark mb-2"><i class="fa-solid fa-bookmark me-1"></i>Ya reservaste este libro</span>`;
-                    botonHTML = `<button class="btn btn-warning text-dark w-100 fw-bold btn-sm mt-2" disabled>
-                                    <i class="fa-solid fa-check-double me-1"></i> Libro en tu Poder
-                                 </button>`;
-                } else if (estaDisponible) {
-                    badgeHTML = `<span class="badge bg-success mb-2"><i class="fa-solid fa-circle-check me-1"></i>Disponible</span>`;
-                    botonHTML = `<button class="btn btn-outline-primary w-100 fw-bold btn-sm mt-2" onclick="solicitarPrestamo(${idMaterial}, '${SEMSAD.esc(titulo)}')">
-                                    <i class="fa-solid fa-hand-holding-hand me-1"></i> Solicitar Préstamo
-                                 </button>`;
+                if (tengoPrestamo) {
+                    badgeHTML = `<span class="badge bg-warning text-dark mb-2"><i class="fa-solid fa-bookmark me-1"></i>Préstamo activo</span>`;
+                    botonHTML = `<button class="btn btn-warning text-dark w-100 fw-bold btn-sm mt-2" disabled><i class="fa-solid fa-check-double me-1"></i> LIBRO EN TU PODER</button>`;
+                } else if (tengoReserva) {
+                    const posicion = Number(libro.prioridad_reserva || 0);
+                    badgeHTML = `<span class="badge bg-info text-dark mb-2"><i class="fa-solid fa-list-ol me-1"></i>En lista de espera · Posición ${posicion}</span>`;
+                    botonHTML = `<button class="btn btn-outline-danger w-100 fw-bold btn-sm mt-2" onclick="cancelarReserva(${Number(libro.id_reserva_pendiente) || 0})"><i class="fa-solid fa-xmark me-1"></i> Cancelar reserva</button>`;
+                } else if (stockDisponible > 0 && !hayReservasPendientes) {
+                    badgeHTML = `<span class="badge bg-success mb-2"><i class="fa-solid fa-circle-check me-1"></i>Disponible (${stockDisponible})</span>`;
+                    botonHTML = `<button class="btn btn-outline-primary w-100 fw-bold btn-sm mt-2" onclick="solicitarPrestamo(${idMaterial})"><i class="fa-solid fa-hand-holding-hand me-1"></i> Solicitar Préstamo</button>`;
                 } else {
-                    badgeHTML = `<span class="badge bg-danger mb-2"><i class="fa-solid fa-circle-xmark me-1"></i>Agotado</span>`;
-                    botonHTML = `<button class="btn btn-secondary w-100 fw-bold btn-sm mt-2" disabled>
-                                    <i class="fa-solid fa-ban me-1"></i> No Disponible
-                                 </button>`;
+                    badgeHTML = hayReservasPendientes
+                        ? `<span class="badge bg-warning text-dark mb-2"><i class="fa-solid fa-clock me-1"></i>En cola de reserva</span>`
+                        : `<span class="badge bg-danger mb-2"><i class="fa-solid fa-circle-xmark me-1"></i>Sin copias disponibles</span>`;
+                    botonHTML = `<button class="btn btn-outline-primary w-100 fw-bold btn-sm mt-2" onclick="solicitarReserva(${idMaterial})"><i class="fa-solid fa-bookmark me-1"></i> Unirme a lista de espera</button>`;
                 }
 
                 contenedor.innerHTML += `
@@ -276,31 +301,24 @@
             });
         }
 
-        async function solicitarPrestamo(idMaterial, tituloLibro) {
+        async function solicitarPrestamo(idMaterial) {
             const userObj = obtenerUsuarioLogueado();
-
-            if (!userObj || (!userObj.id_usuario && !userObj.correo)) {
-                alert("No se detectó tu sesión activa de estudiante. Redirigiendo al inicio de sesión...");
+            const libro = todosLosLibros.find(l => Number(l.id_material || l.id) === Number(idMaterial));
+            const tituloLibro = libro ? (libro.titulo || libro.nombre || 'este libro') : 'este libro';
+            if (!userObj || !userObj.id_usuario) {
+                alert('No se detectó tu sesión activa. Inicia sesión nuevamente.');
                 window.location.href = '../login/index.html';
                 return;
             }
-
-            const nombreSolicitante = userObj.nombreCompleto || userObj.correo;
-            if (!confirm(`¿Confirmas que deseas solicitar el préstamo de "${tituloLibro}" a nombre de ${nombreSolicitante} por 7 días?`)) {
-                return;
-            }
+            const nombreSolicitante = userObj.nombreCompleto || userObj.name || userObj.correo || 'tu cuenta';
+            if (!confirm(`¿Confirmas que deseas solicitar el préstamo de "${tituloLibro}" a nombre de ${nombreSolicitante} por 7 días?`)) return;
 
             try {
                 const resp = await fetch(window.SEMSAD_API + '/registrar_prestamo.php', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     credentials: 'include',
-                    body: JSON.stringify({
-                        id_material: idMaterial,
-                        id_usuario: userObj.id_usuario,
-                        correo: userObj.correo,
-                        dias_prestamo: 7
-                    })
+                    body: JSON.stringify({ id_material: Number(idMaterial) })
                 });
 
                 const res = await resp.json();
@@ -325,6 +343,50 @@
             }
         }
 
+        async function solicitarReserva(idMaterial) {
+            const libro = todosLosLibros.find(l => Number(l.id_material || l.id) === Number(idMaterial));
+            const titulo = libro ? (libro.titulo || libro.nombre || 'este libro') : 'este libro';
+            if (!confirm('¿Deseas unirte a la lista de espera para "' + titulo + '"?')) return;
+            try {
+                const resp = await fetch(window.SEMSAD_API + '/reservar_material.php', {
+                    method: 'POST', credentials: 'include',
+                    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                    body: JSON.stringify({ id_material: Number(idMaterial) })
+                });
+                const res = await resp.json();
+                if (res.status === 'success') {
+                    SEMSAD.toast(res.mensaje || 'Te añadimos a la lista de espera.', 'success');
+                    await cargarCatalogo();
+                } else {
+                    SEMSAD.toast(res.mensaje || 'No se pudo crear la reserva.', 'error');
+                }
+            } catch (e) {
+                console.error('Error al reservar:', e);
+                SEMSAD.toast('No se pudo conectar con el servidor para reservar.', 'error');
+            }
+        }
+
+        async function cancelarReserva(idReserva) {
+            if (!Number(idReserva) || !confirm('¿Cancelar tu reserva pendiente?')) return;
+            try {
+                const resp = await fetch(window.SEMSAD_API + '/cancelar_reserva.php', {
+                    method: 'POST', credentials: 'include',
+                    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                    body: JSON.stringify({ id_reserva: Number(idReserva) })
+                });
+                const res = await resp.json();
+                if (res.status === 'success') {
+                    SEMSAD.toast(res.mensaje || 'Reserva cancelada.', 'success');
+                    await cargarCatalogo();
+                } else {
+                    SEMSAD.toast(res.mensaje || 'No se pudo cancelar la reserva.', 'error');
+                }
+            } catch (e) {
+                console.error('Error al cancelar reserva:', e);
+                SEMSAD.toast('No se pudo conectar con el servidor.', 'error');
+            }
+        }
+
         async function cargarMisPrestamos() {
             const userObj = obtenerUsuarioLogueado();
             const tbody = document.getElementById('tablaMisPrestamosBody');
@@ -333,8 +395,7 @@
             if (!userObj) return;
 
             try {
-                const url = window.SEMSAD_API + '/mis_prestamos.php?id_usuario=' + userObj.id_usuario + '&correo=' + encodeURIComponent(userObj.correo);
-                const resp = await fetch(url, { credentials: 'include' });
+                const resp = await fetch(window.SEMSAD_API + '/mis_prestamos.php', { credentials: 'include', cache: 'no-store' });
                 const res = await resp.json();
 
                 if (res.status === 'success' && res.prestamos.length > 0) {
@@ -342,7 +403,8 @@
                     res.prestamos.forEach(p => {
                         let badge = '<span class="badge bg-primary">Activo</span>';
                         if (p.estado === 'Devuelto') badge = '<span class="badge bg-success">Devuelto</span>';
-                        if (p.estado === 'Vencido') badge = '<span class="badge bg-danger">Vencido (Con Mora)</span>';
+                        if (p.estado === 'Vencido' || p.estado === 'Con Mora') badge = '<span class="badge bg-danger">Vencido (Con Mora)</span>';
+                        if (p.estado === 'Reserva pendiente') badge = '<span class="badge bg-warning text-dark">Reserva pendiente</span>';
 
                         tbody.innerHTML += `
                             <tr>

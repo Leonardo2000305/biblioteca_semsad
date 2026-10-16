@@ -28,7 +28,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     $id_usuario = isset($_GET['usuario']) ? $_GET['usuario'] : (isset($_GET['id_usuario']) ? $_GET['id_usuario'] : null);
 
     try {
-        // Consulta para obtener nombre completo, CI, correo y teléfono del estudiante
         $sql = "SELECT p.id_prestamo, 
                        p.fecha_salida, 
                        p.fecha_limite, 
@@ -36,7 +35,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
                        mb.titulo AS bookTitle, 
                        CONCAT(u.nombres, ' ', u.apellidos) AS userName, 
                        u.correo AS userCorreo,
-                       COALESCE(u.codigo_empleado, 'Sin teléfono') AS userTelefono,
+                       u.codigo_empleado,
                        u.id_usuario AS userId
                 FROM Prestamo p
                 INNER JOIN Detalle_Prestamo dp ON p.id_prestamo = dp.id_prestamo
@@ -70,14 +69,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
             }
 
             $dueDate = $p['fecha_limite'] ? substr($p['fecha_limite'], 0, 10) : date('Y-m-d');
+            $rawCodigo = trim($p['codigo_empleado'] ?? '');
+
+            // Determinar si es un número de teléfono o un código administrativo
+            if (preg_match('/^(ADM|BIB|EMP)-/i', $rawCodigo)) {
+                $userCi = $rawCodigo;
+                $userTelefono = 'Sin teléfono';
+            } else if (!empty($rawCodigo)) {
+                $userTelefono = $rawCodigo;
+                $userCi = 'REG-' . str_pad($p['userId'], 4, '0', STR_PAD_LEFT);
+            } else {
+                $userTelefono = 'Sin teléfono';
+                $userCi = 'REG-' . str_pad($p['userId'], 4, '0', STR_PAD_LEFT);
+            }
 
             return [
                 'id'           => (int)$p['id_prestamo'],
                 'id_prestamo'  => (int)$p['id_prestamo'],
                 'userName'     => $p['userName'],
                 'userCorreo'   => $p['userCorreo'],
-                'userTelefono' => $p['userTelefono'],
-                'userCi'       => 'REG-' . str_pad($p['userId'], 4, '0', STR_PAD_LEFT),
+                'userTelefono' => $userTelefono,
+                'userCi'       => $userCi,
                 'bookTitle'    => $p['bookTitle'],
                 'dueDate'      => $dueDate,
                 'status'       => $status

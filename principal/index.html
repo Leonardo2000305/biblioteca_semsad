@@ -196,18 +196,22 @@
         }
 
         async function solicitarPrestamo(idMaterial, tituloLibro) {
-            // Capturar datos del usuario desde SEMSAD o localStorage
-            const u = (typeof SEMSAD !== 'undefined' && SEMSAD.obtenerUsuario) 
-                ? SEMSAD.obtenerUsuario() 
-                : JSON.parse(localStorage.getItem('usuario') || localStorage.getItem('semsad_user') || '{}');
+            let u = {};
+            try {
+                if (typeof SEMSAD !== 'undefined' && SEMSAD.obtenerUsuario) {
+                    u = SEMSAD.obtenerUsuario() || {};
+                } else if (typeof SEMSAD !== 'undefined' && SEMSAD.getUser) {
+                    u = SEMSAD.getUser() || {};
+                }
+                if (!u.id_usuario && !u.id && !u.correo) {
+                    u = JSON.parse(localStorage.getItem('usuario') || localStorage.getItem('semsad_user') || localStorage.getItem('user') || '{}');
+                }
+            } catch (e) {
+                console.error("Error leyendo usuario local:", e);
+            }
 
             const idUsuario = u.id_usuario || u.id || 0;
-
-            if (!idUsuario) {
-                alert("Debes iniciar sesión con tu cuenta de estudiante.");
-                window.location.href = '../login/index.html';
-                return;
-            }
+            const correoUsuario = u.correo || u.email || '';
 
             if (!confirm(`¿Confirmas que deseas solicitar el préstamo de "${tituloLibro}" por 7 días?`)) {
                 return;
@@ -221,6 +225,7 @@
                     body: JSON.stringify({
                         id_material: idMaterial,
                         id_usuario: idUsuario,
+                        correo: correoUsuario,
                         dias_prestamo: 7
                     })
                 });

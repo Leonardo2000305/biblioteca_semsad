@@ -96,6 +96,34 @@ try {
     $_SESSION['rol']        = $usuario['rol'];
     $_SESSION['ci']         = $usuario['codigo_empleado'] ?? '';
 
+    // Registro opcional del último acceso. El login continúa funcionando aunque la migración no se haya aplicado.
+    try {
+        $columnasUsuario = $conexion->query("SHOW COLUMNS FROM Usuario")->fetchAll(PDO::FETCH_COLUMN, 0);
+        if (in_array('ultimo_acceso', $columnasUsuario, true)) {
+            $conexion->prepare("UPDATE Usuario SET ultimo_acceso = NOW() WHERE id_usuario = :id")
+                ->execute([':id' => (int)$usuario['id_usuario']]);
+        }
+
+        $qHistorial = $conexion->prepare("
+            SELECT COUNT(*)
+            FROM information_schema.tables
+            WHERE table_schema = DATABASE() AND table_name = 'historial_acceso'
+        ");
+        $qHistorial->execute();
+        if ((int)$qHistorial->fetchColumn() > 0) {
+            $conexion->prepare("
+                INSERT INTO historial_acceso (id_usuario, fecha_hora, ip_origen, agente_usuario)
+                VALUES (:u, NOW(), :ip, :agente)
+            ")->execute([
+                ':u' => (int)$usuario['id_usuario'],
+                ':ip' => $_SERVER['REMOTE_ADDR'] ?? null,
+                ':agente' => substr((string)($_SERVER['HTTP_USER_AGENT'] ?? ''), 0, 255)
+            ]);
+        }
+    } catch (Throwable $eHistorial) {
+        error_log('[SEMSAD] No se pudo registrar el historial de acceso: ' . $eHistorial->getMessage());
+    }
+
     $esPersonal = in_array($usuario['rol'], ['Administrador', 'Bibliotecario'], true);
 
     semsad_responder([

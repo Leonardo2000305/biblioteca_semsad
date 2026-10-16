@@ -64,14 +64,18 @@ try {
 
     $libros = [];
     foreach ($rows as $r) {
+        $anioVal = $r['agno_publicacion'] ? (string)$r['agno_publicacion'] : 'N/A';
         $libros[] = [
             'id_material'      => (int)$r['id_material'],
             'id'               => (int)$r['id_material'],
             'titulo'           => $r['titulo'],
             'isbn'             => $r['isbn'],
             'codigo_isbn_issn' => $r['codigo_isbn_issn'],
-            'agno_publicacion' => $r['agno_publicacion'],
-            'año'              => $r['agno_publicacion'],
+            'agno_publicacion' => $anioVal,
+            'año_publicacion'  => $anioVal,
+            'año'              => $anioVal,
+            'anio'             => $anioVal,
+            'year'             => $anioVal,
             'editorial'        => $r['editorial'],
             'categoria'        => $r['categoria'],
             'tipo_material'    => $r['tipo_material'],

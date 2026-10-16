@@ -1,6 +1,6 @@
 <?php
 require_once __DIR__ . '/conexion.php';
-semsad_requerir_rol(['Administrador']);
+semsad_requerir_rol(['Administrador', 'Bibliotecario']);
 
 try {
     $stmt = $conexion->query("

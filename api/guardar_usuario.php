@@ -1,6 +1,6 @@
 <?php
 require_once __DIR__ . '/conexion.php';
-semsad_requerir_rol(['Administrador']);
+semsad_requerir_rol(['Administrador', 'Bibliotecario']);
 
 if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
     semsad_responder(['status' => 'error', 'mensaje' => 'Método no permitido.'], 405);
@@ -25,6 +25,10 @@ if (!filter_var($correo, FILTER_VALIDATE_EMAIL)) {
 if (!in_array($id_rol, [1, 2, 3, 4], true)) {
     semsad_responder(['status' => 'error', 'mensaje' => 'El rol seleccionado no es válido.'], 400);
 }
+$rolOperador = (string)($_SESSION['rol'] ?? '');
+if ($rolOperador === 'Bibliotecario' && in_array($id_rol, [1, 2], true)) {
+    semsad_responder(['status' => 'error', 'mensaje' => 'El bibliotecario puede registrar estudiantes y docentes, pero solo el administrador puede asignar roles administrativos.'], 403);
+}
 if ($id_usuario === 0 && strlen($password) < 6) {
     semsad_responder(['status' => 'error', 'mensaje' => 'Define una contraseña de al menos 6 caracteres para el nuevo usuario.'], 400);
 }
@@ -38,22 +42,27 @@ try {
     $stmtDup = $conexion->prepare("
         SELECT id_usuario
         FROM Usuario
-        WHERE (LOWER(correo) = :correo OR (:codigo <> '' AND codigo_empleado = :codigo))
+        WHERE (LOWER(correo) = :correo OR (:codigo_check <> '' AND codigo_empleado = :codigo_value))
           AND id_usuario <> :id
         LIMIT 1
     ");
-    $stmtDup->execute([':correo' => $correo, ':codigo' => $codigo, ':id' => $id_usuario]);
+    $stmtDup->execute([':correo' => $correo, ':codigo_check' => $codigo, ':codigo_value' => $codigo, ':id' => $id_usuario]);
     if ($stmtDup->fetchColumn()) {
         $conexion->rollBack();
         semsad_responder(['status' => 'error', 'mensaje' => 'El correo o código institucional ya pertenece a otro usuario.'], 409);
     }
 
     if ($id_usuario > 0) {
-        $check = $conexion->prepare("SELECT id_usuario FROM Usuario WHERE id_usuario = :id LIMIT 1");
+        $check = $conexion->prepare("SELECT id_rol FROM Usuario WHERE id_usuario = :id LIMIT 1");
         $check->execute([':id' => $id_usuario]);
-        if (!$check->fetchColumn()) {
+        $rolExistente = $check->fetchColumn();
+        if ($rolExistente === false) {
             $conexion->rollBack();
             semsad_responder(['status' => 'error', 'mensaje' => 'El usuario que intentas editar no existe.'], 404);
+        }
+        if ($rolOperador === 'Bibliotecario' && in_array((int)$rolExistente, [1, 2], true)) {
+            $conexion->rollBack();
+            semsad_responder(['status' => 'error', 'mensaje' => 'El bibliotecario no puede modificar cuentas administrativas.'], 403);
         }
 
         if ($password !== '') {

@@ -1,4 +1,5 @@
 <?php
+ob_start();
 error_reporting(0);
 ini_set('display_errors', 0);
 
@@ -16,46 +17,97 @@ try {
         throw new Exception("No se encontró el archivo de conexión db.php");
     }
 
-    // Verificar estructura real de la tabla Multa
-    $colsStmt = $pdo->query("SHOW COLUMNS FROM Multa");
-    $cols = $colsStmt->fetchAll(PDO::FETCH_COLUMN);
+    if (!isset($pdo)) {
+        throw new Exception("La variable $pdo no está inicializada.");
+    }
 
-    $colEstado = in_array('estado_pago', $cols) ? 'm.estado_pago' : (in_array('estado_multa', $cols) ? 'm.estado_multa' : "'Pendiente'");
-    $colTipo   = in_array('tipo_multa', $cols) ? 'm.tipo_multa' : "'Por Mora'";
-    $colRel    = in_array('id_prestamo', $cols) ? 'm.id_prestamo = p.id_prestamo' : 'm.id_detalle = dp.id_detalle INNER JOIN Prestamo p ON dp.id_prestamo = p.id_prestamo';
-    $joinExtra = in_array('id_prestamo', $cols) ? '' : 'INNER JOIN Detalle_Prestamo dp ON m.id_detalle = dp.id_detalle ';
+    ob_clean();
 
-    $sql = "SELECT 
-                m.id_multa,
-                m.monto,
-                {$colEstado} AS estado_pago,
-                {$colTipo} AS tipo_multa,
-                u.id_usuario,
-                u.nombres,
-                COALESCE(u.apellidos, '') AS apellidos,
-                u.correo,
-                COALESCE(u.codigo_empleado, '') AS codigo_empleado,
-                u.estado AS estado_usuario,
-                p.fecha_limite
-            FROM Multa m
-            {$joinExtra}
-            INNER JOIN Prestamo p ON {$colRel}
-            INNER JOIN Usuario u ON p.id_usuario = u.id_usuario
-            WHERE {$colEstado} = 'Pendiente' OR {$colEstado} = 'PENDIENTE'
-            ORDER BY m.id_multa DESC";
+    // 1. Identificar nombre de la tabla Multa
+    $tablaMulta = 'Multa';
+    $tables = $pdo->query("SHOW TABLES")->fetchAll(PDO::FETCH_COLUMN);
+    foreach ($tables as $t) {
+        if (strtolower($t) === 'multa') { $tablaMulta = $t; break; }
+    }
 
-    $stmt = $pdo->prepare($sql);
-    $stmt->execute();
-    $multas = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    // 2. Identificar columnas de la tabla Multa
+    $colsStmt = $pdo->query("SHOW COLUMNS FROM `$tablaMulta`");
+    $colsMulta = array_map('strtolower', $colsStmt->fetchAll(PDO::FETCH_COLUMN));
+
+    $colMonto = in_array('monto', $colsMulta) ? 'm.monto' : '0.00';
+    $colEstadoMulta = in_array('estado_pago', $colsMulta) ? 'm.estado_pago' : (in_array('estado_multa', $colsMulta) ? 'm.estado_multa' : (in_array('estado', $colsMulta) ? 'm.estado' : "'Pendiente'"));
+    $colTipoMulta = in_array('tipo_multa', $colsMulta) ? 'm.tipo_multa' : "'Por Mora'";
+
+    // 3. Generar la consulta según las llaves foráneas disponibles
+    if (in_array('id_prestamo', $colsMulta)) {
+        $sql = "SELECT 
+                    m.id_multa,
+                    {$colMonto} AS monto,
+                    {$colEstadoMulta} AS estado_pago,
+                    {$colTipoMulta} AS tipo_multa,
+                    u.id_usuario,
+                    COALESCE(u.nombres, u.nombre, '') AS nombres,
+                    COALESCE(u.apellidos, u.apellido, '') AS apellidos,
+                    COALESCE(u.correo, u.email, '') AS correo,
+                    COALESCE(u.codigo_empleado, u.ci, '') AS codigo_empleado,
+                    COALESCE(u.estado, 'Activo') AS estado_usuario,
+                    COALESCE(p.fecha_limite, p.fecha_devolucion_esperada, '') AS fecha_limite
+                FROM `$tablaMulta` m
+                INNER JOIN Prestamo p ON m.id_prestamo = p.id_prestamo
+                INNER JOIN Usuario u ON p.id_usuario = u.id_usuario
+                WHERE {$colEstadoMulta} = 'Pendiente' OR {$colEstadoMulta} = 'PENDIENTE'
+                ORDER BY m.id_multa DESC";
+    } elseif (in_array('id_detalle', $colsMulta)) {
+        $sql = "SELECT 
+                    m.id_multa,
+                    {$colMonto} AS monto,
+                    {$colEstadoMulta} AS estado_pago,
+                    {$colTipoMulta} AS tipo_multa,
+                    u.id_usuario,
+                    COALESCE(u.nombres, u.nombre, '') AS nombres,
+                    COALESCE(u.apellidos, u.apellido, '') AS apellidos,
+                    COALESCE(u.correo, u.email, '') AS correo,
+                    COALESCE(u.codigo_empleado, u.ci, '') AS codigo_empleado,
+                    COALESCE(u.estado, 'Activo') AS estado_usuario,
+                    COALESCE(p.fecha_limite, p.fecha_devolucion_esperada, '') AS fecha_limite
+                FROM `$tablaMulta` m
+                INNER JOIN Detalle_Prestamo dp ON m.id_detalle = dp.id_detalle
+                INNER JOIN Prestamo p ON dp.id_prestamo = p.id_prestamo
+                INNER JOIN Usuario u ON p.id_usuario = u.id_usuario
+                WHERE {$colEstadoMulta} = 'Pendiente' OR {$colEstadoMulta} = 'PENDIENTE'
+                ORDER BY m.id_multa DESC";
+    } else {
+        $sql = "SELECT 
+                    m.id_multa,
+                    {$colMonto} AS monto,
+                    {$colEstadoMulta} AS estado_pago,
+                    {$colTipoMulta} AS tipo_multa,
+                    u.id_usuario,
+                    COALESCE(u.nombres, u.nombre, '') AS nombres,
+                    COALESCE(u.apellidos, u.apellido, '') AS apellidos,
+                    COALESCE(u.correo, u.email, '') AS correo,
+                    COALESCE(u.codigo_empleado, u.ci, '') AS codigo_empleado,
+                    COALESCE(u.estado, 'Activo') AS estado_usuario,
+                    '' AS fecha_limite
+                FROM `$tablaMulta` m
+                INNER JOIN Usuario u ON m.id_usuario = u.id_usuario
+                WHERE {$colEstadoMulta} = 'Pendiente' OR {$colEstadoMulta} = 'PENDIENTE'
+                ORDER BY m.id_multa DESC";
+    }
+
+    $stmt =$pdo->prepare($sql);$stmt->execute();
+    $multas =$stmt->fetchAll(PDO::FETCH_ASSOC);
 
     echo json_encode([
         "status" => "success",
         "data" => $multas
     ]);
+
 } catch (Throwable $e) {
+    ob_clean();
     echo json_encode([
         "status" => "error",
-        "message" => "Error en la consulta: " . $e->getMessage()
+        "message" => "Error PHP/BD: " . $e->getMessage()
     ]);
 }
 ?>

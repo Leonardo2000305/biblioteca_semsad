@@ -793,6 +793,156 @@
                 } else { alert(res.mensaje); }
             } catch (ex) { alert("Error al cambiar estado."); }
         }
+
+        function fechaLocalReporte() {
+            const fecha = new Date();
+            fecha.setMinutes(fecha.getMinutes() - fecha.getTimezoneOffset());
+            return fecha.toISOString().slice(0, 10);
+        }
+
+        async function cargarMultasReportes() {
+            const hoy = fechaLocalReporte();
+            const desdeEl = document.getElementById('repDesde');
+            const hastaEl = document.getElementById('repHasta');
+            if (desdeEl && !desdeEl.value) desdeEl.value = hoy;
+            if (hastaEl && !hastaEl.value) hastaEl.value = hoy;
+            const desde = desdeEl ? desdeEl.value : hoy;
+            const hasta = hastaEl ? hastaEl.value : hoy;
+            const qs = '?desde=' + encodeURIComponent(desde) + '&hasta=' + encodeURIComponent(hasta);
+            try {
+                const [repResp, multaResp] = await Promise.all([
+                    fetch(window.SEMSAD_API + '/obtener_reportes.php' + qs, { credentials: 'include', cache: 'no-store' }).then(r => r.json()),
+                    fetch(window.SEMSAD_API + '/obtener_multas.php', { credentials: 'include', cache: 'no-store' }).then(r => r.json())
+                ]);
+
+                if (repResp.status === 'success') {
+                    const r = repResp.resumen || {};
+                    document.getElementById('repPrestamosPeriodo').textContent = r.prestamos_periodo ?? 0;
+                    document.getElementById('repDevolucionesPeriodo').textContent = r.devoluciones_periodo ?? 0;
+                    document.getElementById('repReservasPendientes').textContent = r.reservas_pendientes ?? 0;
+                    document.getElementById('repMultasPendientes').textContent = r.multas_pendientes ?? 0;
+                    document.getElementById('repMontoPendiente').textContent = Number(r.monto_pendiente || 0).toFixed(2);
+                    document.getElementById('repMultasPagadas').textContent = r.multas_pagadas ?? 0;
+                    document.getElementById('repMontoPagado').textContent = Number(r.monto_pagado || 0).toFixed(2);
+                    document.getElementById('repStockCriticoCount').textContent = (repResp.stock_critico || []).length;
+
+                    const morososBody = document.getElementById('tablaMorososBody');
+                    const morosos = repResp.morosos || [];
+                    morososBody.innerHTML = morosos.length ? morosos.map(m => `<tr>
+                        <td class="fw-bold">${SEMSAD.esc((m.nombres || '') + ' ' + (m.apellidos || ''))}</td>
+                        <td>${SEMSAD.esc(m.codigo_empleado || '—')}</td>
+                        <td>${SEMSAD.esc(m.correo || '')}</td>
+                        <td>${Number(m.prestamos_mora || 0)}</td>
+                        <td class="text-danger fw-bold">${Number(m.monto_pendiente || 0).toFixed(2)}</td>
+                        <td><span class="badge ${m.estado === 'Activo' ? 'bg-success' : 'bg-danger'}">${SEMSAD.esc(m.estado || '')}</span></td>
+                    </tr>`).join('') : '<tr><td colspan="6" class="text-center py-3 text-muted">No hay usuarios con préstamos en mora.</td></tr>';
+
+                    const stockBody = document.getElementById('tablaStockCriticoBody');
+                    const stock = repResp.stock_critico || [];
+                    stockBody.innerHTML = stock.length ? stock.map(b => `<tr>
+                        <td class="fw-bold">${SEMSAD.esc(b.titulo || '')}</td>
+                        <td><span class="badge ${Number(b.disponibles) === 0 ? 'bg-danger' : 'bg-warning text-dark'}">${Number(b.disponibles || 0)}</span></td>
+                        <td>${Number(b.total || 0)}</td><td>${Number(b.mantenimiento || 0)}</td><td>${Number(b.bajas || 0)}</td>
+                    </tr>`).join('') : '<tr><td colspan="5" class="text-center py-3 text-muted">No hay títulos con stock crítico.</td></tr>';
+
+                    const topBody = document.getElementById('tablaTopLibrosBody');
+                    const top = repResp.libros_mas_solicitados || [];
+                    topBody.innerHTML = top.length ? top.map(b => `<tr><td>${SEMSAD.esc(b.titulo || '')}</td><td>${Number(b.solicitudes || 0)}</td></tr>`).join('') : '<tr><td colspan="2" class="text-center py-3 text-muted">Todavía no hay préstamos registrados.</td></tr>';
+
+                    const catBody = document.getElementById('tablaCategoriasBody');
+                    const categorias = repResp.prestamos_por_categoria || [];
+                    catBody.innerHTML = categorias.length ? categorias.map(b => `<tr><td>${SEMSAD.esc(b.categoria || 'Sin categoría')}</td><td>${Number(b.prestamos || 0)}</td></tr>`).join('') : '<tr><td colspan="2" class="text-center py-3 text-muted">No hay datos de categorías.</td></tr>';
+                } else {
+                    SEMSAD.toast(repResp.mensaje || 'No se pudieron cargar los reportes.', 'error');
+                }
+
+                if (multaResp.status === 'success') {
+                    const multas = multaResp.multas || [];
+                    const tbody = document.getElementById('tablaMultasBody');
+                    tbody.innerHTML = multas.length ? multas.map(m => {
+                        const nombre = m.usuario || m.correo || 'Usuario';
+                        const estado = m.estado_pago || 'Pendiente';
+                        const clase = estado === 'Pagado' ? 'bg-success' : (estado === 'Condonado' ? 'bg-secondary' : 'bg-danger');
+                        const accion = estado === 'Pendiente'
+                            ? `<button class="btn btn-sm btn-success fw-bold no-print" onclick="registrarPagoMulta(${Number(m.id_multa)})"><i class="fa-solid fa-cash-register me-1"></i>Cobrar</button>`
+                            : `<span class="text-muted">—</span>`;
+                        return `<tr>
+                            <td><strong>${SEMSAD.esc(nombre)}</strong><small class="d-block text-muted">${SEMSAD.esc(m.correo || '')}</small></td>
+                            <td>${SEMSAD.esc(m.titulo_libro || 'Libro')}</td>
+                            <td>${SEMSAD.esc(m.fecha_limite || 'S/F')}</td>
+                            <td>${Number(m.dias_mora || 0)}</td>
+                            <td class="fw-bold">${Number(m.monto || 0).toFixed(2)}</td>
+                            <td><span class="badge ${clase}">${SEMSAD.esc(estado)}</span>${m.metodo_pago ? `<small class="d-block text-muted">${SEMSAD.esc(m.metodo_pago)}</small>` : ''}${m.fecha_pago ? `<small class="d-block text-muted">${SEMSAD.esc(m.fecha_pago)}</small>` : ''}</td>
+                            <td class="no-print">${accion}</td>
+                        </tr>`;
+                    }).join('') : '<tr><td colspan="7" class="text-center py-4 text-muted">No hay multas registradas. Usa “Calcular moras” para procesar préstamos vencidos.</td></tr>';
+                    const note = document.getElementById('repNotaMigracion');
+                    const needsMigration = multaResp.requiere_migracion_pago || (repResp.status === 'success' && (!repResp.resumen.puede_filtrar_pagos_por_fecha || !repResp.resumen.puede_filtrar_reservas_por_fecha));
+                    if (needsMigration) {
+                        note.textContent = 'La estructura SQL conectada no tiene todos los campos para guardar fecha/método del pago y fecha de la reserva. El estado de pago sí puede registrarse, pero para auditar y filtrar esos datos aplica la migración opcional del repositorio después de revisar y respaldar phpMyAdmin.';
+                        note.classList.remove('d-none');
+                    } else { note.classList.add('d-none'); }
+                } else {
+                    document.getElementById('tablaMultasBody').innerHTML = '<tr><td colspan="7" class="text-center py-4 text-danger">' + SEMSAD.esc(multaResp.mensaje || 'No se pudieron cargar las multas.') + '</td></tr>';
+                }
+            } catch (e) {
+                console.error('Error al cargar multas y reportes:', e);
+                SEMSAD.toast('No se pudieron cargar multas y reportes. Revisa la conexión con el servidor.', 'error');
+            }
+        }
+
+        async function actualizarMoras() {
+            if (!confirm('¿Calcular multas de los préstamos vencidos que todavía no tengan multa?')) return;
+            try {
+                const resp = await fetch(window.SEMSAD_API + '/actualizar_moras.php', {
+                    method: 'POST', credentials: 'include', headers: { 'Accept': 'application/json' }
+                });
+                const res = await resp.json();
+                if (res.status === 'success') {
+                    SEMSAD.toast(res.mensaje || 'Cálculo de moras completado.', 'success');
+                    await cargarMultasReportes(); await cargarVentanilla(); await cargarDashboard();
+                } else { SEMSAD.toast(res.mensaje || 'No se pudieron calcular las moras.', 'error'); }
+            } catch (e) { SEMSAD.toast('Error de conexión al calcular moras.', 'error'); }
+        }
+
+        async function registrarPagoMulta(idMulta) {
+            const metodo = (prompt('Método de pago: escribe Efectivo o Digital', 'Efectivo') || '').trim();
+            if (!['Efectivo', 'Digital'].includes(metodo)) {
+                if (metodo) SEMSAD.toast('El método debe ser Efectivo o Digital.', 'warning');
+                return;
+            }
+            if (!confirm('¿Confirmar el cobro de esta multa mediante ' + metodo + '?')) return;
+            try {
+                const resp = await fetch(window.SEMSAD_API + '/registrar_pago_multa.php', {
+                    method: 'POST', credentials: 'include',
+                    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                    body: JSON.stringify({ id_multa: Number(idMulta), metodo_pago: metodo })
+                });
+                const res = await resp.json();
+                if (res.status === 'success') {
+                    const c = res.comprobante || {};
+                    SEMSAD.toast(res.mensaje || 'Pago registrado.', 'success');
+                    alert('COMPROBANTE DE PAGO\nCódigo: ' + (c.codigo || ('MULTA-' + idMulta)) + '\nUsuario: ' + (c.usuario || '') + '\nMonto: Bs ' + Number(c.monto || 0).toFixed(2) + '\nMétodo: ' + (c.metodo_pago || metodo) + '\nFecha: ' + (c.fecha_pago || '') + (c.persistencia_completa ? '' : '\n\nAviso: método y fecha no quedan guardados de forma permanente hasta aplicar la migración SQL opcional.'));
+                    await cargarMultasReportes(); await cargarUsuariosRegistrados();
+                } else { SEMSAD.toast(res.mensaje || 'No se pudo registrar el pago.', 'error'); }
+            } catch (e) { SEMSAD.toast('Error de conexión al registrar el pago.', 'error'); }
+        }
+
+        function exportarTablaCSV(idTabla, nombreArchivo) {
+            const tabla = document.getElementById(idTabla);
+            if (!tabla) return;
+            const filas = Array.from(tabla.querySelectorAll('tr')).map(tr => {
+                const celdas = Array.from(tr.children).filter(td => !td.classList.contains('no-print'));
+                return celdas.map(td => '"' + String(td.innerText || '').replace(/\s+/g, ' ').replace(/"/g, '""').trim() + '"').join(',');
+            }).join('\r\n');
+            const blob = new Blob(['\uFEFF' + filas], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const enlace = document.createElement('a');
+            enlace.href = url;
+            enlace.download = (nombreArchivo || 'reporte') + '_' + fechaLocalReporte() + '.csv';
+            document.body.appendChild(enlace); enlace.click(); enlace.remove(); URL.revokeObjectURL(url);
+        }
+
     </script>
 </body>
 </html>

@@ -359,6 +359,30 @@
                                 <input type="number" class="form-control" id="lib_anio" value="2024">
                             </div>
                         </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-bold" for="lib_tipo">Tipo de material *</label>
+                                <select class="form-select" id="lib_tipo" required><option value="1">Libro</option></select>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-bold" for="lib_editorial">Editorial</label>
+                                <select class="form-select" id="lib_editorial"><option value="0">Sin editorial</option></select>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-bold" for="lib_categoria">Categoría *</label>
+                                <select class="form-select" id="lib_categoria" required><option value="">Cargando categorías...</option></select>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-bold" for="lib_edicion">Edición</label>
+                                <input type="text" class="form-control" id="lib_edicion" maxlength="80" placeholder="Ej. Segunda edición">
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold" for="lib_idioma">Idioma</label>
+                            <input type="text" class="form-control" id="lib_idioma" maxlength="50" placeholder="Ej. Español">
+                        </div>
                         <div class="mb-3">
                             <label class="form-label fw-bold">Cantidad de Copias / Ejemplares</label>
                             <input type="number" class="form-control" id="lib_copias" value="1" min="1">
@@ -448,6 +472,8 @@
     <script>
         let modalLibroBS, modalUsuarioBS, modalEjemplaresBS;
         let ejemplaresMaterialActual = 0;
+        let opcionesCatalogacionCache = null;
+        let catalogoLibrosAdmin = [];
 
         document.addEventListener('DOMContentLoaded', () => {
             modalLibroBS = new bootstrap.Modal(document.getElementById('modalLibro'));
@@ -458,6 +484,7 @@
             document.getElementById('formUsuario').addEventListener('submit', guardarUsuarioSubmit);
             document.getElementById('formProveedor').addEventListener('submit', guardarProveedorSubmit);
 
+            cargarOpcionesCatalogacion();
             cargarDashboard();
         });
 
@@ -520,6 +547,7 @@
                 const resp = await fetch(window.SEMSAD_API + '/obtener_libros.php', { credentials: 'include' });
                 const res = await resp.json();
                 const lista = res.libros || [];
+                catalogoLibrosAdmin = lista;
 
                 if (res.status === 'success' && lista.length > 0) {
                     tbody.innerHTML = '';
@@ -538,9 +566,9 @@
                                 <td>${SEMSAD.esc(libro.agno_publicacion)}</td>
                                 <td>${badge}</td>
                                 <td class="text-center no-print">
-                                    <button class="btn btn-outline-secondary btn-sm fw-bold me-1" title="Gestionar ejemplares" onclick="abrirEjemplaresModal(${libro.id_material}, '${SEMSAD.esc(libro.titulo)}')"><i class="fa-solid fa-boxes-stacked"></i></button>
-                                    <button class="btn btn-warning btn-sm fw-bold me-1" onclick="editarLibro(${libro.id_material}, '${SEMSAD.esc(libro.titulo)}', '${SEMSAD.esc(libro.autores)}', '${SEMSAD.esc(libro.isbn)}', ${libro.agno_publicacion}, ${libro.total_ejemplares || 1})"><i class="fa-solid fa-pen-to-square"></i></button>
-                                    <button class="btn btn-danger btn-sm fw-bold" onclick="eliminarLibro(${libro.id_material}, '${SEMSAD.esc(libro.titulo)}')"><i class="fa-solid fa-trash"></i></button>
+                                    <button class="btn btn-outline-secondary btn-sm fw-bold me-1" title="Gestionar ejemplares" onclick="abrirEjemplaresModal(${Number(libro.id_material)})"><i class="fa-solid fa-boxes-stacked"></i></button>
+                                    <button class="btn btn-warning btn-sm fw-bold me-1" onclick="editarLibro(${Number(libro.id_material)})"><i class="fa-solid fa-pen-to-square"></i></button>
+                                    <button class="btn btn-danger btn-sm fw-bold" onclick="eliminarLibro(${Number(libro.id_material)})"><i class="fa-solid fa-trash"></i></button>
                                 </td>
                             </tr>`;
                     });
@@ -552,9 +580,10 @@
             }
         }
 
-        async function abrirEjemplaresModal(idMaterial, titulo) {
+        async function abrirEjemplaresModal(idMaterial) {
             ejemplaresMaterialActual = Number(idMaterial) || 0;
-            document.getElementById('ejemplaresModalTitulo').textContent = 'Ejemplares: ' + titulo;
+            const libro = catalogoLibrosAdmin.find(item => Number(item.id_material || item.id) === ejemplaresMaterialActual);
+            document.getElementById('ejemplaresModalTitulo').textContent = 'Ejemplares: ' + (libro ? libro.titulo : ('#' + ejemplaresMaterialActual));
             modalEjemplaresBS.show();
             await cargarEjemplares();
         }
@@ -679,21 +708,41 @@
                 else { SEMSAD.toast(res.mensaje || 'No se pudo eliminar el proveedor.', 'error'); }
             } catch (e) { SEMSAD.toast('Error de conexión al eliminar proveedor.', 'error'); }
         }
-        function abrirModalLibro() {
+        async function abrirModalLibro() {
+            await cargarOpcionesCatalogacion();
             document.getElementById('modalLibroTitulo').innerText = 'Registrar Nuevo Libro';
             document.getElementById('lib_id').value = 0;
             document.getElementById('formLibro').reset();
+            document.getElementById('lib_tipo').value = '1';
+            if (!document.getElementById('lib_categoria').value && document.getElementById('lib_categoria').options.length) document.getElementById('lib_categoria').selectedIndex = 0;
+            document.getElementById('lib_editorial').value = '0';
+            document.getElementById('lib_anio').value = new Date().getFullYear();
+            document.getElementById('lib_copias').value = '1';
             modalLibroBS.show();
         }
 
-        function editarLibro(id, titulo, autores, isbn, anio, totalCopias) {
+        async function editarLibro(id) {
+            await cargarOpcionesCatalogacion();
+            const libro = catalogoLibrosAdmin.find(item => Number(item.id_material || item.id) === Number(id));
+            if (!libro) {
+                SEMSAD.toast('No se encontró ese libro en el inventario actualizado.', 'error');
+                return;
+            }
             document.getElementById('modalLibroTitulo').innerText = 'Editar Libro';
-            document.getElementById('lib_id').value = id;
-            document.getElementById('lib_titulo').value = titulo;
-            document.getElementById('lib_autores').value = autores;
-            document.getElementById('lib_isbn').value = isbn;
-            document.getElementById('lib_anio').value = anio;
-            document.getElementById('lib_copias').value = totalCopias;
+            document.getElementById('lib_id').value = Number(libro.id_material);
+            document.getElementById('lib_titulo').value = libro.titulo || '';
+            document.getElementById('lib_autores').value = libro.autores || '';
+            document.getElementById('lib_isbn').value = libro.isbn || '';
+            document.getElementById('lib_anio').value = Number(libro.agno_publicacion) || new Date().getFullYear();
+            document.getElementById('lib_copias').value = Number(libro.total_ejemplares) || 1;
+            document.getElementById('lib_tipo').value = String(libro.id_tipo_material || '1');
+            document.getElementById('lib_editorial').value = String(libro.id_editorial || '0');
+            document.getElementById('lib_categoria').value = String(libro.id_categoria || '');
+            document.getElementById('lib_edicion').value = libro.edicion || '';
+            document.getElementById('lib_idioma').value = libro.idioma || '';
+            const advanced = libro.tiene_metadatos_avanzados === true;
+            document.getElementById('lib_edicion').disabled = !advanced;
+            document.getElementById('lib_idioma').disabled = !advanced;
             modalLibroBS.show();
         }
 
@@ -704,8 +753,13 @@
                 titulo: document.getElementById('lib_titulo').value,
                 autores: document.getElementById('lib_autores').value,
                 isbn: document.getElementById('lib_isbn').value,
-                agno_publicacion: parseInt(document.getElementById('lib_anio').value) || 2024,
-                num_ejemplares: parseInt(document.getElementById('lib_copias').value) || 1
+                agno_publicacion: parseInt(document.getElementById('lib_anio').value) || new Date().getFullYear(),
+                num_ejemplares: parseInt(document.getElementById('lib_copias').value) || 1,
+                id_tipo_material: parseInt(document.getElementById('lib_tipo').value) || 1,
+                id_editorial: parseInt(document.getElementById('lib_editorial').value) || 0,
+                id_categoria: parseInt(document.getElementById('lib_categoria').value) || 0,
+                edicion: document.getElementById('lib_edicion').value.trim(),
+                idioma: document.getElementById('lib_idioma').value.trim()
             };
 
             try {
@@ -720,15 +774,18 @@
                 if (res.status === 'success') {
                     SEMSAD.toast(res.mensaje, 'success');
                     modalLibroBS.hide();
-                    cargarInventario();
-                    cargarDashboard();
+                    if (res.requiere_migracion_metadata) SEMSAD.toast('Edición/idioma no quedaron guardados porque faltan columnas en la base de datos.', 'warning');
+                    await cargarInventario();
+                    await cargarDashboard();
                 } else {
                     alert(res.mensaje || 'Error al guardar libro.');
                 }
             } catch (ex) { alert("Error de conexión al guardar libro."); }
         }
 
-        async function eliminarLibro(id, titulo) {
+        async function eliminarLibro(id) {
+            const libro = catalogoLibrosAdmin.find(item => Number(item.id_material || item.id) === Number(id));
+            const titulo = libro ? (libro.titulo || 'este libro') : 'este libro';
             if (!confirm(`¿Estás seguro de eliminar el libro "${titulo}" y sus copias?`)) return;
 
             try {

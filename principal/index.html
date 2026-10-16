@@ -102,8 +102,19 @@
         });
 
         function obtenerUsuarioLogueado() {
+            // 1. Probar ayuda de SEMSAD
+            if (typeof SEMSAD !== 'undefined' && typeof SEMSAD.obtenerUsuario === 'function') {
+                const u = SEMSAD.obtenerUsuario();
+                if (u) {
+                    const id = u.id_usuario || u.id || u.usuario_id || u.user_id || 0;
+                    const correo = u.correo || u.email || u.userCorreo || '';
+                    if (id > 0 || correo !== '') return { id_usuario: parseInt(id) || 0, correo: String(correo).trim() };
+                }
+            }
+
+            // 2. Buscar en localStorage y sessionStorage en claves habituales
             const storages = [localStorage, sessionStorage];
-            const keys = ['semsad_usuario', 'usuario', 'semsad_sesion', 'sesion', 'semsad_user', 'user', 'userData'];
+            const keys = ['semsad_usuario', 'usuario', 'semsad_sesion', 'sesion', 'semsad_user', 'user', 'userData', 'datos'];
             
             for (let store of storages) {
                 for (let k of keys) {
@@ -112,13 +123,10 @@
                         if (raw) {
                             let parsed = JSON.parse(raw);
                             if (parsed && typeof parsed === 'object') {
-                                if (parsed.usuario) parsed = parsed.usuario;
-                                if (parsed.user) parsed = parsed.user;
-                                if (parsed.datos) parsed = parsed.datos;
-                                
-                                const id = parsed.id_usuario || parsed.id || parsed.usuario_id || parsed.user_id || 0;
-                                const correo = parsed.correo || parsed.email || parsed.userCorreo || '';
-                                if (id > 0 || correo !== '') {
+                                let target = parsed.usuario || parsed.user || parsed.datos || parsed.data || parsed;
+                                const id = target.id_usuario || target.id || target.usuario_id || target.user_id || 0;
+                                const correo = target.correo || target.email || target.userCorreo || '';
+                                if (id > 0 || (correo && correo.includes('@'))) {
                                     return { id_usuario: parseInt(id) || 0, correo: String(correo).trim() };
                                 }
                             }
@@ -127,25 +135,25 @@
                 }
             }
 
+            // 3. Búsqueda profunda en todo el storage
             for (let store of storages) {
                 for (let i = 0; i < store.length; i++) {
                     try {
                         const key = store.key(i);
                         let parsed = JSON.parse(store.getItem(key));
                         if (parsed && typeof parsed === 'object') {
-                            if (parsed.usuario) parsed = parsed.usuario;
-                            if (parsed.user) parsed = parsed.user;
-                            
-                            const id = parsed.id_usuario || parsed.id || parsed.usuario_id || parsed.user_id || 0;
-                            const correo = parsed.correo || parsed.email || parsed.userCorreo || '';
-                            if ((id > 0 || correo.includes('@')) && (parsed.nombres || parsed.nombre)) {
+                            let target = parsed.usuario || parsed.user || parsed.datos || parsed.data || parsed;
+                            const id = target.id_usuario || target.id || target.usuario_id || target.user_id || 0;
+                            const correo = target.correo || target.email || target.userCorreo || '';
+                            if ((id > 0 || (correo && correo.includes('@'))) && (target.nombres || target.nombre || target.correo || target.email)) {
                                 return { id_usuario: parseInt(id) || 0, correo: String(correo).trim() };
                             }
                         }
                     } catch(e) {}
                 }
             }
-            return { id_usuario: 0, correo: '' };
+
+            return null;
         }
 
         async function cargarCatalogo() {
@@ -244,6 +252,12 @@
         async function solicitarPrestamo(idMaterial, tituloLibro) {
             const userObj = obtenerUsuarioLogueado();
 
+            if (!userObj || (!userObj.id_usuario && !userObj.correo)) {
+                alert("No se detectó tu sesión activa de estudiante. Por favor, ingresa tus credenciales en la pantalla de inicio de sesión.");
+                window.location.href = '../login/index.html';
+                return;
+            }
+
             if (!confirm(`¿Confirmas que deseas solicitar el préstamo de "${tituloLibro}" por 7 días?`)) {
                 return;
             }
@@ -255,8 +269,8 @@
                     credentials: 'include',
                     body: JSON.stringify({
                         id_material: idMaterial,
-                        id_usuario: userObj.id_usuario || 0,
-                        correo: userObj.correo || '',
+                        id_usuario: userObj.id_usuario,
+                        correo: userObj.correo,
                         dias_prestamo: 7
                     })
                 });

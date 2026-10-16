@@ -71,15 +71,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
             $dueDate = $p['fecha_limite'] ? substr($p['fecha_limite'], 0, 10) : date('Y-m-d');
             $rawCodigo = trim($p['codigo_empleado'] ?? '');
 
-            if (preg_match('/^(ADM|BIB|EMP)-/i', $rawCodigo)) {
-                $userCi = $rawCodigo;
-                $userTelefono = 'Sin teléfono';
-            } else if (!empty($rawCodigo)) {
+            // Si contiene entre 7 y 12 dígitos, es un número de celular/teléfono
+            if (preg_match('/^[0-9\s\+\-]{7,12}$/', $rawCodigo)) {
                 $userTelefono = $rawCodigo;
                 $userCi = 'REG-' . str_pad($p['userId'], 4, '0', STR_PAD_LEFT);
-            } else {
+            } else if (!empty($rawCodigo)) {
+                $userCi = $rawCodigo;
                 $userTelefono = 'Sin teléfono';
+            } else {
                 $userCi = 'REG-' . str_pad($p['userId'], 4, '0', STR_PAD_LEFT);
+                $userTelefono = 'Sin teléfono';
             }
 
             return [

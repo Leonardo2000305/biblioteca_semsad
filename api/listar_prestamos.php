@@ -71,7 +71,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
             $dueDate = $p['fecha_limite'] ? substr($p['fecha_limite'], 0, 10) : date('Y-m-d');
             $rawCodigo = trim($p['codigo_empleado'] ?? '');
 
-            // Determinar si es un número de teléfono o un código administrativo
             if (preg_match('/^(ADM|BIB|EMP)-/i', $rawCodigo)) {
                 $userCi = $rawCodigo;
                 $userTelefono = 'Sin teléfono';

@@ -415,15 +415,31 @@
     </div>
 
     <!-- Bootstrap JS Bundle -->
+    <!-- Modal de gestión de ejemplares físicos -->
+    <div class="modal fade" id="modalEjemplares" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable"><div class="modal-content">
+            <div class="modal-header bg-primary text-white"><h5 class="modal-title fw-bold" id="ejemplaresModalTitulo">Ejemplares físicos</h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button></div>
+            <div class="modal-body">
+                <p class="small text-muted">Los estados Prestado y Reservado se actualizan con los procesos de circulación. No se permite modificar una copia con un préstamo activo o una reserva asignada.</p>
+                <div class="table-responsive"><table class="table table-hover align-middle">
+                    <thead class="table-light"><tr><th>ID</th><th>Ubicación</th><th>Estado</th><th>Condición física</th><th class="no-print">Guardar</th></tr></thead>
+                    <tbody id="tablaEjemplaresBody"><tr><td colspan="5" class="text-center py-4">Selecciona un libro para cargar las copias.</td></tr></tbody>
+                </table></div>
+            </div>
+        </div></div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="../js/config.js"></script>
     <script>SEMSAD.exigirSesion(true);</script>
     <script>
-        let modalLibroBS, modalUsuarioBS;
+        let modalLibroBS, modalUsuarioBS, modalEjemplaresBS;
+        let ejemplaresMaterialActual = 0;
 
         document.addEventListener('DOMContentLoaded', () => {
             modalLibroBS = new bootstrap.Modal(document.getElementById('modalLibro'));
             modalUsuarioBS = new bootstrap.Modal(document.getElementById('modalUsuario'));
+            modalEjemplaresBS = new bootstrap.Modal(document.getElementById('modalEjemplares'));
             
             document.getElementById('formLibro').addEventListener('submit', guardarLibroSubmit);
             document.getElementById('formUsuario').addEventListener('submit', guardarUsuarioSubmit);
@@ -508,6 +524,7 @@
                                 <td>${SEMSAD.esc(libro.agno_publicacion)}</td>
                                 <td>${badge}</td>
                                 <td class="text-center no-print">
+                                    <button class="btn btn-outline-secondary btn-sm fw-bold me-1" title="Gestionar ejemplares" onclick="abrirEjemplaresModal(${libro.id_material}, '${SEMSAD.esc(libro.titulo)}')"><i class="fa-solid fa-boxes-stacked"></i></button>
                                     <button class="btn btn-warning btn-sm fw-bold me-1" onclick="editarLibro(${libro.id_material}, '${SEMSAD.esc(libro.titulo)}', '${SEMSAD.esc(libro.autores)}', '${SEMSAD.esc(libro.isbn)}', ${libro.agno_publicacion}, ${libro.total_ejemplares || 1})"><i class="fa-solid fa-pen-to-square"></i></button>
                                     <button class="btn btn-danger btn-sm fw-bold" onclick="eliminarLibro(${libro.id_material}, '${SEMSAD.esc(libro.titulo)}')"><i class="fa-solid fa-trash"></i></button>
                                 </td>
@@ -521,6 +538,59 @@
             }
         }
 
+        async function abrirEjemplaresModal(idMaterial, titulo) {
+            ejemplaresMaterialActual = Number(idMaterial) || 0;
+            document.getElementById('ejemplaresModalTitulo').textContent = 'Ejemplares: ' + titulo;
+            modalEjemplaresBS.show();
+            await cargarEjemplares();
+        }
+
+        async function cargarEjemplares() {
+            const tbody = document.getElementById('tablaEjemplaresBody');
+            if (!ejemplaresMaterialActual) return;
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4">Cargando ejemplares...</td></tr>';
+            try {
+                const resp = await fetch(window.SEMSAD_API + '/listar_ejemplares.php?id_material=' + encodeURIComponent(ejemplaresMaterialActual), { credentials: 'include', cache: 'no-store' });
+                const res = await resp.json();
+                const items = res.ejemplares || [];
+                if (res.status !== 'success') { tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-danger">' + SEMSAD.esc(res.mensaje || 'No se pudieron cargar los ejemplares.') + '</td></tr>'; return; }
+                if (!items.length) { tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-muted">Este título no tiene ejemplares registrados.</td></tr>'; return; }
+                tbody.innerHTML = items.map(e => {
+                    const editable = e.puede_cambiar === true;
+                    const states = ['Disponible', 'En Mantenimiento', 'Baja'];
+                    const stateHtml = editable
+                        ? `<select class="form-select form-select-sm" id="estadoEjemplar${Number(e.id_ejemplar)}">${states.map(st => `<option value="${st}" ${e.estado_ejemplar === st ? 'selected' : ''}>${st}</option>`).join('')}</select>`
+                        : `<span class="badge ${e.estado_ejemplar === 'Prestado' ? 'bg-primary' : 'bg-warning text-dark'}">${SEMSAD.esc(e.estado_ejemplar)}</span>`;
+                    return `<tr>
+                        <td class="fw-bold">#${Number(e.id_ejemplar)}</td>
+                        <td class="small">${SEMSAD.esc(e.ubicacion || 'Sin ubicación')}</td>
+                        <td>${stateHtml}${!editable ? '<small class="d-block text-muted">Gestionado por circulación</small>' : ''}</td>
+                        <td><input class="form-control form-control-sm" id="condicionEjemplar${Number(e.id_ejemplar)}" maxlength="100" value="${SEMSAD.esc(e.condicion_fisica || 'Bueno')}" ${editable ? '' : 'disabled'}></td>
+                        <td class="no-print">${editable ? `<button class="btn btn-sm btn-success" onclick="guardarEstadoEjemplar(${Number(e.id_ejemplar)})"><i class="fa-solid fa-floppy-disk me-1"></i>Guardar</button>` : '<span class="text-muted">No editable</span>'}</td>
+                    </tr>`;
+                }).join('');
+            } catch (e) {
+                console.error('Error al consultar ejemplares:', e);
+                tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-danger">Error al consultar ejemplares.</td></tr>';
+            }
+        }
+
+        async function guardarEstadoEjemplar(idEjemplar) {
+            const estado = document.getElementById('estadoEjemplar' + idEjemplar)?.value;
+            const condicion = document.getElementById('condicionEjemplar' + idEjemplar)?.value || '';
+            if (!estado || !confirm('¿Guardar el nuevo estado y condición física de esta copia?')) return;
+            try {
+                const resp = await fetch(window.SEMSAD_API + '/actualizar_ejemplar.php', {
+                    method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id_ejemplar: Number(idEjemplar), estado_ejemplar: estado, condicion_fisica: condicion })
+                });
+                const res = await resp.json();
+                if (res.status === 'success') {
+                    SEMSAD.toast(res.mensaje || 'Ejemplar actualizado.', 'success');
+                    await cargarEjemplares(); await cargarInventario(); await cargarDashboard();
+                } else { SEMSAD.toast(res.mensaje || 'No se pudo actualizar el ejemplar.', 'error'); }
+            } catch (e) { SEMSAD.toast('Error de conexión al actualizar el ejemplar.', 'error'); }
+        }
         async function cargarProveedores() {
             const tbody = document.getElementById('tablaProveedoresBody');
             if (!tbody) return;

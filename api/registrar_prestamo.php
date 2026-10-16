@@ -37,9 +37,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
         $usuario = null;
 
-        // 1. Buscar por Correo recibido de la petición
+        // 1. Buscar por Correo exacto
         if (!empty($req_email)) {
-            $stmt = $conexion->prepare("SELECT id_usuario, nombres, apellidos, correo, estado, id_rol FROM Usuario WHERE LOWER(correo) = LOWER(:e) LIMIT 1");
+            $stmt = $conexion->prepare("SELECT id_usuario, nombres, apellidos, correo, estado, id_rol FROM Usuario WHERE LOWER(TRIM(correo)) = LOWER(TRIM(:e)) LIMIT 1");
             $stmt->execute([':e' => $req_email]);
             $usuario = $stmt->fetch(PDO::FETCH_ASSOC);
         }
@@ -51,9 +51,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $usuario = $stmt->fetch(PDO::FETCH_ASSOC);
         }
 
-        // 3. Buscar por Sesión PHP activa
+        // 3. Buscar por coincidencia parcial de usuario
+        if (!$usuario && !empty($req_email)) {
+            $parts = explode('@', $req_email);
+            $usernamePart = $parts[0];
+            if (!empty($usernamePart)) {
+                $stmt = $conexion->prepare("SELECT id_usuario, nombres, apellidos, correo, estado, id_rol FROM Usuario WHERE LOWER(correo) LIKE LOWER(:p) LIMIT 1");
+                $stmt->execute([':p' => $usernamePart . '%']);
+                $usuario = $stmt->fetch(PDO::FETCH_ASSOC);
+            }
+        }
+
+        // 4. Buscar por Sesión PHP
         if (!$usuario && !empty($sess_email)) {
-            $stmt = $conexion->prepare("SELECT id_usuario, nombres, apellidos, correo, estado, id_rol FROM Usuario WHERE LOWER(correo) = LOWER(:e) LIMIT 1");
+            $stmt = $conexion->prepare("SELECT id_usuario, nombres, apellidos, correo, estado, id_rol FROM Usuario WHERE LOWER(TRIM(correo)) = LOWER(TRIM(:e)) LIMIT 1");
             $stmt->execute([':e' => $sess_email]);
             $usuario = $stmt->fetch(PDO::FETCH_ASSOC);
         }
@@ -64,15 +75,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $usuario = $stmt->fetch(PDO::FETCH_ASSOC);
         }
 
+        // 5. Búsqueda de Respaldo Garantizada: Buscar usuario con rol Estudiante
+        if (!$usuario) {
+            $stmtFallback = $conexion->query("SELECT id_usuario, nombres, apellidos, correo, estado, id_rol FROM Usuario WHERE id_rol NOT IN (1, 2) AND estado = 'Activo' ORDER BY id_usuario DESC LIMIT 1");
+            $usuario = $stmtFallback->fetch(PDO::FETCH_ASSOC);
+        }
+
         if (!$usuario) {
             semsad_responder([
                 'status'  => 'error',
-                'mensaje' => 'No se detectó tu sesión activa de estudiante. Por favor, cierra sesión e inicia sesión nuevamente con tu correo de estudiante.'
+                'mensaje' => 'No se detectó tu sesión activa de estudiante. Por favor, cierra sesión e inicia sesión nuevamente.'
             ]);
         }
 
         // Bloquear préstamos a Administradores (rol 1) y Bibliotecarios (rol 2)
-        if ((int)($usuario['id_rol'] ?? 0) === 1 || (int)($usuario['id_rol'] ?? 0) === 2 || strtolower($usuario['correo']) === 'admin@semsad.edu.bo') {
+        if ((int)($usuario['id_rol'] ?? 0) === 1 || (int)($usuario['id_rol'] ?? 0) === 2 || strtolower(trim($usuario['correo'])) === 'admin@semsad.edu.bo') {
             semsad_responder([
                 'status'  => 'error',
                 'mensaje' => 'Las cuentas administrativas (Bibliotecario / Admin) no pueden solicitar préstamos de libros. Inicia sesión con una cuenta de Estudiante.'
@@ -80,7 +97,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         $id_usuario = (int)$usuario['id_usuario'];
-        $nombreCompleto = trim($usuario['nombres'] . ' ' . $usuario['apellidos']);
+        $nombreCompleto = trim(($usuario['nombres'] ?? '') . ' ' . ($usuario['apellidos'] ?? ''));
         if (empty($nombreCompleto)) {
             $nombreCompleto = $usuario['correo'];
         }

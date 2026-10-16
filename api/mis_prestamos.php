@@ -59,6 +59,31 @@ try {
         ];
     }
 
+    // Las reservas pendientes aparecen en el mismo historial, siempre filtradas por el usuario autenticado.
+    $stmtR = $conexion->prepare("
+        SELECT r.id_reserva, r.id_material, r.prioridad, mb.titulo
+        FROM Reserva r
+        INNER JOIN MaterialBibliografico mb ON mb.id_material = r.id_material
+        WHERE r.id_usuario = :u AND r.estado = 'Pendiente'
+        ORDER BY r.prioridad ASC, r.id_reserva ASC
+    ");
+    $stmtR->execute([':u' => $id_usuario]);
+    foreach ($stmtR->fetchAll(PDO::FETCH_ASSOC) as $r) {
+        $misPrestamos[] = [
+            'id_prestamo' => null,
+            'id_reserva' => (int)$r['id_reserva'],
+            'titulo' => (string)($r['titulo'] ?? 'Libro'),
+            'autores' => '',
+            'isbn' => '',
+            'fecha_salida' => 'Lista de espera · Posición ' . (int)$r['prioridad'],
+            'fecha_limite' => 'En espera',
+            'fecha_devolucion_real' => '',
+            'estado' => 'Reserva pendiente',
+            'estado_original' => 'Pendiente',
+            'prioridad' => (int)$r['prioridad']
+        ];
+    }
+
     semsad_responder(['status' => 'success', 'prestamos' => $misPrestamos, 'data' => $misPrestamos]);
 } catch (Throwable $e) {
     error_log('[SEMSAD] mis_prestamos: ' . $e->getMessage());

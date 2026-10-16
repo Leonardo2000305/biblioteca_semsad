@@ -292,7 +292,7 @@
                         <div class="row">
                             <div class="col-6 mb-3">
                                 <label class="form-label fw-bold">Contraseña</label>
-                                <input type="password" class="form-control" id="usr_password" placeholder="Opcional">
+                                <input type="password" class="form-control" id="usr_password" placeholder="Obligatoria al crear; opcional al editar">
                             </div>
                             <div class="col-6 mb-3">
                                 <label class="form-label fw-bold">CI / Registro</label>
@@ -307,7 +307,8 @@
                             <div class="col-6 mb-3">
                                 <label class="form-label fw-bold">Rol de Usuario</label>
                                 <select class="form-select" id="usr_rol">
-                                    <option value="3" selected>Estudiante</option>
+                                    <option value="4" selected>Estudiante</option>
+                                    <option value="3">Docente</option>
                                     <option value="2">Bibliotecario</option>
                                     <option value="1">Administrador</option>
                                 </select>
@@ -495,39 +496,84 @@
         async function cargarVentanilla() {
             const tbody = document.getElementById('tablaVentanillaBody');
             tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4">Cargando ventanilla...</td></tr>';
-
             try {
-                const resp = await fetch(window.SEMSAD_API + '/listar_prestamos.php', { credentials: 'include' });
+                const resp = await fetch(window.SEMSAD_API + '/listar_prestamos.php', { credentials: 'include', cache: 'no-store' });
                 const res = await resp.json();
-                const lista = res.prestamos || [];
-
-                if (res.status === 'success' && lista.length > 0) {
+                const prestamos = res.prestamos || [];
+                const reservas = res.reservas || [];
+                if (res.status === 'success' && (prestamos.length > 0 || reservas.length > 0)) {
                     tbody.innerHTML = '';
-                    lista.forEach(p => {
+                    prestamos.forEach(p => {
                         const estado = p.status || p.estado || 'Activo';
-                        const badge = (estado === 'Vencido') 
-                            ? `<span class="badge bg-danger py-2 px-3">Vencido</span>` 
+                        const badge = estado === 'Vencido' || estado === 'Con Mora'
+                            ? `<span class="badge bg-danger py-2 px-3">${SEMSAD.esc(estado)}</span>`
                             : `<span class="badge bg-primary py-2 px-3">Activo</span>`;
-
+                        const titulo = String(p.bookTitle || 'Libro').replace(/'/g, "&#39;");
                         tbody.innerHTML += `
                             <tr>
-                                <td><div class="fw-bold">${SEMSAD.esc(p.userName)}</div><small class="text-muted">${SEMSAD.esc(p.userCorreo)}</small></td>
-                                <td><span class="badge bg-light text-dark border">${SEMSAD.esc(p.userCi)}</span></td>
+                                <td><div class="fw-bold">${SEMSAD.esc(p.userName || 'Estudiante')}</div><small class="text-muted">${SEMSAD.esc(p.userCorreo || '')}</small></td>
+                                <td><span class="badge bg-light text-dark border">${SEMSAD.esc(p.userCi || '—')}</span></td>
                                 <td>${SEMSAD.esc(p.userTelefono || 'Sin teléfono')}</td>
-                                <td class="fw-bold text-primary">${SEMSAD.esc(p.bookTitle)}</td>
-                                <td class="text-muted">${SEMSAD.esc(p.dueDate)}</td>
+                                <td class="fw-bold text-primary">${SEMSAD.esc(p.bookTitle || 'Libro')}</td>
+                                <td class="text-muted">${SEMSAD.esc(p.dueDate || 'S/F')}</td>
                                 <td>${badge}</td>
+                                <td class="text-center no-print"><button class="btn btn-success btn-sm fw-bold px-3" onclick="registrarDevolucion(${Number(p.id)}, '${titulo}')"><i class="fa-solid fa-rotate-left me-1"></i> Devuelto</button></td>
+                            </tr>`;
+                    });
+                    reservas.forEach(r => {
+                        const titulo = String(r.bookTitle || 'Libro').replace(/'/g, "&#39;");
+                        tbody.innerHTML += `
+                            <tr class="table-warning">
+                                <td><div class="fw-bold">${SEMSAD.esc(r.userName || 'Estudiante')}</div><small class="text-muted">${SEMSAD.esc(r.userCorreo || '')}</small></td>
+                                <td><span class="badge bg-light text-dark border">${SEMSAD.esc(r.userCi || '—')}</span></td>
+                                <td>${SEMSAD.esc(r.userTelefono || 'Sin teléfono')}</td>
+                                <td class="fw-bold text-primary">${SEMSAD.esc(r.bookTitle || 'Libro')} <small class="d-block text-muted">Reserva · prioridad ${Number(r.prioridad || 0)}</small></td>
+                                <td class="text-muted">${SEMSAD.esc(r.dueDate || 'En espera')}</td>
+                                <td><span class="badge bg-warning text-dark">Reserva pendiente</span></td>
                                 <td class="text-center no-print">
-                                    <button class="btn btn-success btn-sm fw-bold px-3" onclick="registrarDevolucion(${p.id}, '${SEMSAD.esc(p.bookTitle)}')"><i class="fa-solid fa-rotate-left me-1"></i> Devuelto</button>
+                                    <button class="btn btn-primary btn-sm fw-bold me-1" onclick="atenderReservaAdmin(${Number(r.id_reserva)}, '${titulo}')"><i class="fa-solid fa-check me-1"></i>Atender</button>
+                                    <button class="btn btn-outline-danger btn-sm fw-bold" onclick="cancelarReservaAdmin(${Number(r.id_reserva)})"><i class="fa-solid fa-xmark"></i></button>
                                 </td>
                             </tr>`;
                     });
                 } else {
-                    tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4 text-muted">No hay préstamos activos.</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4 text-muted">No hay préstamos ni reservas pendientes.</td></tr>';
                 }
-            } catch (e) { tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4 text-danger">Error al cargar ventanilla.</td></tr>'; }
+            } catch (e) {
+                console.error('Error en ventanilla:', e);
+                tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4 text-danger">Error al cargar ventanilla.</td></tr>';
+            }
         }
 
+        async function atenderReservaAdmin(idReserva, titulo) {
+            if (!confirm('¿Atender la reserva de "' + titulo + '" y registrar el préstamo a nombre del usuario que la solicitó?')) return;
+            try {
+                const resp = await fetch(window.SEMSAD_API + '/atender_reserva.php', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+                    body: JSON.stringify({ id_reserva: Number(idReserva) })
+                });
+                const res = await resp.json();
+                if (res.status === 'success') {
+                    SEMSAD.toast(res.mensaje || 'Reserva atendida.', 'success');
+                    await cargarVentanilla(); await cargarDashboard();
+                } else { SEMSAD.toast(res.mensaje || 'No se pudo atender la reserva.', 'error'); }
+            } catch (e) { SEMSAD.toast('Error de conexión al atender la reserva.', 'error'); }
+        }
+
+        async function cancelarReservaAdmin(idReserva) {
+            if (!confirm('¿Cancelar esta reserva pendiente?')) return;
+            try {
+                const resp = await fetch(window.SEMSAD_API + '/cancelar_reserva.php', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+                    body: JSON.stringify({ id_reserva: Number(idReserva) })
+                });
+                const res = await resp.json();
+                if (res.status === 'success') {
+                    SEMSAD.toast(res.mensaje || 'Reserva cancelada.', 'success');
+                    await cargarVentanilla();
+                } else { SEMSAD.toast(res.mensaje || 'No se pudo cancelar la reserva.', 'error'); }
+            } catch (e) { SEMSAD.toast('Error de conexión al cancelar la reserva.', 'error'); }
+        }
         async function registrarDevolucion(idPrestamo, titulo) {
             if (!confirm(`¿Confirmas la devolución del libro "${titulo}"?`)) return;
 
@@ -575,26 +621,25 @@
             try {
                 const resp = await fetch(window.SEMSAD_API + '/obtener_usuarios.php', { credentials: 'include' });
                 const res = await resp.json();
-                if (res.status === 'success' && res.data.length > 0) {
+                const usuarios = res.data || res.usuarios || [];
+                if (res.status === 'success' && usuarios.length > 0) {
                     tbody.innerHTML = '';
-                    res.data.forEach(u => {
+                    usuarios.forEach(u => {
                         const estadoStr = u.estado || 'Activo';
-                        const badge = (estadoStr === 'Activo') 
-                            ? '<span class="badge bg-success">Activo</span>' 
-                            : '<span class="badge bg-danger">Inactivo</span>';
-
-                        const rolStr = u.id_rol == 1 ? 'Admin' : (u.id_rol == 2 ? 'Bibliotecario' : 'Estudiante');
-
+                        const badgeClass = estadoStr === 'Activo' ? 'bg-success' : (estadoStr === 'Suspendido' ? 'bg-warning text-dark' : 'bg-danger');
+                        const badge = `<span class="badge ${badgeClass}">${SEMSAD.esc(estadoStr)}</span>`;
+                        const rolStr = ({1:'Administrador',2:'Bibliotecario',3:'Docente',4:'Estudiante'})[Number(u.id_rol)] || SEMSAD.esc(u.rol || 'Usuario');
+                        const siguienteEstado = estadoStr === 'Activo' ? 'Suspendido' : 'Activo';
                         tbody.innerHTML += `
                             <tr>
                                 <td class="fw-bold text-dark">${SEMSAD.esc(u.nombres)} ${SEMSAD.esc(u.apellidos || '')}</td>
                                 <td class="text-primary">${SEMSAD.esc(u.correo)}</td>
                                 <td>${SEMSAD.esc(u.telefono || 'Sin teléfono')}</td>
-                                <td><span class="badge bg-dark">${rolStr}</span></td>
+                                <td><span class="badge bg-dark">${SEMSAD.esc(rolStr)}</span></td>
                                 <td>${badge}</td>
                                 <td class="text-center no-print">
-                                    <button class="btn btn-warning btn-sm me-1 fw-bold" onclick="editarUsuario(${u.id_usuario}, '${SEMSAD.esc(u.nombres)}', '${SEMSAD.esc(u.apellidos || '')}', '${SEMSAD.esc(u.correo)}', '${SEMSAD.esc(u.telefono || '')}', '${SEMSAD.esc(u.codigo_empleado || '')}', ${u.id_rol})"><i class="fa-solid fa-pen"></i></button>
-                                    <button class="btn btn-${estadoStr === 'Activo' ? 'danger' : 'success'} btn-sm fw-bold" onclick="cambiarEstadoUsuario(${u.id_usuario}, '${estadoStr === 'Activo' ? 'Inactivo' : 'Activo'}')">${estadoStr === 'Activo' ? 'Desactivar' : 'Activar'}</button>
+                                    <button class="btn btn-warning btn-sm me-1 fw-bold" onclick="editarUsuario(${u.id_usuario}, '${SEMSAD.esc(u.nombres)}', '${SEMSAD.esc(u.apellidos || '')}', '${SEMSAD.esc(u.correo)}', '${SEMSAD.esc(u.telefono || '')}', '${SEMSAD.esc(u.codigo_empleado || '')}', ${Number(u.id_rol)})"><i class="fa-solid fa-pen"></i></button>
+                                    <button class="btn btn-${estadoStr === 'Activo' ? 'danger' : 'success'} btn-sm fw-bold" onclick="cambiarEstadoUsuario(${u.id_usuario}, '${siguienteEstado}')">${estadoStr === 'Activo' ? 'Suspender' : 'Reactivar'}</button>
                                 </td>
                             </tr>`;
                     });
@@ -606,6 +651,8 @@
             document.getElementById('modalUsuarioTitulo').innerText = 'Registrar Nuevo Usuario';
             document.getElementById('usr_id').value = 0;
             document.getElementById('formUsuario').reset();
+            document.getElementById('usr_rol').value = '4';
+            document.getElementById('usr_password').required = true;
             modalUsuarioBS.show();
         }
 
@@ -618,6 +665,8 @@
             document.getElementById('usr_telefono').value = telefono;
             document.getElementById('usr_codigo').value = codigo;
             document.getElementById('usr_rol').value = idRol;
+            document.getElementById('usr_password').value = '';
+            document.getElementById('usr_password').required = false;
             modalUsuarioBS.show();
         }
 
@@ -631,7 +680,7 @@
                 password: document.getElementById('usr_password').value,
                 telefono: document.getElementById('usr_telefono').value,
                 codigo_empleado: document.getElementById('usr_codigo').value,
-                id_rol: parseInt(document.getElementById('usr_rol').value) || 3
+                id_rol: parseInt(document.getElementById('usr_rol').value) || 4
             };
 
             try {

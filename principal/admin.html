@@ -36,6 +36,7 @@
             <a href="#" class="nav-link active" onclick="verModulo('dashboard', this)"><i class="fa-solid fa-chart-line"></i> Dashboard</a>
             <a href="#" class="nav-link" onclick="verModulo('inventario', this)"><i class="fa-solid fa-boxes-stacked"></i> Inventario</a>
             <a href="#" class="nav-link" onclick="verModulo('ventanilla', this)"><i class="fa-solid fa-right-left"></i> Ventanilla</a>
+            <a href="#" class="nav-link" onclick="verModulo('multas', this)"><i class="fa-solid fa-hand-holding-dollar"></i> Multas y Sanciones</a>
             <a href="#" class="nav-link" onclick="verModulo('auditoria', this)"><i class="fa-solid fa-shield-halved"></i> Auditoría Claves</a>
             <a href="#" class="nav-link" onclick="verModulo('usuarios', this)"><i class="fa-solid fa-users"></i> Usuarios Registrados</a>
         </div>
@@ -161,6 +162,37 @@
                                 </tr>
                             </thead>
                             <tbody id="tablaVentanillaBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- MÓDULO MULTAS Y SANCIONES -->
+        <div id="secMultas" class="modulo-vista d-none">
+            <div class="card table-card shadow-sm bg-white">
+                <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center border-bottom">
+                    <h5 class="fw-bold mb-0 text-danger">
+                        <i class="fa-solid fa-hand-holding-dollar me-2"></i>Control de Multas y Sanciones por Morosidad
+                    </h5>
+                    <button class="btn btn-sm btn-outline-danger no-print" onclick="cargarMultas()"><i class="fa-solid fa-rotate me-1"></i>Actualizar Multas</button>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Estudiante / Usuario</th>
+                                    <th>Razón / Tipo</th>
+                                    <th>Fecha Excedida</th>
+                                    <th>Monto Sanción</th>
+                                    <th>Estado Perfil</th>
+                                    <th class="text-center no-print">Acción</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tablaMultasBody">
+                                <tr><td colspan="6" class="text-center py-4">Cargando datos de multas...</td></tr>
+                            </tbody>
                         </table>
                     </div>
                 </div>
@@ -336,11 +368,12 @@
 
             cargarDashboard();
 
-            // Se actualiza sola cada 15 s: así el panel y la ventanilla muestran los préstamos nuevos sin recargar.
+            // Se actualiza sola cada 15 s
             setInterval(() => {
                 if (document.hidden) return;
                 if (!document.getElementById('secDashboard').classList.contains('d-none')) cargarDashboard();
                 if (!document.getElementById('secVentanilla').classList.contains('d-none')) cargarVentanilla(true);
+                if (!document.getElementById('secMultas').classList.contains('d-none')) cargarMultas();
             }, 15000);
         });
 
@@ -354,6 +387,7 @@
                 'dashboard': 'Dashboard',
                 'inventario': 'Inventario de Libros',
                 'ventanilla': 'Ventanilla de Atención',
+                'multas': 'Control de Multas y Sanciones',
                 'auditoria': 'Auditoría de Seguridad',
                 'usuarios': 'Padrón de Usuarios Registrados'
             };
@@ -362,6 +396,9 @@
             if (nombreModulo === 'inventario') {
                 document.getElementById('secInventario').classList.remove('d-none');
                 cargarInventario();
+            } else if (nombreModulo === 'multas') {
+                document.getElementById('secMultas').classList.remove('d-none');
+                cargarMultas();
             } else if (nombreModulo === 'auditoria') {
                 document.getElementById('secAuditoria').classList.remove('d-none');
                 cargarAuditoria();
@@ -553,6 +590,77 @@
                 } else { alert(res.mensaje); }
             } catch (ex) { alert("Error al procesar devolución."); }
         }
+
+        /* ==================== MÓDULO DE MULTAS Y SANCIONES ==================== */
+        async function cargarMultas() {
+            const tbody = document.getElementById('tablaMultasBody');
+            tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4"><i class="fa-solid fa-spinner fa-spin text-danger me-2"></i>Cargando datos de multas...</td></tr>';
+
+            try {
+                const resp = await fetch(window.SEMSAD_API + '/obtener_multas.php', { credentials: 'include' });
+                const res = await resp.json();
+                const lista = res.data || [];
+
+                if (res.status === 'success' && lista.length > 0) {
+                    tbody.innerHTML = '';
+                    lista.forEach(m => {
+                        const estadoUser = m.estado_usuario || 'Suspendido';
+                        const badgeUser = (estadoUser === 'Activo')
+                            ? `<span class="badge bg-success py-2 px-3">Activo</span>`
+                            : `<span class="badge bg-danger py-2 px-3">${SEMSAD.esc(estadoUser)}</span>`;
+
+                        tbody.innerHTML += `
+                            <tr>
+                                <td>
+                                    <div class="fw-bold">${SEMSAD.esc(m.nombres)} ${SEMSAD.esc(m.apellidos || '')}</div>
+                                    <small class="text-muted">${SEMSAD.esc(m.correo)}</small>
+                                </td>
+                                <td><span class="badge bg-secondary">${SEMSAD.esc(m.tipo_multa || 'Por Mora')}</span></td>
+                                <td class="text-muted fw-bold">${SEMSAD.esc(m.fecha_limite || 'N/A')}</td>
+                                <td><strong class="text-danger fs-6">${parseFloat(m.monto).toFixed(2)} Bs.</strong></td>
+                                <td>${badgeUser}</td>
+                                <td class="text-center no-print">
+                                    <button class="btn btn-success btn-sm fw-bold px-3" onclick="registrarPagoMulta(${m.id_multa}, ${m.id_usuario})">
+                                        <i class="fa-solid fa-cash-register me-1"></i> Cobrar y Desbloquear
+                                    </button>
+                                </td>
+                            </tr>`;
+                    });
+                } else {
+                    tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-muted"><i class="fa-solid fa-circle-check text-success fs-5 me-2"></i>No hay multas pendientes ni morosos registrados.</td></tr>';
+                }
+            } catch (e) {
+                console.error("Error al cargar multas:", e);
+                tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-danger">Error al conectar con el servidor para consultar las multas.</td></tr>';
+            }
+        }
+
+        async function registrarPagoMulta(idMulta, idUsuario) {
+            if (!confirm('¿Confirmar que el usuario canceló la multa y autorizar el desbloqueo de su cuenta?')) return;
+
+            try {
+                const resp = await fetch(window.SEMSAD_API + '/registrar_pago_multa.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ id_multa: idMulta, id_usuario: idUsuario })
+                });
+
+                const res = await resp.json();
+
+                if (res.status === 'success') {
+                    SEMSAD.toast(res.mensaje, 'success');
+                    cargarMultas();
+                    if (typeof cargarUsuariosRegistrados === 'function') cargarUsuariosRegistrados();
+                } else {
+                    alert(res.mensaje || res.message || "Error al procesar el pago.");
+                }
+            } catch (e) {
+                console.error("Error al registrar pago de multa:", e);
+                alert("Error de conexión al procesar el pago.");
+            }
+        }
+        /* ====================================================================== */
 
         async function cargarAuditoria() {
             const tbody = document.getElementById('tablaAuditoriaBody');

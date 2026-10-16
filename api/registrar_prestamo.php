@@ -37,21 +37,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
         $usuario = null;
 
-        // 1. Buscar por ID directo recibido de la petición del cliente
+        // 1. Buscar por ID enviado desde el frontend del estudiante
         if ($req_id_user > 0) {
             $stmt = $conexion->prepare("SELECT id_usuario, nombres, apellidos, correo, estado, id_rol FROM Usuario WHERE id_usuario = :id LIMIT 1");
             $stmt->execute([':id' => $req_id_user]);
             $usuario = $stmt->fetch(PDO::FETCH_ASSOC);
         }
 
-        // 2. Buscar por Correo recibido de la petición del cliente
+        // 2. Buscar por Correo enviado desde el frontend del estudiante
         if (!$usuario && !empty($req_email)) {
             $stmt = $conexion->prepare("SELECT id_usuario, nombres, apellidos, correo, estado, id_rol FROM Usuario WHERE LOWER(correo) = LOWER(:e) LIMIT 1");
             $stmt->execute([':e' => $req_email]);
             $usuario = $stmt->fetch(PDO::FETCH_ASSOC);
         }
 
-        // 3. Buscar por Sesión PHP activa
+        // 3. Buscar por Sesión PHP activa en el servidor
         if (!$usuario && $sess_id > 0) {
             $stmt = $conexion->prepare("SELECT id_usuario, nombres, apellidos, correo, estado, id_rol FROM Usuario WHERE id_usuario = :id LIMIT 1");
             $stmt->execute([':id' => $sess_id]);
@@ -64,11 +64,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $usuario = $stmt->fetch(PDO::FETCH_ASSOC);
         }
 
-        // SIN FALLBACK ALEATORIO: Si no se detecta al usuario real, rechazar
+        // Si no se detecta al usuario exacto, rechazar
         if (!$usuario) {
             semsad_responder([
                 'status'  => 'error',
-                'mensaje' => 'No se detectó tu sesión activa de estudiante. Por favor, cierra sesión e inicia sesión nuevamente.'
+                'mensaje' => 'No se detectó tu sesión activa de estudiante. Por favor, cierra sesión e inicia sesión nuevamente con tu correo de estudiante.'
             ]);
         }
 
@@ -76,7 +76,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ((int)($usuario['id_rol'] ?? 0) === 1 || (int)($usuario['id_rol'] ?? 0) === 2 || strtolower($usuario['correo']) === 'admin@semsad.edu.bo') {
             semsad_responder([
                 'status'  => 'error',
-                'mensaje' => 'Las cuentas administrativas no pueden solicitar préstamos. Ingresa con una cuenta de Estudiante.'
+                'mensaje' => 'Las cuentas administrativas (Bibliotecario / Admin) no pueden solicitar préstamos de libros. Inicia sesión con una cuenta de Estudiante.'
             ]);
         }
 

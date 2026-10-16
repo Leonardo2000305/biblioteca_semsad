@@ -102,6 +102,38 @@
             cargarCatalogo();
         });
 
+        // Escáner omnicanal para detectar la sesión del estudiante en cualquier origen
+        function obtenerUsuarioLogueado() {
+            if (typeof SEMSAD !== 'undefined') {
+                if (typeof SEMSAD.obtenerUsuario === 'function') {
+                    const u = SEMSAD.obtenerUsuario();
+                    if (u && (u.id_usuario || u.id || u.correo || u.email)) return u;
+                }
+                if (typeof SEMSAD.getUser === 'function') {
+                    const u = SEMSAD.getUser();
+                    if (u && (u.id_usuario || u.id || u.correo || u.email)) return u;
+                }
+                if (SEMSAD.usuario && (SEMSAD.usuario.id_usuario || SEMSAD.usuario.correo)) return SEMSAD.usuario;
+                if (SEMSAD.user && (SEMSAD.user.id || SEMSAD.user.email)) return SEMSAD.user;
+            }
+
+            const storages = [localStorage, sessionStorage];
+            for (let store of storages) {
+                for (let i = 0; i < store.length; i++) {
+                    const key = store.key(i);
+                    try {
+                        const val = JSON.parse(store.getItem(key));
+                        if (val && typeof val === 'object') {
+                            if (val.id_usuario || val.id || val.correo || val.email || val.nombres) {
+                                return val;
+                            }
+                        }
+                    } catch(e) {}
+                }
+            }
+            return null;
+        }
+
         async function cargarCatalogo() {
             const contenedor = document.getElementById('contenedorLibros');
             contenedor.innerHTML = `
@@ -196,33 +228,12 @@
         }
 
         async function solicitarPrestamo(idMaterial, tituloLibro) {
-            let userObj = {};
-            try {
-                if (typeof SEMSAD !== 'undefined') {
-                    if (typeof SEMSAD.obtenerUsuario === 'function') userObj = SEMSAD.obtenerUsuario() || {};
-                    else if (typeof SEMSAD.getUser === 'function') userObj = SEMSAD.getUser() || {};
-                    else if (typeof SEMSAD.getUsuario === 'function') userObj = SEMSAD.getUsuario() || {};
-                    else if (SEMSAD.usuario) userObj = SEMSAD.usuario;
-                    else if (SEMSAD.user) userObj = SEMSAD.user;
-                }
+            const userObj = obtenerUsuarioLogueado();
 
-                if (!userObj.id_usuario && !userObj.id && !userObj.correo && !userObj.email) {
-                    const keys = ['usuario', 'semsad_usuario', 'semsad_user', 'user', 'sesion', 'semsad_sesion'];
-                    for (let k of keys) {
-                        try {
-                            const str = localStorage.getItem(k) || sessionStorage.getItem(k);
-                            if (str) {
-                                const parsed = JSON.parse(str);
-                                if (parsed && (parsed.id_usuario || parsed.id || parsed.correo || parsed.email)) {
-                                    userObj = parsed;
-                                    break;
-                                }
-                            }
-                        } catch(e) {}
-                    }
-                }
-            } catch (e) {
-                console.error("Error al obtener usuario local:", e);
+            if (!userObj) {
+                alert("No se detectó una sesión activa de estudiante. Por favor, inicia sesión.");
+                window.location.href = '../login/index.html';
+                return;
             }
 
             const idUsuario = userObj.id_usuario || userObj.id || 0;

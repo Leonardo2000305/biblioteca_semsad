@@ -1,6 +1,6 @@
 <?php
 require_once __DIR__ . '/conexion.php';
-semsad_requerir_rol(['Administrador']);
+semsad_requerir_rol(['Administrador', 'Bibliotecario']);
 
 if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
     semsad_responder(['status' => 'error', 'mensaje' => 'Método no permitido.'], 405);
@@ -15,6 +15,16 @@ if ($id_usuario <= 0 || !in_array($nuevo_estado, ['Activo', 'Suspendido', 'Bloqu
 }
 if ($id_usuario === (int)($_SESSION['id_usuario'] ?? 0) && $nuevo_estado !== 'Activo') {
     semsad_responder(['status' => 'error', 'mensaje' => 'No puedes suspender o bloquear tu propia sesión administrativa.'], 400);
+}
+$rolOperador = (string)($_SESSION['rol'] ?? '');
+if ($rolOperador === 'Bibliotecario') {
+    $stmtRolObjetivo = $conexion->prepare("SELECT id_rol FROM Usuario WHERE id_usuario = :id LIMIT 1");
+    $stmtRolObjetivo->execute([':id' => $id_usuario]);
+    $rolObjetivo = $stmtRolObjetivo->fetchColumn();
+    if ($rolObjetivo === false) semsad_responder(['status' => 'error', 'mensaje' => 'El usuario no existe.'], 404);
+    if (in_array((int)$rolObjetivo, [1, 2], true)) {
+        semsad_responder(['status' => 'error', 'mensaje' => 'El bibliotecario no puede modificar el estado de cuentas administrativas.'], 403);
+    }
 }
 
 try {

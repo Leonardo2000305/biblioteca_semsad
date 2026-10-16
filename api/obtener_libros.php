@@ -5,12 +5,23 @@ semsad_iniciar_sesion();
 try {
     // El catálogo se consulta en modo lectura. No corregimos estados de inventario dentro de un GET.
     $id_usuario = (int)($_SESSION['id_usuario'] ?? 0);
+    $columnasMaterial = $conexion->query("SHOW COLUMNS FROM MaterialBibliografico")->fetchAll(PDO::FETCH_COLUMN, 0);
+    $tieneEdicion = in_array('edicion', $columnasMaterial, true);
+    $tieneIdioma = in_array('idioma', $columnasMaterial, true);
+    $camposOpcionales = '';
+    if ($tieneEdicion) $camposOpcionales .= ', mb.edicion';
+    if ($tieneIdioma) $camposOpcionales .= ', mb.idioma';
+
     $sql = "
         SELECT
             mb.id_material,
             mb.titulo,
             mb.codigo_isbn_issn,
             mb.agno_publicacion,
+            mb.id_tipo_material,
+            mb.id_editorial,
+            mb.id_categoria
+            $camposOpcionales,
             COALESCE(
                 (SELECT GROUP_CONCAT(CONCAT(a.nombres, ' ', a.apellidos)
                                      ORDER BY ma.orden_autor SEPARATOR ', ')
@@ -76,6 +87,12 @@ try {
             'isbn' => (string)($m['codigo_isbn_issn'] ?? 'S/N'),
             'codigo_isbn_issn' => (string)($m['codigo_isbn_issn'] ?? 'S/N'),
             'agno_publicacion' => $m['agno_publicacion'] ?? 'N/A',
+            'id_tipo_material' => (int)($m['id_tipo_material'] ?? 0),
+            'id_editorial' => (int)($m['id_editorial'] ?? 0),
+            'id_categoria' => (int)($m['id_categoria'] ?? 0),
+            'edicion' => $tieneEdicion ? (string)($m['edicion'] ?? '') : '',
+            'idioma' => $tieneIdioma ? (string)($m['idioma'] ?? '') : '',
+            'tiene_metadatos_avanzados' => $tieneEdicion && $tieneIdioma,
             'stock_disponible' => $stock,
             'disponible' => $stock,
             'total_ejemplares' => (int)$m['total_ejemplares'],

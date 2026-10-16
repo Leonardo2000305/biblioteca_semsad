@@ -30,8 +30,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $_POST['id_material'] ?? 
         $input['id_material'] ?? 
         $_POST['id_libro'] ?? 
-        $input['id_libro'] ?? 
-        $input['id'] ?? 0
+        $input['id_libro'] ?? 0
     );
 
     $req_id_user = (int)(
@@ -85,25 +84,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $usuario = $stmt->fetch(PDO::FETCH_ASSOC);
         }
 
-        // Fallback: Si sigue sin hallarse y solo hay 1 petición en marcha, buscar último usuario activo tipo Estudiante
-        if (!$usuario) {
-            $stmtFallback = $conexion->query("SELECT id_usuario, nombres, apellidos, correo, estado, id_rol FROM Usuario WHERE id_rol NOT IN (1,2) AND estado = 'Activo' ORDER BY id_usuario DESC LIMIT 1");
-            $usuario = $stmtFallback->fetch(PDO::FETCH_ASSOC);
-        }
-
+        // SIN FALLBACK ALEATORIO: Si no se encuentra el usuario exacto, rechazar la petición
         if (!$usuario) {
             echo json_encode([
                 'status'  => 'error',
-                'mensaje' => 'No se encontró tu usuario registrado. Por favor, inicia sesión nuevamente con tu cuenta de Estudiante.'
+                'mensaje' => 'No se detectó tu sesión activa de estudiante. Por favor, cierra sesión e inicia sesión nuevamente.'
             ]);
             exit;
         }
 
-        // Prevenir que Administradores (rol 1) o Bibliotecarios (rol 2) reserven para sí mismos
+        // Prevenir préstamos a cuentas administrativas
         if ((int)($usuario['id_rol'] ?? 0) === 1 || (int)($usuario['id_rol'] ?? 0) === 2 || strtolower($usuario['correo']) === 'admin@semsad.edu.bo') {
             echo json_encode([
                 'status'  => 'error',
-                'mensaje' => 'Las cuentas administrativas no pueden reservar libros. Debes ingresar con la cuenta de un Estudiante.'
+                'mensaje' => 'Las cuentas administrativas no pueden solicitar préstamos. Ingresa con una cuenta de Estudiante.'
             ]);
             exit;
         }
@@ -111,24 +105,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $id_usuario = (int)$usuario['id_usuario'];
         $nombreCompleto = trim($usuario['nombres'] . ' ' . $usuario['apellidos']);
 
-        // Sincronizar sesión PHP
+        // Sincronizar sesión PHP con este usuario
         $_SESSION['id_usuario'] = $id_usuario;
         $_SESSION['correo'] = $usuario['correo'];
 
         if (($usuario['estado'] ?? 'Activo') !== 'Activo') {
             echo json_encode([
                 'status'  => 'error',
-                'mensaje' => "Tu cuenta ($nombreCompleto) está " . $usuario['estado'] . ". Contacta a la biblioteca."
+                'mensaje' => "Tu cuenta ($nombreCompleto) está " . $usuario['estado'] . ". Contacta a la administración."
             ]);
             exit;
         }
 
+        // Límite máximo de 5 préstamos
         $stmtCount = $conexion->prepare("SELECT COUNT(*) FROM Prestamo WHERE id_usuario = :u AND estado = 'Activo'");
         $stmtCount->execute([':u' => $id_usuario]);
         if ((int)$stmtCount->fetchColumn() >= 5) {
             echo json_encode([
                 'status'  => 'error',
-                'mensaje' => "$nombreCompleto, alcanzaste el límite máximo de 5 préstamos activos."
+                'mensaje' => "$nombreCompleto, ya tienes el límite máximo de 5 préstamos activos."
             ]);
             exit;
         }

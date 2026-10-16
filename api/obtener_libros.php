@@ -5,28 +5,41 @@ semsad_iniciar_sesion();
 header('Content-Type: application/json; charset=utf-8');
 
 try {
-    $id_usuario = (int)(
-        $_GET['id_usuario'] ?? 
-        $_GET['usuario_id'] ?? 
-        $_SESSION['id_usuario'] ?? 0
-    );
+    $req_id = (int)($_GET['id_usuario'] ?? $_GET['usuario_id'] ?? $_SESSION['id_usuario'] ?? 0);
+    $req_email = trim($_GET['correo'] ?? $_GET['email'] ?? $_SESSION['correo'] ?? '');
 
-    $sql = "SELECT 
-                m.id_material,
-                m.titulo,
-                m.autores,
-                m.isbn,
-                m.agno_publicacion,
-                COUNT(CASE WHEN e.estado_ejemplar = 'Disponible' THEN 1 END) AS stock_disponible,
-                COUNT(e.id_ejemplar) AS total_ejemplares
-            FROM MaterialBibliografico m
-            LEFT JOIN Ejemplar e ON m.id_material = e.id_material
-            GROUP BY m.id_material, m.titulo, m.autores, m.isbn, m.agno_publicacion
-            ORDER BY m.titulo ASC";
+    $id_usuario = 0;
+    if ($req_id > 0) {
+        $id_usuario = $req_id;
+    } else if (!empty($req_email)) {
+        $stmtU = $conexion->prepare("SELECT id_usuario FROM Usuario WHERE LOWER(correo) = LOWER(:e) LIMIT 1");
+        $stmtU->execute([':e' => $req_email]);
+        $id_usuario = (int)$stmtU->fetchColumn();
+    }
 
+    // 1. Obtener libros base
+    $sql = "SELECT * FROM MaterialBibliografico ORDER BY id_material DESC";
     $stmt = $conexion->query($sql);
-    $libros = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $materiales = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
+    // 2. Obtener ejemplares y agrupar disponibilidades en PHP para evitar errores de ONLY_FULL_GROUP_BY
+    $sqlEjemplares = "SELECT id_ejemplar, id_material, estado_ejemplar FROM Ejemplar";
+    $stmtE = $conexion->query($sqlEjemplares);
+    $ejemplares = $stmtE->fetchAll(PDO::FETCH_ASSOC);
+
+    $ejemplaresPorMaterial = [];
+    foreach ($ejemplares as $ej) {
+        $mId = (int)$ej['id_material'];
+        if (!isset($ejemplaresPorMaterial[$mId])) {
+            $ejemplaresPorMaterial[$mId] = ['total' => 0, 'disponibles' => 0];
+        }
+        $ejemplaresPorMaterial[$mId]['total']++;
+        if (strtolower($ej['estado_ejemplar']) === 'disponible') {
+            $ejemplaresPorMaterial[$mId]['disponibles']++;
+        }
+    }
+
+    // 3. Obtener préstamos activos del usuario logueado
     $prestadosPorUsuario = [];
     if ($id_usuario > 0) {
         $stmtP = $conexion->prepare("
@@ -40,18 +53,38 @@ try {
         $prestadosPorUsuario = $stmtP->fetchAll(PDO::FETCH_COLUMN);
     }
 
-    foreach ($libros as &$libro) {
-        $libro['stock_disponible'] = (int)$libro['stock_disponible'];
-        $libro['total_ejemplares'] = (int)$libro['total_ejemplares'];
-        $libro['reservado_por_mi'] = in_array($libro['id_material'], $prestadosPorUsuario);
+    // 4. Formatear respuesta estandarizada
+    $libros = [];
+    foreach ($materiales as $m) {
+        $mId = (int)($m['id_material'] ?? $m['id'] ?? 0);
+        $disp = $ejemplaresPorMaterial[$mId]['disponibles'] ?? 0;
+        $tot  = $ejemplaresPorMaterial[$mId]['total'] ?? 0;
+        $reservado = in_array($mId, $prestadosPorUsuario);
+
+        $libros[] = [
+            'id_material'      => $mId,
+            'id'               => $mId,
+            'titulo'           => $m['titulo'] ?? $m['nombre'] ?? 'Sin título',
+            'autores'          => $m['autores'] ?? $m['autor'] ?? 'Autor no especificado',
+            'isbn'             => $m['isbn'] ?? $m['codigo_isbn_issn'] ?? $m['codigo_barras'] ?? 'S/N',
+            'agno_publicacion' => $m['agno_publicacion'] ?? $m['anio_publicacion'] ?? $m['anio'] ?? 'N/A',
+            'stock_disponible' => $disp,
+            'disponible'       => $disp,
+            'total_ejemplares' => $tot,
+            'reservado_por_mi' => $reservado
+        ];
     }
 
     semsad_responder([
         'status' => 'success',
         'libros' => $libros,
-        'data'   => $libros
+        'data'   => $libros,
+        'datos'  => $libros
     ]);
 
-} catch (PDOException $e) {
-    semsad_responder(['status' => 'error', 'mensaje' => 'Error al obtener los libros: ' . $e->getMessage()], 500);
+} catch (Exception $e) {
+    semsad_responder([
+        'status'  => 'error',
+        'mensaje' => 'Error al obtener los libros: ' . $e->getMessage()
+    ], 500);
 }

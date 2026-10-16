@@ -65,7 +65,7 @@ try {
             $monto = $costoUnitario > 0
                 ? min(200, $costoUnitario * 0.05 * $diasMora)
                 : min(200, 5 * $diasMora);
-            $monto = round(max(5, $monto), 2);
+            $monto = round(max(0.01, $monto), 2);
 
             $stmtMulta = $conexion->prepare("
                 INSERT INTO Multa (id_prestamo, id_detalle, monto, estado_pago, tipo_multa)
@@ -103,6 +103,40 @@ try {
     ");
     foreach ($detalles as $detalle) {
         $updE->execute([':e' => (int)$detalle['id_ejemplar']]);
+    }
+
+    // Al devolverse una copia, la primera reserva pendiente recibe prioridad de retiro.
+    // La caducidad automática se activa cuando están instaladas las columnas opcionales.
+    $columnasReserva = $conexion->query("SHOW COLUMNS FROM Reserva")->fetchAll(PDO::FETCH_COLUMN, 0);
+    if (in_array('id_ejemplar', $columnasReserva, true)
+        && in_array('fecha_caducidad', $columnasReserva, true)) {
+        foreach ($detalles as $detalle) {
+            $stmtCola = $conexion->prepare("
+                SELECT id_reserva
+                FROM Reserva
+                WHERE id_material = :m AND estado = 'Pendiente'
+                ORDER BY prioridad ASC, id_reserva ASC
+                LIMIT 1
+                FOR UPDATE
+            ");
+            $stmtCola->execute([':m' => (int)$detalle['id_material']]);
+            $idReservaSiguiente = (int)$stmtCola->fetchColumn();
+            if ($idReservaSiguiente > 0) {
+                $venceRetiro = date('Y-m-d', strtotime('+1 day')) . ' 10:00:00';
+                $conexion->prepare("UPDATE Ejemplar SET estado_ejemplar = 'Reservado' WHERE id_ejemplar = :e")
+                    ->execute([':e' => (int)$detalle['id_ejemplar']]);
+                $conexion->prepare("
+                    UPDATE Reserva
+                    SET id_ejemplar = :e, fecha_caducidad = :vence
+                    WHERE id_reserva = :r AND estado = 'Pendiente'
+                ")->execute([
+                    ':e' => (int)$detalle['id_ejemplar'],
+                    ':vence' => $venceRetiro,
+                    ':r' => $idReservaSiguiente
+                ]);
+                break;
+            }
+        }
     }
 
     // La sanción de cuenta se activa a partir de 15 días de mora.

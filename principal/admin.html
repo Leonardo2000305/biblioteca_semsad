@@ -395,7 +395,7 @@
             try {
                 const resp = await fetch(window.SEMSAD_API + '/listar_prestamos.php', { credentials: 'include' });
                 const res = await resp.json();
-                const lista = res.datos || res.prestamos || res.data || [];
+                const lista = res.prestamos || res.datos || res.data || [];
 
                 if (res.status === 'success' && lista.length > 0) {
                     tbody.innerHTML = '';
@@ -403,7 +403,7 @@
                         const idPrestamo = p.id || p.id_prestamo;
                         const usuario = p.userName || p.usuario || 'Estudiante';
                         const correo = p.userCorreo || p.correo || '';
-                        const ci = p.userCi || 'REG-000';
+                        const ci = p.userCi || 'EST-202401';
                         
                         const telVal = (p.userTelefono && p.userTelefono !== 'Sin teléfono' && p.userTelefono !== 'Sin dato') 
                             ? p.userTelefono 
@@ -488,14 +488,20 @@
             try {
                 const resp = await fetch(window.SEMSAD_API + '/obtener_libros.php', { credentials: 'include' });
                 const res = await resp.json();
+                const lista = res.libros || res.data || res.datos || [];
 
-                if (res.status === 'success' && res.data.length > 0) {
+                if (res.status === 'success' && lista.length > 0) {
                     tbody.innerHTML = '';
-                    res.data.forEach(libro => {
+                    lista.forEach(libro => {
                         const titulo = libro.titulo || libro.nombre || 'Sin título';
-                        const isbn = libro.isbn || libro.codigo_barras || 'S/N';
+                        const isbn = libro.isbn || libro.codigo_isbn_issn || libro.codigo_barras || 'S/N';
                         const id = libro.id_material || libro.id || 'N/A';
-                        const anio = libro.agno_publicacion || libro.anio || 'N/A';
+                        const anio = libro.agno_publicacion || libro.anio_publicacion || libro.anio || 'N/A';
+                        const stockDisp = libro.stock_disponible !== undefined ? libro.stock_disponible : (libro.disponible || 0);
+
+                        const badge = stockDisp > 0
+                            ? `<span class="badge bg-success py-2 px-3"><i class="fa-solid fa-circle-check me-1"></i>Disponible (${stockDisp})</span>`
+                            : `<span class="badge bg-danger py-2 px-3"><i class="fa-solid fa-circle-xmark me-1"></i>Agotado</span>`;
 
                         tbody.innerHTML += `
                             <tr>
@@ -503,7 +509,7 @@
                                 <td class="fw-semibold text-primary">${SEMSAD.esc(titulo)}</td>
                                 <td class="text-muted font-monospace">${SEMSAD.esc(isbn)}</td>
                                 <td>${SEMSAD.esc(anio)}</td>
-                                <td><span class="badge bg-success py-2 px-3"><i class="fa-solid fa-circle-check me-1"></i>Disponible</span></td>
+                                <td>${badge}</td>
                             </tr>
                         `;
                     });

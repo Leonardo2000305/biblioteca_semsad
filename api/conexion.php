@@ -81,11 +81,15 @@ function semsad_iniciar_sesion(): void
     if (session_status() !== PHP_SESSION_NONE) {
         return;
     }
+
+    // Configurar tiempo de vida de la sesión en el servidor a 24 horas (86,400 segundos)
+    ini_set('session.gc_maxlifetime', 86400);
+
     $https = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
         || (($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https');
 
     session_set_cookie_params([
-        'lifetime' => 0,
+        'lifetime' => 86400, // Duración de la cookie de sesión: 24 horas
         'path'     => '/',
         'secure'   => $https,
         'httponly' => true,

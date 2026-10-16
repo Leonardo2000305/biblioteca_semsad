@@ -380,9 +380,15 @@
                         const usuario = p.userName || p.usuario || 'Estudiante';
                         const correo = p.userCorreo || p.correo || '';
                         const ci = p.userCi || 'REG-000';
-                        const telefono = (p.userTelefono && p.userTelefono !== 'Sin teléfono' && p.userTelefono !== 'Sin dato')
-                            ? `<span class="fw-semibold text-dark"><i class="fa-solid fa-phone me-1 text-muted small"></i>${SEMSAD.esc(p.userTelefono)}</span>`
+                        
+                        const telVal = (p.userTelefono && p.userTelefono !== 'Sin teléfono' && p.userTelefono !== 'Sin dato') 
+                            ? p.userTelefono 
+                            : '';
+
+                        const telefonoHtml = telVal 
+                            ? `<span class="fw-bold text-dark"><i class="fa-solid fa-phone me-1 text-success"></i>${SEMSAD.esc(telVal)}</span>`
                             : `<span class="text-muted fst-italic">Sin teléfono</span>`;
+
                         const libro = p.bookTitle || p.libro || 'Libro';
                         const fechaLimite = p.dueDate || p.fecha_limite || 'S/F';
                         const estado = p.status || p.estado || 'Activo';
@@ -398,7 +404,7 @@
                                     ${correo ? `<small class="text-muted">${SEMSAD.esc(correo)}</small>` : ''}
                                 </td>
                                 <td><span class="badge bg-light text-dark border font-monospace fs-6">${SEMSAD.esc(ci)}</span></td>
-                                <td>${telefono}</td>
+                                <td>${telefonoHtml}</td>
                                 <td class="fw-bold text-primary">${SEMSAD.esc(libro)}</td>
                                 <td class="text-muted"><i class="fa-regular fa-calendar-days me-1"></i>${SEMSAD.esc(fechaLimite)}</td>
                                 <td>${badgeEstado}</td>

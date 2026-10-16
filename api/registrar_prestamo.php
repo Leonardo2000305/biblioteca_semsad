@@ -37,34 +37,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
         $usuario = null;
 
-        // 1. Buscar por ID enviado desde el frontend del estudiante
-        if ($req_id_user > 0) {
-            $stmt = $conexion->prepare("SELECT id_usuario, nombres, apellidos, correo, estado, id_rol FROM Usuario WHERE id_usuario = :id LIMIT 1");
-            $stmt->execute([':id' => $req_id_user]);
-            $usuario = $stmt->fetch(PDO::FETCH_ASSOC);
-        }
-
-        // 2. Buscar por Correo enviado desde el frontend del estudiante
-        if (!$usuario && !empty($req_email)) {
+        // 1. Buscar por Correo recibido de la petición
+        if (!empty($req_email)) {
             $stmt = $conexion->prepare("SELECT id_usuario, nombres, apellidos, correo, estado, id_rol FROM Usuario WHERE LOWER(correo) = LOWER(:e) LIMIT 1");
             $stmt->execute([':e' => $req_email]);
             $usuario = $stmt->fetch(PDO::FETCH_ASSOC);
         }
 
-        // 3. Buscar por Sesión PHP activa en el servidor
-        if (!$usuario && $sess_id > 0) {
+        // 2. Buscar por ID directo
+        if (!$usuario && $req_id_user > 0) {
             $stmt = $conexion->prepare("SELECT id_usuario, nombres, apellidos, correo, estado, id_rol FROM Usuario WHERE id_usuario = :id LIMIT 1");
-            $stmt->execute([':id' => $sess_id]);
+            $stmt->execute([':id' => $req_id_user]);
             $usuario = $stmt->fetch(PDO::FETCH_ASSOC);
         }
 
+        // 3. Buscar por Sesión PHP activa
         if (!$usuario && !empty($sess_email)) {
             $stmt = $conexion->prepare("SELECT id_usuario, nombres, apellidos, correo, estado, id_rol FROM Usuario WHERE LOWER(correo) = LOWER(:e) LIMIT 1");
             $stmt->execute([':e' => $sess_email]);
             $usuario = $stmt->fetch(PDO::FETCH_ASSOC);
         }
 
-        // Si no se detecta al usuario exacto, rechazar
+        if (!$usuario && $sess_id > 0) {
+            $stmt = $conexion->prepare("SELECT id_usuario, nombres, apellidos, correo, estado, id_rol FROM Usuario WHERE id_usuario = :id LIMIT 1");
+            $stmt->execute([':id' => $sess_id]);
+            $usuario = $stmt->fetch(PDO::FETCH_ASSOC);
+        }
+
         if (!$usuario) {
             semsad_responder([
                 'status'  => 'error',
@@ -82,6 +81,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         $id_usuario = (int)$usuario['id_usuario'];
         $nombreCompleto = trim($usuario['nombres'] . ' ' . $usuario['apellidos']);
+        if (empty($nombreCompleto)) {
+            $nombreCompleto = $usuario['correo'];
+        }
 
         // Sincronizar la sesión PHP
         $_SESSION['id_usuario'] = $id_usuario;
@@ -91,6 +93,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             semsad_responder([
                 'status'  => 'error',
                 'mensaje' => "Tu cuenta ($nombreCompleto) está " . $usuario['estado'] . ". Contacta a la administración."
+            ]);
+        }
+
+        // Verificar si el estudiante ya tiene este mismo libro activo
+        $stmtYaPrestado = $conexion->prepare("
+            SELECT COUNT(*) FROM Prestamo p
+            INNER JOIN Detalle_Prestamo dp ON p.id_prestamo = dp.id_prestamo
+            INNER JOIN Ejemplar e ON dp.id_ejemplar = e.id_ejemplar
+            WHERE p.id_usuario = :u AND e.id_material = :m AND p.estado = 'Activo'
+        ");
+        $stmtYaPrestado->execute([':u' => $id_usuario, ':m' => $id_material]);
+        if ((int)$stmtYaPrestado->fetchColumn() > 0) {
+            semsad_responder([
+                'status'  => 'error',
+                'mensaje' => "$nombreCompleto, ya tienes una reserva activa de este libro."
             ]);
         }
 

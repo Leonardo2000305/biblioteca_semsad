@@ -114,8 +114,10 @@
                 const resp = await fetch(window.SEMSAD_API + '/obtener_libros.php', { credentials: 'include' });
                 const res = await resp.json();
 
-                if (res.status === 'success' && res.data.length > 0) {
-                    todosLosLibros = res.data;
+                const listaLibros = res.libros || res.data || res.datos || [];
+
+                if (res.status === 'success' && listaLibros.length > 0) {
+                    todosLosLibros = listaLibros;
                     renderizarLibros(todosLosLibros);
                 } else {
                     contenedor.innerHTML = `
@@ -125,6 +127,7 @@
                         </div>`;
                 }
             } catch (e) {
+                console.error("Error en cargarCatalogo:", e);
                 contenedor.innerHTML = `
                     <div class="col-12 text-center py-5">
                         <i class="fa-solid fa-circle-exclamation fa-3x text-danger mb-3"></i>
@@ -145,28 +148,80 @@
 
             contenedor.innerHTML = '';
             lista.forEach(libro => {
+                const idMaterial = libro.id_material || libro.id;
                 const titulo = libro.titulo || libro.nombre || 'Sin título';
-                const isbn = libro.isbn || libro.codigo_barras || 'Código S/N';
-                const anio = libro.anio_publicacion || libro.anio || 'N/A';
-                const autor = libro.autor || 'Autor no especificado';
+                const isbn = libro.isbn || libro.codigo_isbn_issn || libro.codigo_barras || 'Código S/N';
+                const anio = libro.agno_publicacion || libro.año_publicacion || libro.anio || libro.year || 'N/A';
+                const autor = libro.autores || libro.autor || 'Autor no especificado';
+                
+                const stockDisponible = (libro.stock_disponible !== undefined) ? parseInt(libro.stock_disponible) : ((libro.disponible !== undefined) ? parseInt(libro.disponible) : 1);
+                const estaDisponible = stockDisponible > 0;
+
+                const badgeHTML = estaDisponible 
+                    ? `<span class="badge bg-success mb-2"><i class="fa-solid fa-circle-check me-1"></i>Disponible</span>`
+                    : `<span class="badge bg-danger mb-2"><i class="fa-solid fa-circle-xmark me-1"></i>Agotado</span>`;
+
+                const botonHTML = estaDisponible
+                    ? `<button class="btn btn-outline-primary w-100 fw-bold btn-sm mt-2" onclick="solicitarPrestamo(${idMaterial}, '${SEMSAD.esc(titulo)}')">
+                        <i class="fa-solid fa-hand-holding-hand me-1"></i> Solicitar Préstamo
+                       </button>`
+                    : `<button class="btn btn-secondary w-100 fw-bold btn-sm mt-2" disabled>
+                        <i class="fa-solid fa-ban me-1"></i> No Disponible
+                       </button>`;
 
                 contenedor.innerHTML += `
                     <div class="col-12 col-md-6 col-lg-4">
                         <div class="card book-card h-100 shadow-sm p-3 bg-white">
                             <div class="card-body d-flex flex-column justify-content-between">
                                 <div>
-                                    <span class="badge bg-success mb-2"><i class="fa-solid fa-circle-check me-1"></i>Disponible</span>
+                                    ${badgeHTML}
                                     <h5 class="fw-bold text-dark mb-1">${SEMSAD.esc(titulo)}</h5>
                                     <p class="text-muted small mb-2"><i class="fa-solid fa-user-pen me-1"></i>${SEMSAD.esc(autor)}</p>
                                     <p class="text-secondary extra-small mb-3"><i class="fa-solid fa-barcode me-1"></i>ISBN: ${SEMSAD.esc(isbn)} | Año: ${SEMSAD.esc(anio)}</p>
                                 </div>
-                                <button class="btn btn-outline-primary w-100 fw-bold btn-sm mt-2">
-                                    <i class="fa-solid fa-hand-holding-hand me-1"></i> Solicitar Préstamo
-                                </button>
+                                ${botonHTML}
                             </div>
                         </div>
                     </div>`;
             });
+        }
+
+        async function solicitarPrestamo(idMaterial, tituloLibro) {
+            if (!confirm(`¿Confirmas que deseas solicitar el préstamo de "${tituloLibro}" por 7 días?`)) {
+                return;
+            }
+
+            try {
+                const resp = await fetch(window.SEMSAD_API + '/registrar_prestamo.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({
+                        id_material: idMaterial,
+                        dias_prestamo: 7
+                    })
+                });
+
+                const res = await resp.json();
+
+                if (res.status === 'success') {
+                    if (typeof SEMSAD !== 'undefined' && SEMSAD.toast) {
+                        SEMSAD.toast(res.mensaje, 'success');
+                    } else {
+                        alert(res.mensaje);
+                    }
+                    cargarCatalogo(); // Recarga para actualizar stock
+                } else {
+                    if (typeof SEMSAD !== 'undefined' && SEMSAD.toast) {
+                        SEMSAD.toast(res.mensaje || 'No se pudo procesar la solicitud.', 'error');
+                    } else {
+                        alert(res.mensaje || 'Error al procesar el préstamo.');
+                    }
+                }
+            } catch (e) {
+                console.error("Error al solicitar préstamo:", e);
+                alert("Error de conexión al procesar la solicitud de préstamo.");
+            }
         }
 
         function filtrarLibros() {
@@ -177,8 +232,8 @@
             }
             const filtrados = todosLosLibros.filter(libro => {
                 const titulo = (libro.titulo || libro.nombre || '').toLowerCase();
-                const autor = (libro.autor || '').toLowerCase();
-                const isbn = (libro.isbn || libro.codigo_barras || '').toLowerCase();
+                const autor = (libro.autores || libro.autor || '').toLowerCase();
+                const isbn = (libro.isbn || libro.codigo_isbn_issn || libro.codigo_barras || '').toLowerCase();
                 return titulo.includes(texto) || autor.includes(texto) || isbn.includes(texto);
             });
             renderizarLibros(filtrados);

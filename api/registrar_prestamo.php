@@ -37,21 +37,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
         $usuario = null;
 
-        // 1. Buscar por ID directo enviado
+        // 1. Buscar por ID directo recibido de la petición del cliente
         if ($req_id_user > 0) {
             $stmt = $conexion->prepare("SELECT id_usuario, nombres, apellidos, correo, estado, id_rol FROM Usuario WHERE id_usuario = :id LIMIT 1");
             $stmt->execute([':id' => $req_id_user]);
             $usuario = $stmt->fetch(PDO::FETCH_ASSOC);
         }
 
-        // 2. Buscar por Correo enviado
+        // 2. Buscar por Correo recibido de la petición del cliente
         if (!$usuario && !empty($req_email)) {
             $stmt = $conexion->prepare("SELECT id_usuario, nombres, apellidos, correo, estado, id_rol FROM Usuario WHERE LOWER(correo) = LOWER(:e) LIMIT 1");
             $stmt->execute([':e' => $req_email]);
             $usuario = $stmt->fetch(PDO::FETCH_ASSOC);
         }
 
-        // 3. Buscar por Sesión PHP
+        // 3. Buscar por Sesión PHP activa
         if (!$usuario && $sess_id > 0) {
             $stmt = $conexion->prepare("SELECT id_usuario, nombres, apellidos, correo, estado, id_rol FROM Usuario WHERE id_usuario = :id LIMIT 1");
             $stmt->execute([':id' => $sess_id]);
@@ -64,17 +64,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $usuario = $stmt->fetch(PDO::FETCH_ASSOC);
         }
 
-        // 4. FALLBACK GARANTIZADO: Si no se enviaron credenciales por bloqueo de cookies cross-domain,
-        // toma el usuario estudiante activo para asegurar el procesamiento de la solicitud.
-        if (!$usuario) {
-            $stmtFallback = $conexion->query("SELECT id_usuario, nombres, apellidos, correo, estado, id_rol FROM Usuario WHERE id_rol NOT IN (1, 2) AND estado = 'Activo' ORDER BY id_usuario ASC LIMIT 1");
-            $usuario = $stmtFallback->fetch(PDO::FETCH_ASSOC);
-        }
-
+        // SIN FALLBACK ALEATORIO: Si no se detecta al usuario real, rechazar
         if (!$usuario) {
             semsad_responder([
                 'status'  => 'error',
-                'mensaje' => 'No se encontró un usuario estudiante activo en la base de datos.'
+                'mensaje' => 'No se detectó tu sesión activa de estudiante. Por favor, cierra sesión e inicia sesión nuevamente.'
             ]);
         }
 

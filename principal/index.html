@@ -83,10 +83,11 @@
                                     <th>Fecha Solicitud</th>
                                     <th>Fecha Límite</th>
                                     <th>Estado</th>
+                                    <th class="no-print">Acción</th>
                                 </tr>
                             </thead>
                             <tbody id="tablaMisPrestamosBody">
-                                <tr><td colspan="4" class="text-center py-4">Cargando tus préstamos...</td></tr>
+                                <tr><td colspan="5" class="text-center py-4">Cargando tus préstamos...</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -390,38 +391,60 @@
         async function cargarMisPrestamos() {
             const userObj = obtenerUsuarioLogueado();
             const tbody = document.getElementById('tablaMisPrestamosBody');
-            tbody.innerHTML = '<tr><td colspan="4" class="text-center py-4"><i class="fa-solid fa-spinner fa-spin me-2 text-primary"></i>Cargando tus préstamos...</td></tr>';
-
-            if (!userObj) return;
-
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4"><i class="fa-solid fa-spinner fa-spin me-2 text-primary"></i>Cargando tus préstamos...</td></tr>';
+            if (!userObj) {
+                tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-muted">Inicia sesión nuevamente para consultar tus préstamos.</td></tr>';
+                return;
+            }
             try {
                 const resp = await fetch(window.SEMSAD_API + '/mis_prestamos.php', { credentials: 'include', cache: 'no-store' });
                 const res = await resp.json();
-
-                if (res.status === 'success' && res.prestamos.length > 0) {
+                if (res.status === 'success' && (res.prestamos || []).length > 0) {
                     tbody.innerHTML = '';
                     res.prestamos.forEach(p => {
                         let badge = '<span class="badge bg-primary">Activo</span>';
                         if (p.estado === 'Devuelto') badge = '<span class="badge bg-success">Devuelto</span>';
                         if (p.estado === 'Vencido' || p.estado === 'Con Mora') badge = '<span class="badge bg-danger">Vencido (Con Mora)</span>';
                         if (p.estado === 'Reserva pendiente') badge = '<span class="badge bg-warning text-dark">Reserva pendiente</span>';
-
-                        tbody.innerHTML += `
-                            <tr>
-                                <td class="fw-bold text-dark">${SEMSAD.esc(p.titulo)}</td>
-                                <td class="text-muted small">${SEMSAD.esc(p.fecha_salida)}</td>
-                                <td class="fw-bold text-primary">${SEMSAD.esc(p.fecha_limite)}</td>
-                                <td>${badge}</td>
-                            </tr>`;
+                        const accion = p.estado === 'Activo' && Number(p.id_prestamo) > 0
+                            ? `<button class="btn btn-sm btn-outline-primary no-print" onclick="renovarPrestamo(${Number(p.id_prestamo)})"><i class="fa-solid fa-calendar-plus me-1"></i>Renovar</button>`
+                            : '<span class="text-muted">—</span>';
+                        tbody.innerHTML += `<tr>
+                            <td class="fw-bold text-dark">${SEMSAD.esc(p.titulo)}</td>
+                            <td class="text-muted small">${SEMSAD.esc(p.fecha_salida)}</td>
+                            <td class="fw-bold text-primary">${SEMSAD.esc(p.fecha_limite)}</td>
+                            <td>${badge}</td>
+                            <td class="no-print">${accion}</td>
+                        </tr>`;
                     });
                 } else {
-                    tbody.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-muted">No tienes registros de préstamos aún.</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-muted">No tienes registros de préstamos aún.</td></tr>';
                 }
             } catch (e) {
-                tbody.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-danger">Error al consultar tus préstamos.</td></tr>';
+                console.error('Error al consultar tus préstamos:', e);
+                tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-danger">Error al consultar tus préstamos.</td></tr>';
             }
         }
 
+        async function renovarPrestamo(idPrestamo) {
+            if (!Number(idPrestamo) || !confirm('¿Solicitar la renovación de este préstamo? El sistema validará si cumples las reglas de renovación.')) return;
+            try {
+                const resp = await fetch(window.SEMSAD_API + '/renovar_prestamo.php', {
+                    method: 'POST', credentials: 'include',
+                    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                    body: JSON.stringify({ id_prestamo: Number(idPrestamo) })
+                });
+                const res = await resp.json();
+                if (res.status === 'success') {
+                    SEMSAD.toast((res.mensaje || 'Renovación realizada.') + (res.fecha_limite ? ' Nueva fecha límite: ' + res.fecha_limite : ''), 'success');
+                    await cargarMisPrestamos();
+                    await cargarCatalogo();
+                } else { SEMSAD.toast(res.mensaje || 'No se pudo renovar el préstamo.', 'error'); }
+            } catch (e) {
+                console.error('Error al renovar:', e);
+                SEMSAD.toast('Error de conexión al renovar el préstamo.', 'error');
+            }
+        }
         function filtrarLibros() {
             const texto = document.getElementById('inputBuscar').value.toLowerCase().trim();
             if (!texto) {

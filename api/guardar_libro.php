@@ -13,6 +13,11 @@ $autoresTexto = trim((string)($input['autores'] ?? ''));
 $isbn = trim((string)($input['isbn'] ?? ''));
 $anio = (int)($input['agno_publicacion'] ?? date('Y'));
 $numEjemplares = (int)($input['num_ejemplares'] ?? 1);
+$id_tipo_material = (int)($input['id_tipo_material'] ?? 1);
+$id_editorial = (int)($input['id_editorial'] ?? 0);
+$id_categoria = (int)($input['id_categoria'] ?? 0);
+$edicion = trim((string)($input['edicion'] ?? ''));
+$idioma = trim((string)($input['idioma'] ?? ''));
 
 if ($titulo === '' || $autoresTexto === '') {
     semsad_responder(['status' => 'error', 'mensaje' => 'El título y al menos un autor son obligatorios.'], 400);
@@ -29,20 +34,46 @@ try {
     $conexion->beginTransaction();
 
     $ubicacion = $conexion->query("SELECT id_ubicacion FROM UbicacionFisica ORDER BY id_ubicacion LIMIT 1")->fetchColumn();
-    $tipoMaterial = $conexion->query("SELECT id_tipo_material FROM TipoMaterial WHERE nombre = 'Libro' LIMIT 1")->fetchColumn();
-    $categoria = $conexion->query("
-        SELECT c.id_categoria
-        FROM Categoria c
-        WHERE NOT EXISTS (
-            SELECT 1 FROM Categoria hija WHERE hija.id_categoria_padre = c.id_categoria
-        )
-        ORDER BY c.id_categoria
-        LIMIT 1
-    ")->fetchColumn();
+    $columnasMaterial = $conexion->query("SHOW COLUMNS FROM MaterialBibliografico")->fetchAll(PDO::FETCH_COLUMN, 0);
+    $tieneEdicion = in_array('edicion', $columnasMaterial, true);
+    $tieneIdioma = in_array('idioma', $columnasMaterial, true);
 
-    if (!$ubicacion || !$tipoMaterial || !$categoria) {
+    if ($id_tipo_material <= 0) {
+        $tipoMaterialDefault = $conexion->query("SELECT id_tipo_material FROM TipoMaterial WHERE nombre = 'Libro' LIMIT 1")->fetchColumn();
+        $id_tipo_material = (int)$tipoMaterialDefault;
+    }
+    if ($id_categoria <= 0) {
+        $categoriaDefault = $conexion->query("
+            SELECT c.id_categoria
+            FROM Categoria c
+            WHERE NOT EXISTS (
+                SELECT 1 FROM Categoria hija WHERE hija.id_categoria_padre = c.id_categoria
+            )
+            ORDER BY c.id_categoria
+            LIMIT 1
+        ")->fetchColumn();
+        $id_categoria = (int)$categoriaDefault;
+    }
+
+    $qTipo = $conexion->prepare("SELECT COUNT(*) FROM TipoMaterial WHERE id_tipo_material = :id");
+    $qTipo->execute([':id' => $id_tipo_material]);
+    $qCategoria = $conexion->prepare("SELECT COUNT(*) FROM Categoria WHERE id_categoria = :id");
+    $qCategoria->execute([':id' => $id_categoria]);
+    $qEditorialOk = true;
+    if ($id_editorial > 0) {
+        $qEditorial = $conexion->prepare("SELECT COUNT(*) FROM Editorial WHERE id_editorial = :id");
+        $qEditorial->execute([':id' => $id_editorial]);
+        $qEditorialOk = (int)$qEditorial->fetchColumn() > 0;
+    }
+
+    if (!$ubicacion || $id_tipo_material <= 0 || (int)$qTipo->fetchColumn() <= 0
+        || $id_categoria <= 0 || (int)$qCategoria->fetchColumn() <= 0 || !$qEditorialOk) {
         $conexion->rollBack();
-        semsad_responder(['status' => 'error', 'mensaje' => 'Falta configurar al menos una ubicación, tipo Libro y categoría en el catálogo.'], 409);
+        semsad_responder(['status' => 'error', 'mensaje' => 'La ubicación, tipo, editorial o categoría seleccionados no existen en el catálogo. Actualiza las opciones e inténtalo de nuevo.'], 409);
+    }
+    if (mb_strlen($edicion) > 80 || mb_strlen($idioma) > 50) {
+        $conexion->rollBack();
+        semsad_responder(['status' => 'error', 'mensaje' => 'La edición admite hasta 80 caracteres y el idioma hasta 50.'], 400);
     }
 
     if ($id_material > 0) {
@@ -63,15 +94,33 @@ try {
             semsad_responder(['status' => 'error', 'mensaje' => 'Ese ISBN ya está asignado a otro título.'], 409);
         }
 
-        $stmt = $conexion->prepare("
-            UPDATE MaterialBibliografico
-            SET titulo = :t, codigo_isbn_issn = :i, agno_publicacion = :y
-            WHERE id_material = :id
-        ");
-        $stmt->execute([
-            ':t' => $titulo, ':i' => ($isbn !== '' ? $isbn : null),
-            ':y' => $anio, ':id' => $id_material
-        ]);
+        $set = [
+            'titulo = :t',
+            'codigo_isbn_issn = :i',
+            'agno_publicacion = :y',
+            'id_tipo_material = :tipo',
+            'id_editorial = :editorial',
+            'id_categoria = :categoria'
+        ];
+        $paramsMaterial = [
+            ':t' => $titulo,
+            ':i' => ($isbn !== '' ? $isbn : null),
+            ':y' => $anio,
+            ':tipo' => $id_tipo_material,
+            ':editorial' => ($id_editorial > 0 ? $id_editorial : null),
+            ':categoria' => $id_categoria,
+            ':id' => $id_material
+        ];
+        if ($tieneEdicion) {
+            $set[] = 'edicion = :edicion';
+            $paramsMaterial[':edicion'] = ($edicion !== '' ? $edicion : null);
+        }
+        if ($tieneIdioma) {
+            $set[] = 'idioma = :idioma';
+            $paramsMaterial[':idioma'] = ($idioma !== '' ? $idioma : null);
+        }
+        $stmt = $conexion->prepare('UPDATE MaterialBibliografico SET ' . implode(', ', $set) . ' WHERE id_material = :id');
+        $stmt->execute($paramsMaterial);
 
         $stmtCount = $conexion->prepare("
             SELECT COUNT(*) FROM Ejemplar
@@ -106,15 +155,30 @@ try {
             }
         }
 
-        $stmt = $conexion->prepare("
-            INSERT INTO MaterialBibliografico
-                (codigo_isbn_issn, titulo, id_tipo_material, id_editorial, id_categoria, agno_publicacion)
-            VALUES (:isbn, :t, :tipo, NULL, :categoria, :y)
-        ");
-        $stmt->execute([
-            ':isbn' => ($isbn !== '' ? $isbn : null), ':t' => $titulo,
-            ':tipo' => $tipoMaterial, ':categoria' => $categoria, ':y' => $anio
-        ]);
+        $campos = ['codigo_isbn_issn', 'titulo', 'id_tipo_material', 'id_editorial', 'id_categoria', 'agno_publicacion'];
+        $valores = [':isbn', ':t', ':tipo', ':editorial', ':categoria', ':y'];
+        $paramsMaterial = [
+            ':isbn' => ($isbn !== '' ? $isbn : null),
+            ':t' => $titulo,
+            ':tipo' => $id_tipo_material,
+            ':editorial' => ($id_editorial > 0 ? $id_editorial : null),
+            ':categoria' => $id_categoria,
+            ':y' => $anio
+        ];
+        if ($tieneEdicion) {
+            $campos[] = 'edicion';
+            $valores[] = ':edicion';
+            $paramsMaterial[':edicion'] = ($edicion !== '' ? $edicion : null);
+        }
+        if ($tieneIdioma) {
+            $campos[] = 'idioma';
+            $valores[] = ':idioma';
+            $paramsMaterial[':idioma'] = ($idioma !== '' ? $idioma : null);
+        }
+        $stmt = $conexion->prepare(
+            'INSERT INTO MaterialBibliografico (' . implode(', ', $campos) . ') VALUES (' . implode(', ', $valores) . ')'
+        );
+        $stmt->execute($paramsMaterial);
         $id_material = (int)$conexion->lastInsertId();
 
         $stmtAdd = $conexion->prepare("
@@ -160,7 +224,16 @@ try {
     }
 
     $conexion->commit();
-    semsad_responder(['status' => 'success', 'mensaje' => $mensaje, 'id_material' => $id_material]);
+    $requiereMigracionMetadata = (!$tieneEdicion && $edicion !== '') || (!$tieneIdioma && $idioma !== '');
+    if ($requiereMigracionMetadata) {
+        $mensaje .= ' Aviso: el catálogo SQL actual no tiene columnas para guardar edición/idioma; esos dos datos no quedaron almacenados.';
+    }
+    semsad_responder([
+        'status' => 'success',
+        'mensaje' => $mensaje,
+        'id_material' => $id_material,
+        'requiere_migracion_metadata' => $requiereMigracionMetadata
+    ]);
 } catch (Throwable $e) {
     if ($conexion->inTransaction()) $conexion->rollBack();
     error_log('[SEMSAD] guardar_libro: ' . $e->getMessage());

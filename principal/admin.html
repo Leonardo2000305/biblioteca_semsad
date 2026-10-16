@@ -566,6 +566,8 @@
                                 </td>
                             </tr>`;
                     });
+                } else if (res.status !== 'success') {
+                    tbody.innerHTML = `<tr><td colspan="7" class="text-center py-4 text-danger"><i class="fa-solid fa-triangle-exclamation me-2"></i>${SEMSAD.esc(res.mensaje || 'No se pudo cargar la ventanilla.')}</td></tr>`;
                 } else {
                     tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4 text-muted">No hay préstamos activos.</td></tr>';
                 }

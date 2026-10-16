@@ -11,12 +11,12 @@ try {
         $conexion->exec("
             UPDATE Ejemplar 
             SET estado_ejemplar = 'Disponible' 
-            WHERE estado_ejemplar = 'Prestado' 
+            WHERE estado_ejemplar IN ('Prestado', 'Reservado') 
             AND id_ejemplar NOT IN (
                 SELECT DISTINCT dp.id_ejemplar 
                 FROM Detalle_Prestamo dp 
                 INNER JOIN Prestamo p ON dp.id_prestamo = p.id_prestamo 
-                WHERE p.estado = 'Activo'
+                WHERE p.estado IN ('Activo', 'Vencido', 'Con Mora')
             )
         ");
     } catch (Exception $ex) {}
@@ -55,7 +55,7 @@ try {
             FROM Prestamo p
             INNER JOIN Detalle_Prestamo dp ON p.id_prestamo = dp.id_prestamo
             INNER JOIN Ejemplar e ON dp.id_ejemplar = e.id_ejemplar
-            WHERE p.id_usuario = :u AND p.estado = 'Activo'
+            WHERE p.id_usuario = :u AND p.estado IN ('Activo', 'Vencido', 'Con Mora')
         ");
         $stmtP->execute([':u' => $id_usuario]);
         $prestadosPorUsuario = $stmtP->fetchAll(PDO::FETCH_COLUMN);

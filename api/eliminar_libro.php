@@ -1,6 +1,7 @@
 <?php
 require_once 'conexion.php';
-semsad_iniciar_sesion();
+// Solo personal de la biblioteca (Administrador / Bibliotecario)
+semsad_requerir_rol(['Administrador', 'Bibliotecario']);
 header('Content-Type: application/json; charset=utf-8');
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -17,7 +18,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             FROM Prestamo p
             INNER JOIN Detalle_Prestamo dp ON p.id_prestamo = dp.id_prestamo
             INNER JOIN Ejemplar e ON dp.id_ejemplar = e.id_ejemplar
-            WHERE e.id_material = :id AND p.estado = 'Activo'
+            WHERE e.id_material = :id AND p.estado IN ('Activo', 'Vencido', 'Con Mora')
         ");
         $stmtActivos->execute([':id' => $id_material]);
         if ((int)$stmtActivos->fetchColumn() > 0) {

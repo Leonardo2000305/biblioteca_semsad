@@ -1,6 +1,7 @@
 <?php
 require_once 'conexion.php';
-semsad_iniciar_sesion();
+// Solo personal de la biblioteca (Administrador / Bibliotecario)
+semsad_requerir_rol(['Administrador', 'Bibliotecario']);
 
 header('Content-Type: application/json; charset=utf-8');
 
@@ -18,11 +19,11 @@ try {
                 p.fecha_limite,
                 p.estado
             FROM Prestamo p
-            INNER JOIN Usuario u ON p.id_usuario = u.id_usuario
-            INNER JOIN Detalle_Prestamo dp ON p.id_prestamo = dp.id_prestamo
-            INNER JOIN Ejemplar e ON dp.id_ejemplar = e.id_ejemplar
-            INNER JOIN MaterialBibliografico m ON e.id_material = m.id_material
-            WHERE p.estado = 'Activo'
+            LEFT JOIN Usuario u ON p.id_usuario = u.id_usuario
+            LEFT JOIN Detalle_Prestamo dp ON p.id_prestamo = dp.id_prestamo
+            LEFT JOIN Ejemplar e ON dp.id_ejemplar = e.id_ejemplar
+            LEFT JOIN MaterialBibliografico m ON e.id_material = m.id_material
+            WHERE p.estado IN ('Activo', 'Vencido', 'Con Mora')
             ORDER BY p.id_prestamo DESC";
 
     $stmt = $conexion->query($sql);
@@ -32,8 +33,20 @@ try {
     foreach ($filas as $f) {
         $nombreCompleto = trim(($f['user_nombres'] ?? '') . ' ' . ($f['user_apellidos'] ?? ''));
         if (empty($nombreCompleto)) {
-            $nombreCompleto = $f['user_correo'] ?? 'Estudiante';
+            $nombreCompleto = $f['user_correo'] ?? '';
         }
+        // Un préstamo nunca debe quedar invisible: si faltan datos se muestra una advertencia.
+        if ($nombreCompleto === '') {
+            $nombreCompleto = '⚠ Usuario no encontrado (ID ' . (int)$f['id_usuario'] . ')';
+        }
+        if (empty($f['libro_titulo'])) {
+            $f['libro_titulo'] = '⚠ Libro no encontrado (préstamo #' . (int)$f['id_prestamo'] . ')';
+        }
+
+        // Para la pantalla: pasado de la fecha límite (o en mora) = Vencido, aunque la base aún diga Activo.
+        $limiteTs   = !empty($f['fecha_limite']) ? strtotime($f['fecha_limite']) : false;
+        $statusVista = (in_array($f['estado'] ?? '', ['Vencido', 'Con Mora'], true) || ($limiteTs !== false && $limiteTs < time()))
+            ? 'Vencido' : 'Activo';
 
         $prestamos[] = [
             'id'            => (int)$f['id_prestamo'],
@@ -50,7 +63,7 @@ try {
             'fecha_salida'  => $f['fecha_salida'] ?? '',
             'dueDate'       => !empty($f['fecha_limite']) ? date('Y-m-d', strtotime($f['fecha_limite'])) : 'S/F',
             'fecha_limite'  => !empty($f['fecha_limite']) ? date('Y-m-d', strtotime($f['fecha_limite'])) : 'S/F',
-            'status'        => $f['estado'] ?? 'Activo',
+            'status'        => $statusVista,
             'estado'        => $f['estado'] ?? 'Activo'
         ];
     }

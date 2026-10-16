@@ -17,6 +17,7 @@ header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-W
 header('Content-Type: application/json; charset=utf-8');
 
 require_once 'conexion.php';
+semsad_requerir_rol(['Administrador', 'Bibliotecario']);
 
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(200);

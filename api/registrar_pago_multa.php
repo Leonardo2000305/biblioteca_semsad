@@ -1,4 +1,5 @@
 <?php
+ob_start();
 error_reporting(0);
 ini_set('display_errors', 0);
 
@@ -9,10 +10,10 @@ header("Content-Type: application/json; charset=UTF-8");
 
 $data = json_decode(file_get_contents("php://input"), true);
 
-if (!isset($data['id_multa']) || !isset($data['id_usuario'])) {
+if (!isset($data['id_multa']) \vert{}\vert{} !isset($data['id_usuario'])) {
     echo json_encode([
         "status" => "error",
-        "mensaje" => "Parámetros insuficientes para procesar el pago."
+        "mensaje" => "Faltan datos obligatorios (id_multa, id_usuario)."
     ]);
     exit();
 }
@@ -29,50 +30,51 @@ try {
         throw new Exception("No se encontró el archivo de conexión db.php");
     }
 
-    $colsStmt = $pdo->query("SHOW COLUMNS FROM Multa");
-    $cols = $colsStmt->fetchAll(PDO::FETCH_COLUMN);
+    ob_clean();
 
-    $colEstado = in_array('estado_pago', $cols) ? 'estado_pago' : 'estado_multa';
-    $valPagado = ($colEstado === 'estado_pago') ? 'Pagado' : 'Pagada';
-    $valPendiente = ($colEstado === 'estado_pago') ? 'Pendiente' : 'Pendiente';
-
-    $pdo->beginTransaction();
-
-    // 1. Marcar la multa como pagada
-    $stmt1 = $pdo->prepare("UPDATE Multa SET {$colEstado} = :pagado WHERE id_multa = :id_multa");
-    $stmt1->execute([':pagado' => $valPagado, ':id_multa' => $id_multa]);
-
-    // 2. Verificar si al usuario le quedan otras multas
-    if (in_array('id_prestamo', $cols)) {
-        $sqlCheck = "SELECT COUNT(*) AS pendientes FROM Multa m INNER JOIN Prestamo p ON m.id_prestamo = p.id_prestamo WHERE p.id_usuario = :id_usuario AND m.{$colEstado} = :pendiente";
-    } else {
-        $sqlCheck = "SELECT COUNT(*) AS pendientes FROM Multa m INNER JOIN Detalle_Prestamo dp ON m.id_detalle = dp.id_detalle INNER JOIN Prestamo p ON dp.id_prestamo = p.id_prestamo WHERE p.id_usuario = :id_usuario AND m.{$colEstado} = :pendiente";
+    $tablaMulta = 'Multa';
+    $tables =$pdo->query("SHOW TABLES")->fetchAll(PDO::FETCH_COLUMN);
+    foreach ($tables as$t) {
+        if (strtolower($t) === 'multa') { $tablaMulta =$t; break; }
     }
 
-    $stmtCheck = $pdo->prepare($sqlCheck);
-    $stmtCheck->execute([':id_usuario' => $id_usuario, ':pendiente' => $valPendiente]);
-    $pendientes = $stmtCheck->fetch(PDO::FETCH_ASSOC)['pendientes'];
+    $colsStmt =$pdo->query("SHOW COLUMNS FROM `$tablaMulta`");
+    $colsMulta = array_map('strtolower',$colsStmt->fetchAll(PDO::FETCH_COLUMN));
 
-    // 3. Reactivar usuario si ya no tiene deudas
+    $colEstado = in_array('estado_pago',$colsMulta) ? 'estado_pago' : (in_array('estado_multa', $colsMulta) ? 'estado_multa' : 'estado');$pdo->beginTransaction();
+
+    $stmt1 =$pdo->prepare("UPDATE `$tablaMulta` SET `{$colEstado}` = 'Pagado' WHERE id_multa = :id_multa");
+    $stmt1->execute([':id_multa' =>$id_multa]);
+
+    if (in_array('id_usuario', $colsMulta)) {
+        $stmt2 =$pdo->prepare("SELECT COUNT(*) AS pendientes FROM `$tablaMulta` WHERE id_usuario = :id_usuario AND `{$colEstado}` IN ('Pendiente', 'PENDIENTE')");
+        $stmt2->execute([':id_usuario' =>$id_usuario]);
+    } else {
+        $stmt2 =$pdo->prepare("SELECT COUNT(*) AS pendientes FROM `$tablaMulta` m INNER JOIN Prestamo p ON m.id_prestamo = p.id_prestamo WHERE p.id_usuario = :id_usuario AND m.`{$colEstado}` IN ('Pendiente', 'PENDIENTE')");
+        $stmt2->execute([':id_usuario' =>$id_usuario]);
+    }
+
+    $pendientes =$stmt2->fetch(PDO::FETCH_ASSOC)['pendientes'];
+
     if ($pendientes == 0) {
-        $stmtUser = $pdo->prepare("UPDATE Usuario SET estado = 'Activo' WHERE id_usuario = :id_usuario");
-        $stmtUser->execute([':id_usuario' => $id_usuario]);
+        $stmt3 =$pdo->prepare("UPDATE Usuario SET estado = 'Activo' WHERE id_usuario = :id_usuario");
+        $stmt3->execute([':id_usuario' =>$id_usuario]);
     }
 
     $pdo->commit();
 
     echo json_encode([
         "status" => "success",
-        "mensaje" => "Pago registrado correctamente. " . ($pendientes == 0 ? "Usuario reactivado a estado Activo." : "Aún registra otras multas pendientes.")
+        "mensaje" => "Pago de multa registrado correctamente." . ($pendientes == 0 ? " El usuario ha sido desbloqueado y reactivado." : "")
     ]);
 
 } catch (Throwable $e) {
-    if (isset($pdo) && $pdo->inTransaction()) {
-        $pdo->rollBack();
+    if (isset($pdo) && $pdo->inTransaction()) {$pdo->rollBack();
     }
+    ob_clean();
     echo json_encode([
         "status" => "error",
-        "mensaje" => "Error al procesar el pago: " . $e->getMessage()
+        "mensaje" => "Error al procesar pago: " . $e->getMessage()
     ]);
 }
 ?>

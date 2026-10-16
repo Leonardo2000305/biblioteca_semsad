@@ -102,7 +102,7 @@
             cargarCatalogo();
         });
 
-        // Escáner omnicanal para detectar la sesión del estudiante en cualquier origen
+        // Escáner jerárquico para obtener la sesión activa del estudiante
         function obtenerUsuarioLogueado() {
             if (typeof SEMSAD !== 'undefined') {
                 if (typeof SEMSAD.obtenerUsuario === 'function') {
@@ -117,6 +117,21 @@
                 if (SEMSAD.user && (SEMSAD.user.id || SEMSAD.user.email)) return SEMSAD.user;
             }
 
+            // Búsqueda en claves conocidas primero
+            const clavesPrioritarias = ['semsad_usuario', 'usuario', 'semsad_sesion', 'sesion', 'semsad_user', 'user'];
+            for (let k of clavesPrioritarias) {
+                try {
+                    const str = localStorage.getItem(k) || sessionStorage.getItem(k);
+                    if (str) {
+                        const parsed = JSON.parse(str);
+                        if (parsed && typeof parsed === 'object' && (parsed.id_usuario || parsed.id || parsed.correo || parsed.email)) {
+                            return parsed;
+                        }
+                    }
+                } catch(e) {}
+            }
+
+            // Búsqueda secundaria en cualquier otra clave almacenada
             const storages = [localStorage, sessionStorage];
             for (let store of storages) {
                 for (let i = 0; i < store.length; i++) {
@@ -124,7 +139,7 @@
                     try {
                         const val = JSON.parse(store.getItem(key));
                         if (val && typeof val === 'object') {
-                            if (val.id_usuario || val.id || val.correo || val.email || val.nombres) {
+                            if (val.id_usuario || val.id || val.correo || val.email) {
                                 return val;
                             }
                         }
@@ -230,7 +245,7 @@
         async function solicitarPrestamo(idMaterial, tituloLibro) {
             const userObj = obtenerUsuarioLogueado();
 
-            if (!userObj) {
+            if (!userObj || (!userObj.id_usuario && !userObj.id && !userObj.correo && !userObj.email)) {
                 alert("No se detectó una sesión activa de estudiante. Por favor, inicia sesión.");
                 window.location.href = '../login/index.html';
                 return;

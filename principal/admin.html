@@ -231,9 +231,35 @@
 
         <!-- MÓDULO 3: VENTANILLA -->
         <div id="secVentanilla" class="modulo-vista d-none">
-            <div class="card table-card shadow-sm p-4 bg-white">
-                <h5 class="fw-bold mb-3"><i class="fa-solid fa-right-left me-2 text-primary"></i>Préstamos y Devoluciones</h5>
-                <p class="text-muted">Módulo de atención presencial para registro de préstamos.</p>
+            <div class="card table-card shadow-sm bg-white">
+                <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center border-bottom">
+                    <h5 class="fw-bold mb-0 text-dark">
+                        <i class="fa-solid fa-right-left text-primary me-2"></i>Ventanilla: Préstamos Activos y Reservas
+                    </h5>
+                    <button class="btn btn-sm btn-outline-primary" onclick="cargarVentanilla()">
+                        <i class="fa-solid fa-rotate me-1"></i>Actualizar Ventanilla
+                    </button>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Código</th>
+                                    <th>Estudiante / Usuario</th>
+                                    <th>CI / Registro</th>
+                                    <th>Libro Reservado</th>
+                                    <th>Fecha Límite</th>
+                                    <th>Estado</th>
+                                    <th class="text-center">Acción</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tablaVentanillaBody">
+                                <!-- Se carga dinámicamente -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -332,8 +358,92 @@
                 cargarUsuariosRegistrados();
             } else if (nombreModulo === 'ventanilla') {
                 document.getElementById('secVentanilla').classList.remove('d-none');
+                cargarVentanilla();
             } else {
                 document.getElementById('secDashboard').classList.remove('d-none');
+            }
+        }
+
+        async function cargarVentanilla() {
+            const tbody = document.getElementById('tablaVentanillaBody');
+            tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4"><i class="fa-solid fa-spinner fa-spin me-2 text-primary"></i>Cargando préstamos activos...</td></tr>';
+
+            try {
+                const resp = await fetch(window.SEMSAD_API + '/listar_prestamos.php', { credentials: 'include' });
+                const res = await resp.json();
+                const lista = res.datos || res.prestamos || res.data || [];
+
+                if (res.status === 'success' && lista.length > 0) {
+                    tbody.innerHTML = '';
+                    lista.forEach(p => {
+                        const idPrestamo = p.id || p.id_prestamo;
+                        const codigo = p.code || ('PRE-' + String(idPrestamo).padStart(3, '0'));
+                        const usuario = p.userName || p.usuario || 'Estudiante';
+                        const ci = p.userCi || p.codigo || 'S/N';
+                        const libro = p.bookTitle || p.libro || 'Libro';
+                        const fechaLimite = p.dueDate || p.fecha_limite || 'S/F';
+                        const estado = p.status || p.estado || 'Activo';
+
+                        const badgeEstado = (estado === 'Vencido' || estado === 'Con Mora')
+                            ? `<span class="badge bg-danger py-2 px-3"><i class="fa-solid fa-triangle-exclamation me-1"></i>${SEMSAD.esc(estado)}</span>`
+                            : `<span class="badge bg-primary py-2 px-3"><i class="fa-solid fa-clock me-1"></i>${SEMSAD.esc(estado)}</span>`;
+
+                        tbody.innerHTML += `
+                            <tr>
+                                <td class="fw-bold text-dark">${SEMSAD.esc(codigo)}</td>
+                                <td>
+                                    <div class="fw-bold text-dark">${SEMSAD.esc(usuario)}</div>
+                                    ${p.correo ? `<small class="text-muted">${SEMSAD.esc(p.correo)}</small>` : ''}
+                                </td>
+                                <td><span class="badge bg-light text-dark border font-monospace fs-6">${SEMSAD.esc(ci)}</span></td>
+                                <td class="fw-bold text-primary">${SEMSAD.esc(libro)}</td>
+                                <td class="text-muted"><i class="fa-regular fa-calendar-days me-1"></i>${SEMSAD.esc(fechaLimite)}</td>
+                                <td>${badgeEstado}</td>
+                                <td class="text-center">
+                                    <button class="btn btn-success btn-sm fw-bold px-3 shadow-sm" onclick="registrarDevolucion(${idPrestamo}, '${SEMSAD.esc(libro)}')">
+                                        <i class="fa-solid fa-rotate-left me-1"></i> Devuelto
+                                    </button>
+                                </td>
+                            </tr>
+                        `;
+                    });
+                } else {
+                    tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4 text-muted"><i class="fa-solid fa-inbox fa-2x mb-2 d-block"></i>No hay reservas ni préstamos activos en este momento.</td></tr>';
+                }
+            } catch (e) {
+                console.error("Error en cargarVentanilla:", e);
+                tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4 text-danger">Error al cargar datos de ventanilla.</td></tr>';
+            }
+        }
+
+        async function registrarDevolucion(idPrestamo, tituloLibro) {
+            if (!confirm(`¿Confirmas la recepción del libro "${tituloLibro}"? El ejemplar volverá a estar libre de inmediato en el catálogo.`)) {
+                return;
+            }
+
+            try {
+                const resp = await fetch(window.SEMSAD_API + '/devolver_libro.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ id_prestamo: idPrestamo })
+                });
+
+                const res = await resp.json();
+
+                if (res.status === 'success') {
+                    if (typeof SEMSAD !== 'undefined' && SEMSAD.toast) {
+                        SEMSAD.toast(res.mensaje, 'success');
+                    } else {
+                        alert(res.mensaje);
+                    }
+                    cargarVentanilla();
+                } else {
+                    alert(res.mensaje || 'Error al registrar la devolución.');
+                }
+            } catch (e) {
+                console.error("Error al registrar devolución:", e);
+                alert("Error de conexión al procesar la devolución.");
             }
         }
 
@@ -351,7 +461,7 @@
                         const titulo = libro.titulo || libro.nombre || 'Sin título';
                         const isbn = libro.isbn || libro.codigo_barras || 'S/N';
                         const id = libro.id_material || libro.id || 'N/A';
-                        const anio = libro.anio_publicacion || libro.anio || 'N/A';
+                        const anio = libro.agno_publicacion || libro.anio || 'N/A';
 
                         tbody.innerHTML += `
                             <tr>
@@ -375,7 +485,6 @@
             const tbody = document.getElementById('tablaAuditoriaBody');
             tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4"><i class="fa-solid fa-spinner fa-spin me-2 text-primary"></i>Cargando auditoría...</td></tr>';
 
-            // Cada estado tiene su color: verde = logró cambiar, rojo = falló, amarillo = solo pidió el enlace
             function badgeEstado(estado) {
                 const e = (estado || '').toLowerCase();
                 if (e.includes('exitoso')) {

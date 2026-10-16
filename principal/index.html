@@ -26,8 +26,11 @@
                 <span>BIBLIOTECA SEMSAD</span>
             </a>
             <div class="d-flex align-items-center gap-2">
-                <button class="btn btn-outline-info btn-sm fw-bold me-2" data-bs-toggle="modal" data-bs-target="#modalMisPrestamos" onclick="cargarMisPrestamos()">
+                <button class="btn btn-outline-info btn-sm fw-bold me-1" data-bs-toggle="modal" data-bs-target="#modalMisPrestamos" onclick="cargarMisPrestamos()">
                     <i class="fa-solid fa-clock-rotate-left me-1"></i>Mis Préstamos
+                </button>
+                <button class="btn btn-outline-light btn-sm fw-bold me-2" data-bs-toggle="modal" data-bs-target="#modalPerfil" onclick="cargarPerfil()">
+                    <i class="fa-solid fa-user-pen me-1"></i>Mi Perfil
                 </button>
                 <span class="badge bg-primary px-3 py-2 fs-6 shadow-sm" id="badgeUsuario">
                     <i class="fa-solid fa-user-graduate me-1"></i><span id="nombreUsuarioHeader">Estudiante</span>
@@ -66,6 +69,38 @@
         <div class="row g-4" id="contenedorLibros"></div>
     </div>
 
+    <!-- MODAL MI PERFIL -->
+    <div class="modal fade" id="modalPerfil" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header bg-dark text-white">
+                    <h5 class="modal-title fw-bold"><i class="fa-solid fa-user-pen text-primary me-2"></i>Mi Perfil</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                </div>
+                <form id="formMiPerfil">
+                    <div class="modal-body">
+                        <div id="notaPerfilMigracion" class="alert alert-warning d-none small"></div>
+                        <div class="row g-3">
+                            <div class="col-md-6"><label class="form-label fw-bold" for="perfilNombres">Nombres *</label><input class="form-control" id="perfilNombres" maxlength="100" required></div>
+                            <div class="col-md-6"><label class="form-label fw-bold" for="perfilApellidos">Apellidos *</label><input class="form-control" id="perfilApellidos" maxlength="100" required></div>
+                            <div class="col-md-6"><label class="form-label fw-bold" for="perfilCorreo">Correo institucional</label><input class="form-control" id="perfilCorreo" readonly></div>
+                            <div class="col-md-6"><label class="form-label fw-bold" for="perfilCodigo">CI / Código institucional</label><input class="form-control" id="perfilCodigo" readonly></div>
+                            <div class="col-md-6"><label class="form-label fw-bold" for="perfilTelefono">Teléfono</label><input class="form-control" id="perfilTelefono" maxlength="50"></div>
+                            <div class="col-md-6"><label class="form-label fw-bold" for="perfilCarrera">Carrera / Programa</label><input class="form-control" id="perfilCarrera" maxlength="120" placeholder="Carrera o programa académico"></div>
+                            <div class="col-md-8"><label class="form-label fw-bold" for="perfilFoto">URL de fotografía (opcional)</label><input class="form-control" id="perfilFoto" maxlength="500" type="url" placeholder="https://..."></div>
+                            <div class="col-md-4 d-flex align-items-end"><img id="perfilFotoPreview" src="" alt="Vista previa de fotografía" class="rounded border d-none" style="max-width:70px;max-height:70px;object-fit:cover"></div>
+                        </div>
+                        <div class="small text-muted mt-3" id="perfilUltimoAcceso">Último acceso: No disponible</div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cerrar</button>
+                        <button type="submit" class="btn btn-primary fw-bold"><i class="fa-solid fa-floppy-disk me-1"></i>Guardar perfil</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
     <!-- MODAL MIS PRÉSTAMOS -->
     <div class="modal fade" id="modalMisPrestamos" tabindex="-1">
         <div class="modal-dialog modal-lg">
@@ -102,7 +137,11 @@
     <script>
         let todosLosLibros = [];
 
-        document.addEventListener('DOMContentLoaded', iniciarVistaEstudiante);
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('formMiPerfil')?.addEventListener('submit', guardarMiPerfil);
+            document.getElementById('perfilFoto')?.addEventListener('input', actualizarVistaPreviaPerfil);
+            iniciarVistaEstudiante();
+        });
 
         async function iniciarVistaEstudiante() {
             try {
@@ -388,6 +427,73 @@
             }
         }
 
+        async function cargarPerfil() {
+            const warning = document.getElementById('notaPerfilMigracion');
+            try {
+                const resp = await fetch(window.SEMSAD_API + '/obtener_perfil.php', { credentials: 'include', cache: 'no-store' });
+                const res = await resp.json();
+                if (res.status !== 'success' || !res.perfil) { SEMSAD.toast(res.mensaje || 'No se pudo consultar tu perfil.', 'error'); return; }
+                const p = res.perfil;
+                document.getElementById('perfilNombres').value = p.nombres || '';
+                document.getElementById('perfilApellidos').value = p.apellidos || '';
+                document.getElementById('perfilCorreo').value = p.correo || '';
+                document.getElementById('perfilCodigo').value = p.codigo_empleado || '';
+                document.getElementById('perfilTelefono').value = p.telefono || '';
+                document.getElementById('perfilCarrera').value = p.carrera || '';
+                document.getElementById('perfilFoto').value = p.fotografia || '';
+                document.getElementById('perfilUltimoAcceso').textContent = 'Último acceso: ' + (p.ultimo_acceso || 'No disponible en la estructura actual de la base de datos');
+                const avanzado = p.campos_perfil_avanzado_disponibles === true;
+                document.getElementById('perfilCarrera').disabled = !avanzado;
+                document.getElementById('perfilFoto').disabled = !avanzado;
+                if (!avanzado) {
+                    warning.textContent = 'La base de datos aún no tiene campos para carrera y fotografía. Se pueden habilitar mediante migracion_opcional_reservas_multas.sql, después de hacer copia de seguridad y revisar phpMyAdmin.';
+                    warning.classList.remove('d-none');
+                } else { warning.classList.add('d-none'); }
+                actualizarVistaPreviaPerfil();
+            } catch (e) {
+                console.error('Error cargando perfil:', e);
+                SEMSAD.toast('No se pudo conectar con el servidor para cargar tu perfil.', 'error');
+            }
+        }
+
+        function actualizarVistaPreviaPerfil() {
+            const img = document.getElementById('perfilFotoPreview');
+            const url = (document.getElementById('perfilFoto')?.value || '').trim();
+            if (url && /^https?:\/\//i.test(url)) { img.src = url; img.classList.remove('d-none'); }
+            else { img.removeAttribute('src'); img.classList.add('d-none'); }
+        }
+
+        async function guardarMiPerfil(event) {
+            event.preventDefault();
+            const data = {
+                nombres: document.getElementById('perfilNombres').value.trim(),
+                apellidos: document.getElementById('perfilApellidos').value.trim(),
+                telefono: document.getElementById('perfilTelefono').value.trim(),
+                carrera: document.getElementById('perfilCarrera').value.trim(),
+                fotografia: document.getElementById('perfilFoto').value.trim()
+            };
+            try {
+                const resp = await fetch(window.SEMSAD_API + '/actualizar_perfil.php', {
+                    method: 'POST', credentials: 'include',
+                    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                const res = await resp.json();
+                if (res.status === 'success') {
+                    const current = SEMSAD.getUser() || {};
+                    current.name = (data.nombres + ' ' + data.apellidos).trim();
+                    current.nombres = data.nombres; current.apellidos = data.apellidos; current.telefono = data.telefono;
+                    if (res.perfil && res.perfil.carrera) current.carrera = res.perfil.carrera;
+                    SEMSAD.setUser(current);
+                    document.getElementById('nombreUsuarioHeader').textContent = current.name;
+                    SEMSAD.toast(res.mensaje || 'Perfil actualizado.', 'success');
+                    bootstrap.Modal.getOrCreateInstance(document.getElementById('modalPerfil')).hide();
+                } else { SEMSAD.toast(res.mensaje || 'No se pudo actualizar el perfil.', 'error'); }
+            } catch (e) {
+                console.error('Error actualizando perfil:', e);
+                SEMSAD.toast('Error de conexión al actualizar el perfil.', 'error');
+            }
+        }
         async function cargarMisPrestamos() {
             const userObj = obtenerUsuarioLogueado();
             const tbody = document.getElementById('tablaMisPrestamosBody');

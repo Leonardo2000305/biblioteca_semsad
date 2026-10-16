@@ -598,7 +598,16 @@
 
             try {
                 const resp = await fetch(window.SEMSAD_API + '/obtener_multas.php', { credentials: 'include' });
-                const res = await resp.json();
+                const text = await resp.text();
+                
+                let res;
+                try {
+                    res = JSON.parse(text);
+                } catch(jsonErr) {
+                    console.error("Respuesta PHP no es un JSON válido:", text);
+                    tbody.innerHTML = `<tr><td colspan="6" class="text-center py-4 text-danger"><i class="fa-solid fa-triangle-exclamation me-2"></i>Error en servidor PHP: ${SEMSAD.esc(text.substring(0, 120))}</td></tr>`;
+                    return;
+                }
 
                 if (res.status === 'success') {
                     const lista = res.data || [];
@@ -634,8 +643,8 @@
                     tbody.innerHTML = `<tr><td colspan="6" class="text-center py-4 text-danger"><i class="fa-solid fa-triangle-exclamation me-2"></i>${SEMSAD.esc(res.message || res.mensaje || 'Error al consultar multas.')}</td></tr>`;
                 }
             } catch (e) {
-                console.error("Error al cargar multas:", e);
-                tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-danger">Error al conectar con el servidor para consultar las multas.</td></tr>';
+                console.error("Error de red al cargar multas:", e);
+                tbody.innerHTML = `<tr><td colspan="6" class="text-center py-4 text-danger"><i class="fa-solid fa-plug-circle-xmark me-2"></i>Error de conexión: ${SEMSAD.esc(e.message)}</td></tr>`;
             }
         }
 

@@ -15,12 +15,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $req_id_user = (int)(
         $input['id_usuario'] ?? 
         $input['id'] ?? 
+        $input['usuario_id'] ?? 
+        $input['user_id'] ?? 
         $_POST['id_usuario'] ?? 0
     );
 
     $req_email = trim(
         $input['correo'] ?? 
         $input['email'] ?? 
+        $input['userCorreo'] ?? 
         $_POST['correo'] ?? ''
     );
 
@@ -34,7 +37,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
         $usuario = null;
 
-        // 1. Priorizar la sesión PHP activa en el servidor
+        // 1. Buscar por sesión PHP en el servidor
         if ($sess_id > 0) {
             $stmt = $conexion->prepare("SELECT id_usuario, nombres, apellidos, correo, estado, id_rol FROM Usuario WHERE id_usuario = :id LIMIT 1");
             $stmt->execute([':id' => $sess_id]);
@@ -45,23 +48,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $usuario = $stmt->fetch(PDO::FETCH_ASSOC);
         }
 
-        // 2. Si la sesión no vino por cookies, validar datos enviados por el frontend
-        if (!$usuario && $req_id_user > 0 && !empty($req_email)) {
-            // Coincidencia cruzada estricta: ID y Correo deben pertenecer al mismo registro
-            $stmt = $conexion->prepare("SELECT id_usuario, nombres, apellidos, correo, estado, id_rol FROM Usuario WHERE id_usuario = :id AND LOWER(correo) = LOWER(:e) LIMIT 1");
-            $stmt->execute([':id' => $req_id_user, ':e' => $req_email]);
-            $usuario = $stmt->fetch(PDO::FETCH_ASSOC);
-        } else if (!$usuario && $req_id_user > 0) {
+        // 2. Si no hay sesión PHP activa, buscar por el ID enviado
+        if (!$usuario && $req_id_user > 0) {
             $stmt = $conexion->prepare("SELECT id_usuario, nombres, apellidos, correo, estado, id_rol FROM Usuario WHERE id_usuario = :id LIMIT 1");
             $stmt->execute([':id' => $req_id_user]);
             $usuario = $stmt->fetch(PDO::FETCH_ASSOC);
-        } else if (!$usuario && !empty($req_email)) {
+        }
+
+        // 3. Si no se halló por ID, buscar por el correo enviado
+        if (!$usuario && !empty($req_email)) {
             $stmt = $conexion->prepare("SELECT id_usuario, nombres, apellidos, correo, estado, id_rol FROM Usuario WHERE LOWER(correo) = LOWER(:e) LIMIT 1");
             $stmt->execute([':e' => $req_email]);
             $usuario = $stmt->fetch(PDO::FETCH_ASSOC);
         }
 
-        // Rechazar si no hay ningún usuario válido autenticado
+        // Rechazar únicamente si el usuario no existe en la base de datos
         if (!$usuario) {
             semsad_responder([
                 'status'  => 'error',
@@ -69,7 +70,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ]);
         }
 
-        // Prevenir préstamos a cuentas de Administrador (rol 1) o Bibliotecario (rol 2)
+        // Bloquear préstamos a Administradores (rol 1) y Bibliotecarios (rol 2)
         if ((int)($usuario['id_rol'] ?? 0) === 1 || (int)($usuario['id_rol'] ?? 0) === 2 || strtolower($usuario['correo']) === 'admin@semsad.edu.bo') {
             semsad_responder([
                 'status'  => 'error',
@@ -80,7 +81,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $id_usuario = (int)$usuario['id_usuario'];
         $nombreCompleto = trim($usuario['nombres'] . ' ' . $usuario['apellidos']);
 
-        // Sincronizar la sesión PHP con el usuario autenticado
+        // Sincronizar la sesión PHP
         $_SESSION['id_usuario'] = $id_usuario;
         $_SESSION['correo']     = $usuario['correo'];
 
@@ -91,7 +92,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ]);
         }
 
-        // Límite de 5 préstamos activos simultáneos
+        // Límite máximo de 5 préstamos activos
         $stmtCount = $conexion->prepare("SELECT COUNT(*) FROM Prestamo WHERE id_usuario = :u AND estado = 'Activo'");
         $stmtCount->execute([':u' => $id_usuario]);
         if ((int)$stmtCount->fetchColumn() >= 5) {
@@ -103,7 +104,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         $conexion->beginTransaction();
 
-        // Reservar un ejemplar disponible
+        // Buscar ejemplar disponible con bloqueo de fila
         $stmtCheck = $conexion->prepare("SELECT id_ejemplar FROM Ejemplar WHERE id_material = :m AND estado_ejemplar = 'Disponible' LIMIT 1 FOR UPDATE");
         $stmtCheck->execute([':m' => $id_material]);
         $ejemplar = $stmtCheck->fetch(PDO::FETCH_ASSOC);
@@ -119,7 +120,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $fecha_salida = date('Y-m-d H:i:s');
         $fecha_limite = date('Y-m-d H:i:s', strtotime("+$dias_prestamo days"));
 
-        // Registrar en tabla Prestamo
+        // Insertar préstamo
         $stmtP = $conexion->prepare("INSERT INTO Prestamo (id_usuario, id_bibliotecario_entrega, fecha_salida, fecha_limite, estado) VALUES (:u, :b, :salida, :limite, 'Activo')");
         $stmtP->execute([
             ':u'      => $id_usuario,
@@ -129,7 +130,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         ]);
         $id_prestamo = (int)$conexion->lastInsertId();
 
-        // Registrar Detalle y actualizar Ejemplar
+        // Insertar detalle y actualizar estado del ejemplar
         $stmtD = $conexion->prepare("INSERT INTO Detalle_Prestamo (id_prestamo, id_ejemplar) VALUES (:p, :e)");
         $stmtD->execute([':p' => $id_prestamo, ':e' => $id_ejemplar]);
 
@@ -157,3 +158,4 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 } else {
     semsad_responder(['status' => 'error', 'mensaje' => 'Método no permitido. Use POST.'], 405);
 }
+?>

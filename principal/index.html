@@ -52,8 +52,8 @@
                 <span>BIBLIOTECA SEMSAD</span>
             </a>
             <div class="d-flex align-items-center gap-3">
-                <span class="badge bg-secondary px-3 py-2 fs-6">
-                    <i class="fa-solid fa-user-graduate me-1"></i>Estudiante
+                <span class="badge bg-primary px-3 py-2 fs-6 shadow-sm" id="badgeUsuario">
+                    <i class="fa-solid fa-user-graduate me-1"></i><span id="nombreUsuarioHeader">Cargando usuario...</span>
                 </span>
                 <a href="../login/index.html" onclick="SEMSAD.cerrarSesion(event)" class="btn btn-outline-light btn-sm fw-bold">
                     <i class="fa-solid fa-right-from-bracket me-1"></i>Salir
@@ -98,57 +98,78 @@
         let todosLosLibros = [];
 
         document.addEventListener('DOMContentLoaded', () => {
+            const user = obtenerUsuarioLogueado();
+            if (user) {
+                document.getElementById('nombreUsuarioHeader').innerText = user.nombreCompleto || user.correo;
+            } else {
+                document.getElementById('nombreUsuarioHeader').innerText = "Estudiante";
+            }
             cargarCatalogo();
         });
 
         function obtenerUsuarioLogueado() {
-            // 1. Probar ayuda de SEMSAD
-            if (typeof SEMSAD !== 'undefined' && typeof SEMSAD.obtenerUsuario === 'function') {
-                const u = SEMSAD.obtenerUsuario();
-                if (u) {
-                    const id = u.id_usuario || u.id || u.usuario_id || u.user_id || 0;
-                    const correo = u.correo || u.email || u.userCorreo || '';
-                    if (id > 0 || correo !== '') return { id_usuario: parseInt(id) || 0, correo: String(correo).trim() };
+            function extraerUser(candidate) {
+                if (!candidate) return null;
+                if (typeof candidate === 'string') {
+                    try { candidate = JSON.parse(candidate); } catch(e) { return null; }
+                }
+                if (typeof candidate !== 'object' || candidate === null) return null;
+
+                let obj = candidate.usuario || candidate.user || candidate.datos || candidate.data || candidate;
+                if (obj.usuario) obj = obj.usuario;
+                if (obj.user) obj = obj.user;
+
+                const id = obj.id_usuario || obj.id || obj.usuario_id || obj.user_id || 0;
+                const correo = obj.correo || obj.email || obj.userCorreo || obj.correo_electronico || '';
+                const nombres = obj.nombres || obj.nombre || '';
+                const apellidos = obj.apellidos || obj.apellido || '';
+
+                if (parseInt(id) > 0 || (typeof correo === 'string' && correo.trim().includes('@'))) {
+                    return {
+                        id_usuario: parseInt(id) || 0,
+                        correo: String(correo).trim(),
+                        nombres: String(nombres).trim(),
+                        apellidos: String(apellidos).trim(),
+                        nombreCompleto: (String(nombres) + ' ' + String(apellidos)).trim() || String(correo).trim()
+                    };
+                }
+                return null;
+            }
+
+            // 1. Probar SEMSAD global
+            if (typeof SEMSAD !== 'undefined') {
+                if (typeof SEMSAD.obtenerUsuario === 'function') {
+                    const res = extraerUser(SEMSAD.obtenerUsuario());
+                    if (res) return res;
+                }
+                if (typeof SEMSAD.obtenerSesion === 'function') {
+                    const res = extraerUser(SEMSAD.obtenerSesion());
+                    if (res) return res;
                 }
             }
 
-            // 2. Buscar en localStorage y sessionStorage en claves habituales
+            // 2. Buscar en almacenamiento local
             const storages = [localStorage, sessionStorage];
-            const keys = ['semsad_usuario', 'usuario', 'semsad_sesion', 'sesion', 'semsad_user', 'user', 'userData', 'datos'];
+            const keys = ['semsad_sesion', 'semsad_usuario', 'usuario', 'sesion', 'semsad_user', 'user', 'userData', 'datos'];
             
             for (let store of storages) {
                 for (let k of keys) {
                     try {
-                        const raw = store.getItem(k);
-                        if (raw) {
-                            let parsed = JSON.parse(raw);
-                            if (parsed && typeof parsed === 'object') {
-                                let target = parsed.usuario || parsed.user || parsed.datos || parsed.data || parsed;
-                                const id = target.id_usuario || target.id || target.usuario_id || target.user_id || 0;
-                                const correo = target.correo || target.email || target.userCorreo || '';
-                                if (id > 0 || (correo && correo.includes('@'))) {
-                                    return { id_usuario: parseInt(id) || 0, correo: String(correo).trim() };
-                                }
-                            }
-                        }
+                        const item = store.getItem(k);
+                        const res = extraerUser(item);
+                        if (res) return res;
                     } catch(e) {}
                 }
             }
 
-            // 3. Búsqueda profunda en todo el storage
+            // 3. Inspección profunda de todas las claves
             for (let store of storages) {
                 for (let i = 0; i < store.length; i++) {
                     try {
                         const key = store.key(i);
-                        let parsed = JSON.parse(store.getItem(key));
-                        if (parsed && typeof parsed === 'object') {
-                            let target = parsed.usuario || parsed.user || parsed.datos || parsed.data || parsed;
-                            const id = target.id_usuario || target.id || target.usuario_id || target.user_id || 0;
-                            const correo = target.correo || target.email || target.userCorreo || '';
-                            if ((id > 0 || (correo && correo.includes('@'))) && (target.nombres || target.nombre || target.correo || target.email)) {
-                                return { id_usuario: parseInt(id) || 0, correo: String(correo).trim() };
-                            }
-                        }
+                        const item = store.getItem(key);
+                        const res = extraerUser(item);
+                        if (res) return res;
                     } catch(e) {}
                 }
             }
@@ -157,6 +178,9 @@
         }
 
         async function cargarCatalogo() {
+            const userObj = obtenerUsuarioLogueado();
+            const idUsuario = userObj ? userObj.id_usuario : 0;
+
             const contenedor = document.getElementById('contenedorLibros');
             contenedor.innerHTML = `
                 <div class="col-12 text-center py-5">
@@ -165,7 +189,7 @@
                 </div>`;
 
             try {
-                const resp = await fetch(window.SEMSAD_API + '/obtener_libros.php', { credentials: 'include' });
+                const resp = await fetch(window.SEMSAD_API + '/obtener_libros.php?id_usuario=' + idUsuario, { credentials: 'include' });
                 const res = await resp.json();
 
                 const listaLibros = res.libros || res.data || res.datos || [];
@@ -253,12 +277,13 @@
             const userObj = obtenerUsuarioLogueado();
 
             if (!userObj || (!userObj.id_usuario && !userObj.correo)) {
-                alert("No se detectó tu sesión activa de estudiante. Por favor, ingresa tus credenciales en la pantalla de inicio de sesión.");
+                alert("No se detectó tu sesión activa de estudiante. Redirigiendo al inicio de sesión...");
                 window.location.href = '../login/index.html';
                 return;
             }
 
-            if (!confirm(`¿Confirmas que deseas solicitar el préstamo de "${tituloLibro}" por 7 días?`)) {
+            const nombreSolicitante = userObj.nombreCompleto || userObj.correo;
+            if (!confirm(`¿Confirmas que deseas solicitar el préstamo de "${tituloLibro}" a nombre de ${nombreSolicitante} por 7 días?`)) {
                 return;
             }
 

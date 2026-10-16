@@ -37,32 +37,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
         $usuario = null;
 
-        // 1. Buscar por sesión PHP en el servidor
-        if ($sess_id > 0) {
-            $stmt = $conexion->prepare("SELECT id_usuario, nombres, apellidos, correo, estado, id_rol FROM Usuario WHERE id_usuario = :id LIMIT 1");
-            $stmt->execute([':id' => $sess_id]);
-            $usuario = $stmt->fetch(PDO::FETCH_ASSOC);
-        } else if (!empty($sess_email)) {
-            $stmt = $conexion->prepare("SELECT id_usuario, nombres, apellidos, correo, estado, id_rol FROM Usuario WHERE LOWER(correo) = LOWER(:e) LIMIT 1");
-            $stmt->execute([':e' => $sess_email]);
-            $usuario = $stmt->fetch(PDO::FETCH_ASSOC);
-        }
-
-        // 2. Si no hay sesión PHP activa, buscar por el ID enviado
-        if (!$usuario && $req_id_user > 0) {
+        // 1. Buscar por ID directo enviado si es > 0
+        if ($req_id_user > 0) {
             $stmt = $conexion->prepare("SELECT id_usuario, nombres, apellidos, correo, estado, id_rol FROM Usuario WHERE id_usuario = :id LIMIT 1");
             $stmt->execute([':id' => $req_id_user]);
             $usuario = $stmt->fetch(PDO::FETCH_ASSOC);
         }
 
-        // 3. Si no se halló por ID, buscar por el correo enviado
+        // 2. Buscar por Correo enviado si no se halló por ID
         if (!$usuario && !empty($req_email)) {
             $stmt = $conexion->prepare("SELECT id_usuario, nombres, apellidos, correo, estado, id_rol FROM Usuario WHERE LOWER(correo) = LOWER(:e) LIMIT 1");
             $stmt->execute([':e' => $req_email]);
             $usuario = $stmt->fetch(PDO::FETCH_ASSOC);
         }
 
-        // Rechazar únicamente si el usuario no existe en la base de datos
+        // 3. Buscar por Sesión PHP activa
+        if (!$usuario && $sess_id > 0) {
+            $stmt = $conexion->prepare("SELECT id_usuario, nombres, apellidos, correo, estado, id_rol FROM Usuario WHERE id_usuario = :id LIMIT 1");
+            $stmt->execute([':id' => $sess_id]);
+            $usuario = $stmt->fetch(PDO::FETCH_ASSOC);
+        }
+
+        if (!$usuario && !empty($sess_email)) {
+            $stmt = $conexion->prepare("SELECT id_usuario, nombres, apellidos, correo, estado, id_rol FROM Usuario WHERE LOWER(correo) = LOWER(:e) LIMIT 1");
+            $stmt->execute([':e' => $sess_email]);
+            $usuario = $stmt->fetch(PDO::FETCH_ASSOC);
+        }
+
+        // Rechazar si no existe en la base de datos
         if (!$usuario) {
             semsad_responder([
                 'status'  => 'error',
@@ -158,4 +160,3 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 } else {
     semsad_responder(['status' => 'error', 'mensaje' => 'Método no permitido. Use POST.'], 405);
 }
-?>

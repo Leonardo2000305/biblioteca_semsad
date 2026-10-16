@@ -102,50 +102,90 @@
             cargarCatalogo();
         });
 
-        // Escáner jerárquico para obtener la sesión activa del estudiante
+        // Función para desempaquetar y extraer credenciales de usuario sin importar la anidación
+        function extraerDatosUsuario(obj) {
+            if (!obj) return null;
+            if (typeof obj === 'string') {
+                try { obj = JSON.parse(obj); } catch(e) { return null; }
+            }
+            if (typeof obj !== 'object' || obj === null) return null;
+
+            if (obj.usuario && typeof obj.usuario === 'object') {
+                const res = extraerDatosUsuario(obj.usuario);
+                if (res) return res;
+            }
+            if (obj.user && typeof obj.user === 'object') {
+                const res = extraerDatosUsuario(obj.user);
+                if (res) return res;
+            }
+            if (obj.datos && typeof obj.datos === 'object') {
+                const res = extraerDatosUsuario(obj.datos);
+                if (res) return res;
+            }
+            if (obj.data && typeof obj.data === 'object') {
+                const res = extraerDatosUsuario(obj.data);
+                if (res) return res;
+            }
+
+            const id = obj.id_usuario || obj.id || obj.usuario_id || obj.user_id || obj.userId || 0;
+            const correo = obj.correo || obj.email || obj.userCorreo || obj.correo_electronico || '';
+
+            if (id || correo) {
+                return {
+                    id_usuario: parseInt(id) || 0,
+                    correo: String(correo).trim(),
+                    nombres: obj.nombres || obj.nombre || '',
+                    apellidos: obj.apellidos || ''
+                };
+            }
+            return null;
+        }
+
         function obtenerUsuarioLogueado() {
+            let u = null;
+
+            // 1. Probar objeto SEMSAD global
             if (typeof SEMSAD !== 'undefined') {
-                if (typeof SEMSAD.obtenerUsuario === 'function') {
-                    const u = SEMSAD.obtenerUsuario();
-                    if (u && (u.id_usuario || u.id || u.correo || u.email)) return u;
-                }
-                if (typeof SEMSAD.getUser === 'function') {
-                    const u = SEMSAD.getUser();
-                    if (u && (u.id_usuario || u.id || u.correo || u.email)) return u;
-                }
-                if (SEMSAD.usuario && (SEMSAD.usuario.id_usuario || SEMSAD.usuario.correo)) return SEMSAD.usuario;
-                if (SEMSAD.user && (SEMSAD.user.id || SEMSAD.user.email)) return SEMSAD.user;
+                if (typeof SEMSAD.obtenerUsuario === 'function') u = extraerDatosUsuario(SEMSAD.obtenerUsuario());
+                if (!u && typeof SEMSAD.getUser === 'function') u = extraerDatosUsuario(SEMSAD.getUser());
+                if (!u && SEMSAD.usuario) u = extraerDatosUsuario(SEMSAD.usuario);
+                if (!u && SEMSAD.user) u = extraerDatosUsuario(SEMSAD.user);
+                if (!u && SEMSAD.sesion) u = extraerDatosUsuario(SEMSAD.sesion);
             }
+            if (u) return u;
 
-            // Búsqueda en claves conocidas primero
-            const clavesPrioritarias = ['semsad_usuario', 'usuario', 'semsad_sesion', 'sesion', 'semsad_user', 'user'];
+            // 2. Probar claves conocidas en localStorage y sessionStorage
+            const clavesPrioritarias = [
+                'semsad_usuario', 'semsad_sesion', 'semsad_user', 'usuario', 'sesion', 'user', 
+                'semsad_login', 'login_data', 'user_data', 'userData', 'user_session'
+            ];
+            
             for (let k of clavesPrioritarias) {
-                try {
-                    const str = localStorage.getItem(k) || sessionStorage.getItem(k);
-                    if (str) {
-                        const parsed = JSON.parse(str);
-                        if (parsed && typeof parsed === 'object' && (parsed.id_usuario || parsed.id || parsed.correo || parsed.email)) {
-                            return parsed;
-                        }
-                    }
-                } catch(e) {}
+                const itemLocal = localStorage.getItem(k);
+                if (itemLocal) {
+                    u = extraerDatosUsuario(itemLocal);
+                    if (u) return u;
+                }
+                const itemSession = sessionStorage.getItem(k);
+                if (itemSession) {
+                    u = extraerDatosUsuario(itemSession);
+                    if (u) return u;
+                }
             }
 
-            // Búsqueda secundaria en cualquier otra clave almacenada
+            // 3. Recorrer exhaustivamente todo el almacenamiento local
             const storages = [localStorage, sessionStorage];
             for (let store of storages) {
                 for (let i = 0; i < store.length; i++) {
                     const key = store.key(i);
-                    try {
-                        const val = JSON.parse(store.getItem(key));
-                        if (val && typeof val === 'object') {
-                            if (val.id_usuario || val.id || val.correo || val.email) {
-                                return val;
-                            }
-                        }
-                    } catch(e) {}
+                    if (key) {
+                        const item = store.getItem(key);
+                        u = extraerDatosUsuario(item);
+                        if (u) return u;
+                    }
                 }
             }
+
             return null;
         }
 
@@ -245,14 +285,14 @@
         async function solicitarPrestamo(idMaterial, tituloLibro) {
             const userObj = obtenerUsuarioLogueado();
 
-            if (!userObj || (!userObj.id_usuario && !userObj.id && !userObj.correo && !userObj.email)) {
-                alert("No se detectó una sesión activa de estudiante. Por favor, inicia sesión.");
+            if (!userObj || (!userObj.id_usuario && !userObj.correo)) {
+                alert("No se detectó una sesión activa de estudiante. Por favor, inicia sesión nuevamente.");
                 window.location.href = '../login/index.html';
                 return;
             }
 
-            const idUsuario = userObj.id_usuario || userObj.id || 0;
-            const correoUsuario = userObj.correo || userObj.email || '';
+            const idUsuario = userObj.id_usuario || 0;
+            const correoUsuario = userObj.correo || '';
 
             if (!confirm(`¿Confirmas que deseas solicitar el préstamo de "${tituloLibro}" por 7 días?`)) {
                 return;
@@ -282,7 +322,7 @@
                     cargarCatalogo();
                 } else {
                     if (typeof SEMSAD !== 'undefined' && SEMSAD.toast) {
-                        SEMSAD.toast(res.mensaje || 'No se pudo procesar la solicitud.', 'error');
+                        SEMSAD.toast(res.mensaje || 'Error al procesar el préstamo.', 'error');
                     } else {
                         alert(res.mensaje || 'Error al procesar el préstamo.');
                     }

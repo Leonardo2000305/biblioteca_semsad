@@ -53,7 +53,7 @@
             </a>
             <div class="d-flex align-items-center gap-3">
                 <span class="badge bg-primary px-3 py-2 fs-6 shadow-sm" id="badgeUsuario">
-                    <i class="fa-solid fa-user-graduate me-1"></i><span id="nombreUsuarioHeader">Cargando usuario...</span>
+                    <i class="fa-solid fa-user-graduate me-1"></i><span id="nombreUsuarioHeader">Estudiante</span>
                 </span>
                 <a href="../login/index.html" onclick="SEMSAD.cerrarSesion(event)" class="btn btn-outline-light btn-sm fw-bold">
                     <i class="fa-solid fa-right-from-bracket me-1"></i>Salir
@@ -136,7 +136,6 @@
                 return null;
             }
 
-            // 1. Probar SEMSAD global
             if (typeof SEMSAD !== 'undefined') {
                 if (typeof SEMSAD.obtenerUsuario === 'function') {
                     const res = extraerUser(SEMSAD.obtenerUsuario());
@@ -148,7 +147,6 @@
                 }
             }
 
-            // 2. Buscar en almacenamiento local
             const storages = [localStorage, sessionStorage];
             const keys = ['semsad_sesion', 'semsad_usuario', 'usuario', 'sesion', 'semsad_user', 'user', 'userData', 'datos'];
             
@@ -162,7 +160,6 @@
                 }
             }
 
-            // 3. Inspección profunda de todas las claves
             for (let store of storages) {
                 for (let i = 0; i < store.length; i++) {
                     try {
@@ -180,6 +177,7 @@
         async function cargarCatalogo() {
             const userObj = obtenerUsuarioLogueado();
             const idUsuario = userObj ? userObj.id_usuario : 0;
+            const correoUsuario = userObj ? userObj.correo : '';
 
             const contenedor = document.getElementById('contenedorLibros');
             contenedor.innerHTML = `
@@ -189,7 +187,8 @@
                 </div>`;
 
             try {
-                const resp = await fetch(window.SEMSAD_API + '/obtener_libros.php?id_usuario=' + idUsuario, { credentials: 'include' });
+                const url = window.SEMSAD_API + '/obtener_libros.php?id_usuario=' + idUsuario + '&correo=' + encodeURIComponent(correoUsuario);
+                const resp = await fetch(url, { credentials: 'include' });
                 const res = await resp.json();
 
                 const listaLibros = res.libros || res.data || res.datos || [];

@@ -136,6 +136,25 @@
                     </div>
                 </div>
             </div>
+            <div class="card table-card shadow-sm bg-white mt-4">
+                <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center border-bottom">
+                    <h5 class="fw-bold mb-0 text-dark"><i class="fa-solid fa-truck-field text-primary me-2"></i>Gestión de Proveedores</h5>
+                    <button type="button" class="btn btn-sm btn-outline-primary no-print" onclick="cargarProveedores()"><i class="fa-solid fa-rotate me-1"></i>Actualizar</button>
+                </div>
+                <div class="card-body">
+                    <form id="formProveedor" class="row g-2 align-items-end mb-3 no-print">
+                        <input type="hidden" id="prov_id" value="0">
+                        <div class="col-md-4"><label class="form-label fw-bold" for="prov_nombre">Nombre *</label><input id="prov_nombre" class="form-control" maxlength="100" required></div>
+                        <div class="col-md-3"><label class="form-label fw-bold" for="prov_tipo">Tipo *</label><select id="prov_tipo" class="form-select" required><option value="Comercial">Comercial</option><option value="Donante">Donante</option><option value="Canje">Canje</option></select></div>
+                        <div class="col-md-3"><label class="form-label fw-bold" for="prov_contacto">Contacto</label><input id="prov_contacto" class="form-control" maxlength="100" placeholder="Teléfono o correo"></div>
+                        <div class="col-md-2 d-flex gap-2"><button class="btn btn-success fw-bold flex-grow-1" type="submit">Guardar</button><button class="btn btn-outline-secondary" type="button" onclick="limpiarFormularioProveedor()" title="Cancelar edición"><i class="fa-solid fa-xmark"></i></button></div>
+                    </form>
+                    <div class="table-responsive"><table class="table table-hover align-middle mb-0" id="tablaProveedores">
+                        <thead class="table-light"><tr><th>Proveedor</th><th>Tipo</th><th>Contacto</th><th>Adquisiciones vinculadas</th><th class="no-print">Acciones</th></tr></thead>
+                        <tbody id="tablaProveedoresBody"><tr><td colspan="5" class="text-center py-3 text-muted">Pulsa Actualizar para cargar proveedores.</td></tr></tbody>
+                    </table></div>
+                </div>
+            </div>
         </div>
 
         <!-- MÓDULO 3: VENTANILLA -->
@@ -408,6 +427,7 @@
             
             document.getElementById('formLibro').addEventListener('submit', guardarLibroSubmit);
             document.getElementById('formUsuario').addEventListener('submit', guardarUsuarioSubmit);
+            document.getElementById('formProveedor').addEventListener('submit', guardarProveedorSubmit);
 
             cargarDashboard();
         });
@@ -431,6 +451,7 @@
             if (nombreModulo === 'inventario') {
                 document.getElementById('secInventario').classList.remove('d-none');
                 cargarInventario();
+                cargarProveedores();
             } else if (nombreModulo === 'auditoria') {
                 document.getElementById('secAuditoria').classList.remove('d-none');
                 cargarAuditoria();
@@ -500,6 +521,80 @@
             }
         }
 
+        async function cargarProveedores() {
+            const tbody = document.getElementById('tablaProveedoresBody');
+            if (!tbody) return;
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center py-3">Cargando proveedores...</td></tr>';
+            try {
+                const resp = await fetch(window.SEMSAD_API + '/obtener_proveedores.php', { credentials: 'include', cache: 'no-store' });
+                const res = await resp.json();
+                const proveedores = res.proveedores || res.data || [];
+                if (res.status === 'success' && proveedores.length) {
+                    tbody.innerHTML = proveedores.map(p => `<tr>
+                        <td class="fw-bold">${SEMSAD.esc(p.nombre)}</td>
+                        <td>${SEMSAD.esc(p.tipo)}</td>
+                        <td>${SEMSAD.esc(p.contacto || 'Sin contacto')}</td>
+                        <td>${Number(p.adquisiciones_registradas || 0)}</td>
+                        <td class="no-print">
+                            <button class="btn btn-sm btn-outline-primary me-1" onclick="editarProveedor(${Number(p.id_proveedor)}, '${SEMSAD.esc(p.nombre)}', '${SEMSAD.esc(p.tipo)}', '${SEMSAD.esc(p.contacto || '')}')"><i class="fa-solid fa-pen"></i></button>
+                            <button class="btn btn-sm btn-outline-danger" onclick="eliminarProveedor(${Number(p.id_proveedor)}, '${SEMSAD.esc(p.nombre)}')" ${Number(p.adquisiciones_registradas) > 0 ? 'disabled title="Tiene adquisiciones vinculadas"' : ''}><i class="fa-solid fa-trash"></i></button>
+                        </td>
+                    </tr>`).join('');
+                } else if (res.status === 'success') {
+                    tbody.innerHTML = '<tr><td colspan="5" class="text-center py-3 text-muted">No hay proveedores registrados todavía.</td></tr>';
+                } else { tbody.innerHTML = '<tr><td colspan="5" class="text-center py-3 text-danger">' + SEMSAD.esc(res.mensaje || 'No se pudo cargar la lista de proveedores.') + '</td></tr>'; }
+            } catch (e) {
+                console.error('Error cargando proveedores:', e);
+                tbody.innerHTML = '<tr><td colspan="5" class="text-center py-3 text-danger">Error al cargar proveedores.</td></tr>';
+            }
+        }
+
+        function limpiarFormularioProveedor() {
+            document.getElementById('formProveedor').reset();
+            document.getElementById('prov_id').value = 0;
+        }
+
+        function editarProveedor(id, nombre, tipo, contacto) {
+            document.getElementById('prov_id').value = id;
+            document.getElementById('prov_nombre').value = nombre;
+            document.getElementById('prov_tipo').value = tipo;
+            document.getElementById('prov_contacto').value = contacto;
+            document.getElementById('prov_nombre').focus();
+        }
+
+        async function guardarProveedorSubmit(e) {
+            e.preventDefault();
+            const data = {
+                id_proveedor: Number(document.getElementById('prov_id').value) || 0,
+                nombre: document.getElementById('prov_nombre').value.trim(),
+                tipo: document.getElementById('prov_tipo').value,
+                contacto: document.getElementById('prov_contacto').value.trim()
+            };
+            try {
+                const resp = await fetch(window.SEMSAD_API + '/guardar_proveedor.php', {
+                    method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                const res = await resp.json();
+                if (res.status === 'success') {
+                    SEMSAD.toast(res.mensaje || 'Proveedor guardado.', 'success');
+                    limpiarFormularioProveedor(); await cargarProveedores();
+                } else { SEMSAD.toast(res.mensaje || 'No se pudo guardar el proveedor.', 'error'); }
+            } catch (e) { SEMSAD.toast('Error de conexión al guardar proveedor.', 'error'); }
+        }
+
+        async function eliminarProveedor(id, nombre) {
+            if (!confirm('¿Eliminar el proveedor "' + nombre + '"? Solo se permite si no tiene adquisiciones vinculadas.')) return;
+            try {
+                const resp = await fetch(window.SEMSAD_API + '/eliminar_proveedor.php', {
+                    method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id_proveedor: Number(id) })
+                });
+                const res = await resp.json();
+                if (res.status === 'success') { SEMSAD.toast(res.mensaje || 'Proveedor eliminado.', 'success'); await cargarProveedores(); }
+                else { SEMSAD.toast(res.mensaje || 'No se pudo eliminar el proveedor.', 'error'); }
+            } catch (e) { SEMSAD.toast('Error de conexión al eliminar proveedor.', 'error'); }
+        }
         function abrirModalLibro() {
             document.getElementById('modalLibroTitulo').innerText = 'Registrar Nuevo Libro';
             document.getElementById('lib_id').value = 0;

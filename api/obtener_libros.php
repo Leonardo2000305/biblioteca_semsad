@@ -44,7 +44,7 @@ try {
         $prestadosPorUsuario = array_map('intval', $stmt->fetchAll(PDO::FETCH_COLUMN));
 
         $stmtR = $conexion->prepare("
-            SELECT id_material, prioridad
+            SELECT id_reserva, id_material, prioridad
             FROM Reserva
             WHERE id_usuario = :u AND estado = 'Pendiente'
         ");

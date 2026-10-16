@@ -54,7 +54,14 @@ try {
         semsad_responder(['status' => 'error', 'mensaje' => 'El libro seleccionado no existe en el catálogo.'], 404);
     }
 
-    // Las cuentas con multas pendientes o préstamos en mora no pueden crear préstamos nuevos.
+    // Si existe una lista de espera, no se puede saltar el turno solicitando directamente el préstamo.
+    $stmtEspera = $conexion->prepare("SELECT COUNT(*) FROM Reserva WHERE id_material = :m AND estado = 'Pendiente'");
+    $stmtEspera->execute([':m' => $id_material]);
+    if ((int)$stmtEspera->fetchColumn() > 0) {
+        semsad_responder(['status' => 'error', 'mensaje' => 'Este libro tiene usuarios en lista de espera. Únete a la cola o espera a que el bibliotecario atienda tu reserva.'], 409);
+    }
+
+    // Las cuentas con multas pendientes no pueden crear préstamos nuevos.
     $stmtMora = $conexion->prepare("
         SELECT COUNT(*)
         FROM Multa m

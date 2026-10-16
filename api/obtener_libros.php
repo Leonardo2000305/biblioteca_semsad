@@ -50,14 +50,19 @@ try {
         ");
         $stmtR->execute([':u' => $id_usuario]);
         foreach ($stmtR->fetchAll(PDO::FETCH_ASSOC) as $r) {
-            $reservasPorUsuario[(int)$r['id_material']] = (int)$r['prioridad'];
+            $reservasPorUsuario[(int)$r['id_material']] = [
+                'id_reserva' => (int)$r['id_reserva'],
+                'prioridad' => (int)$r['prioridad']
+            ];
         }
     }
 
     $libros = [];
     foreach ($materials as $m) {
         $idMaterial = (int)$m['id_material'];
-        $prioridad = $reservasPorUsuario[$idMaterial] ?? null;
+        $reservaPropia = $reservasPorUsuario[$idMaterial] ?? null;
+        $prioridad = is_array($reservaPropia) ? $reservaPropia['prioridad'] : null;
+        $idReservaPropia = is_array($reservaPropia) ? $reservaPropia['id_reserva'] : null;
         $autorTexto = (string)($m['autores'] ?? 'Autor no especificado');
         $stock = (int)$m['stock_disponible'];
         $queue = (int)$m['reservas_pendientes'];
@@ -78,6 +83,7 @@ try {
             'tengo_prestamo_activo' => in_array($idMaterial, $prestadosPorUsuario, true),
             'tengo_reserva_pendiente' => $prioridad !== null,
             'prioridad_reserva' => $prioridad,
+            'id_reserva_pendiente' => $idReservaPropia,
             'hay_reservas_pendientes' => $queue > 0,
             'reservas_pendientes' => $queue
         ];

@@ -38,6 +38,7 @@
             <a href="#" class="nav-link" onclick="verModulo('ventanilla', this)"><i class="fa-solid fa-right-left"></i> Ventanilla</a>
             <a href="#" class="nav-link" onclick="verModulo('auditoria', this)"><i class="fa-solid fa-shield-halved"></i> Auditoría Claves</a>
             <a href="#" class="nav-link" onclick="verModulo('usuarios', this)"><i class="fa-solid fa-users"></i> Usuarios Registrados</a>
+            <a href="#" class="nav-link" onclick="verModulo('multas', this)"><i class="fa-solid fa-file-invoice-dollar"></i> Multas y Reportes</a>
         </div>
     </aside>
 
@@ -222,6 +223,79 @@
                 </div>
             </div>
         </div>
+
+        <!-- MÓDULO 6: MULTAS, SANCIONES Y REPORTES -->
+        <div id="secMultas" class="modulo-vista d-none">
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+                <h5 class="fw-bold text-dark mb-0"><i class="fa-solid fa-file-invoice-dollar text-primary me-2"></i>Multas, Sanciones y Reportes</h5>
+                <div class="d-flex flex-wrap gap-2 no-print">
+                    <button class="btn btn-sm btn-outline-primary" onclick="cargarMultasReportes()"><i class="fa-solid fa-rotate me-1"></i>Actualizar</button>
+                    <button class="btn btn-sm btn-warning fw-bold" onclick="actualizarMoras()"><i class="fa-solid fa-calculator me-1"></i>Calcular moras</button>
+                    <button class="btn btn-sm btn-outline-success" onclick="exportarTablaCSV('tablaMultas','multas')"><i class="fa-solid fa-file-excel me-1"></i>Exportar multas a Excel/CSV</button>
+                </div>
+            </div>
+            <div class="row g-3 mb-4">
+                <div class="col-sm-6 col-xl-4"><div class="card stat-card shadow-sm p-3 bg-white"><small class="text-muted fw-bold">Préstamos del periodo</small><span class="fs-3 fw-bold text-primary" id="repPrestamosPeriodo">0</span></div></div>
+                <div class="col-sm-6 col-xl-4"><div class="card stat-card shadow-sm p-3 bg-white"><small class="text-muted fw-bold">Devoluciones del periodo</small><span class="fs-3 fw-bold text-success" id="repDevolucionesPeriodo">0</span></div></div>
+                <div class="col-sm-6 col-xl-4"><div class="card stat-card shadow-sm p-3 bg-white"><small class="text-muted fw-bold">Reservas pendientes</small><span class="fs-3 fw-bold text-warning" id="repReservasPendientes">0</span></div></div>
+                <div class="col-sm-6 col-xl-4"><div class="card stat-card shadow-sm p-3 bg-white"><small class="text-muted fw-bold">Multas por cobrar</small><span class="fs-3 fw-bold text-danger" id="repMultasPendientes">0</span><div class="text-muted small">Bs <span id="repMontoPendiente">0.00</span></div></div></div>
+                <div class="col-sm-6 col-xl-4"><div class="card stat-card shadow-sm p-3 bg-white"><small class="text-muted fw-bold">Multas pagadas</small><span class="fs-3 fw-bold text-success" id="repMultasPagadas">0</span><div class="text-muted small">Bs <span id="repMontoPagado">0.00</span></div></div></div>
+                <div class="col-sm-6 col-xl-4"><div class="card stat-card shadow-sm p-3 bg-white"><small class="text-muted fw-bold">Títulos con stock crítico</small><span class="fs-3 fw-bold text-warning" id="repStockCriticoCount">0</span></div></div>
+            </div>
+            <div class="card table-card shadow-sm bg-white mb-4">
+                <div class="card-header bg-white py-3 d-flex flex-wrap justify-content-between align-items-center gap-2 border-bottom">
+                    <h6 class="fw-bold mb-0"><i class="fa-solid fa-calendar-days text-primary me-2"></i>Reporte operativo por periodo</h6>
+                    <div class="d-flex flex-wrap gap-2 no-print">
+                        <input type="date" class="form-control form-control-sm" id="repDesde" aria-label="Desde">
+                        <input type="date" class="form-control form-control-sm" id="repHasta" aria-label="Hasta">
+                        <button class="btn btn-sm btn-outline-primary" onclick="cargarMultasReportes()">Filtrar</button>
+                        <button class="btn btn-sm btn-outline-secondary" onclick="window.print()">Imprimir / Guardar PDF</button>
+                    </div>
+                </div>
+                <div class="card-body small text-muted">Los reportes se calculan a partir de préstamos, devoluciones, reservas, multas e inventario registrados en la base de datos. Las exportaciones CSV se abren en Excel.</div>
+            </div>
+            <div id="repNotaMigracion" class="alert alert-warning d-none" role="status"></div>
+            <div class="card table-card shadow-sm bg-white mb-4">
+                <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center border-bottom">
+                    <h6 class="fw-bold mb-0"><i class="fa-solid fa-money-bill-wave text-danger me-2"></i>Registro de multas</h6>
+                    <button class="btn btn-sm btn-outline-success no-print" onclick="exportarTablaCSV('tablaMultas','multas')"><i class="fa-solid fa-download me-1"></i>Exportar CSV</button>
+                </div>
+                <div class="table-responsive"><table class="table table-hover align-middle mb-0" id="tablaMultas">
+                    <thead class="table-light"><tr><th>Usuario</th><th>Libro</th><th>Fecha límite</th><th>Días mora</th><th>Monto (Bs)</th><th>Estado</th><th class="no-print">Acción</th></tr></thead>
+                    <tbody id="tablaMultasBody"><tr><td colspan="7" class="text-center py-4 text-muted">Pulsa Actualizar para consultar multas.</td></tr></tbody>
+                </table></div>
+            </div>
+            <div class="card table-card shadow-sm bg-white mb-4">
+                <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center border-bottom">
+                    <h6 class="fw-bold mb-0"><i class="fa-solid fa-user-lock text-danger me-2"></i>Usuarios morosos / suspendidos</h6>
+                    <button class="btn btn-sm btn-outline-success no-print" onclick="exportarTablaCSV('tablaMorosos','morosidad')"><i class="fa-solid fa-download me-1"></i>Exportar CSV</button>
+                </div>
+                <div class="table-responsive"><table class="table table-hover align-middle mb-0" id="tablaMorosos">
+                    <thead class="table-light"><tr><th>Usuario</th><th>Código</th><th>Correo</th><th>Préstamos con mora</th><th>Multas pendientes (Bs)</th><th>Estado</th></tr></thead>
+                    <tbody id="tablaMorososBody"><tr><td colspan="6" class="text-center py-4 text-muted">Sin datos cargados.</td></tr></tbody>
+                </table></div>
+            </div>
+            <div class="card table-card shadow-sm bg-white mb-4">
+                <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center border-bottom">
+                    <h6 class="fw-bold mb-0"><i class="fa-solid fa-boxes-stacked text-warning me-2"></i>Stock crítico e inventario</h6>
+                    <button class="btn btn-sm btn-outline-success no-print" onclick="exportarTablaCSV('tablaStockCritico','stock-critico')"><i class="fa-solid fa-download me-1"></i>Exportar CSV</button>
+                </div>
+                <div class="table-responsive"><table class="table table-hover align-middle mb-0" id="tablaStockCritico">
+                    <thead class="table-light"><tr><th>Libro</th><th>Disponibles</th><th>Total</th><th>En mantenimiento</th><th>Dados de baja</th></tr></thead>
+                    <tbody id="tablaStockCriticoBody"><tr><td colspan="5" class="text-center py-4 text-muted">Sin datos cargados.</td></tr></tbody>
+                </table></div>
+            </div>
+            <div class="row g-3">
+                <div class="col-lg-6"><div class="card table-card shadow-sm bg-white mb-4">
+                    <div class="card-header bg-white py-3"><h6 class="fw-bold mb-0">Libros más solicitados</h6></div>
+                    <div class="table-responsive"><table class="table table-hover align-middle mb-0" id="tablaTopLibros"><thead class="table-light"><tr><th>Libro</th><th>Préstamos</th></tr></thead><tbody id="tablaTopLibrosBody"><tr><td colspan="2" class="text-center py-4 text-muted">Sin datos.</td></tr></tbody></table></div>
+                </div></div>
+                <div class="col-lg-6"><div class="card table-card shadow-sm bg-white mb-4">
+                    <div class="card-header bg-white py-3"><h6 class="fw-bold mb-0">Préstamos por categoría</h6></div>
+                    <div class="table-responsive"><table class="table table-hover align-middle mb-0" id="tablaCategorias"><thead class="table-light"><tr><th>Categoría</th><th>Préstamos</th></tr></thead><tbody id="tablaCategoriasBody"><tr><td colspan="2" class="text-center py-4 text-muted">Sin datos.</td></tr></tbody></table></div>
+                </div></div>
+            </div>
+        </div>
     </main>
 
     <!-- MODAL NUEVO / EDITAR LIBRO -->
@@ -349,7 +423,8 @@
                 'inventario': 'Inventario de Libros',
                 'ventanilla': 'Ventanilla de Atención',
                 'auditoria': 'Auditoría de Seguridad',
-                'usuarios': 'Padrón de Usuarios Registrados'
+                'usuarios': 'Padrón de Usuarios Registrados',
+                'multas': 'Multas y Reportes'
             };
             document.getElementById('tituloPagina').innerText = titulos[nombreModulo] || 'Dashboard';
 
@@ -365,6 +440,9 @@
             } else if (nombreModulo === 'ventanilla') {
                 document.getElementById('secVentanilla').classList.remove('d-none');
                 cargarVentanilla();
+            } else if (nombreModulo === 'multas') {
+                document.getElementById('secMultas').classList.remove('d-none');
+                cargarMultasReportes();
             } else {
                 document.getElementById('secDashboard').classList.remove('d-none');
                 cargarDashboard();

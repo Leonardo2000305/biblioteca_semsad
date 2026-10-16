@@ -1,42 +1,20 @@
 <?php
-if (session_status() === PHP_SESSION_NONE) {
-    ini_set('session.cookie_samesite', 'None');
-    ini_set('session.cookie_secure', 'True');
-    session_start();
-}
-
-if (isset($_SERVER['HTTP_ORIGIN'])) {
-    header("Access-Control-Allow-Origin: " . $_SERVER['HTTP_ORIGIN']);
-} else {
-    header("Access-Control-Allow-Origin: *");
-}
-
-header("Access-Control-Allow-Credentials: true");
-header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
-header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
-header('Content-Type: application/json; charset=utf-8');
-
 require_once 'conexion.php';
 
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    http_response_code(200);
-    exit;
-}
-
 try {
-    // Total Títulos de Libros
+    // 1. Total de Títulos de Libros en el Catálogo
     $stmt1 = $conexion->query("SELECT COUNT(*) FROM MaterialBibliografico");
     $total_libros = (int)$stmt1->fetchColumn();
 
-    // Ejemplares Disponibles en inventario
-    $stmt2 = $conexion->query("SELECT COUNT(*) FROM Ejemplar WHERE estado_ejemplar = 'Disponible'");
+    // 2. Libros (Títulos Únicos) con al menos un Ejemplar Disponible
+    $stmt2 = $conexion->query("SELECT COUNT(DISTINCT id_material) FROM Ejemplar WHERE estado_ejemplar = 'Disponible'");
     $disponibles = (int)$stmt2->fetchColumn();
 
-    // Préstamos Activos en Ventanilla
+    // 3. Préstamos y Reservas Activas en Ventanilla
     $stmt3 = $conexion->query("SELECT COUNT(*) FROM Prestamo WHERE estado = 'Activo'");
     $prestamos_activos = (int)$stmt3->fetchColumn();
 
-    echo json_encode([
+    semsad_responder([
         'status'            => 'success',
         'total_libros'      => $total_libros,
         'disponibles'       => $disponibles,
@@ -44,9 +22,9 @@ try {
     ]);
 
 } catch (PDOException $e) {
-    echo json_encode([
+    semsad_responder([
         'status'  => 'error',
         'mensaje' => 'Error al consultar dashboard: ' . $e->getMessage()
-    ]);
+    ], 500);
 }
 ?>

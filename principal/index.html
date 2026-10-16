@@ -154,20 +154,29 @@
                 const anio = libro.agno_publicacion || libro.año_publicacion || libro.anio || libro.year || 'N/A';
                 const autor = libro.autores || libro.autor || 'Autor no especificado';
                 
-                const stockDisponible = (libro.stock_disponible !== undefined) ? parseInt(libro.stock_disponible) : ((libro.disponible !== undefined) ? parseInt(libro.disponible) : 1);
-                const estaDisponible = stockDisponible > 0;
+                const stockDisponible = (libro.stock_disponible !== undefined) ? parseInt(libro.stock_disponible) : parseInt(libro.disponible || 0);
+                const reservadoPorMi = libro.reservado_por_mi === true;
+                const estaDisponible = stockDisponible > 0 && !reservadoPorMi;
 
-                const badgeHTML = estaDisponible 
-                    ? `<span class="badge bg-success mb-2"><i class="fa-solid fa-circle-check me-1"></i>Disponible</span>`
-                    : `<span class="badge bg-danger mb-2"><i class="fa-solid fa-circle-xmark me-1"></i>Agotado</span>`;
+                let badgeHTML = '';
+                let botonHTML = '';
 
-                const botonHTML = estaDisponible
-                    ? `<button class="btn btn-outline-primary w-100 fw-bold btn-sm mt-2" onclick="solicitarPrestamo(${idMaterial}, '${SEMSAD.esc(titulo)}')">
-                        <i class="fa-solid fa-hand-holding-hand me-1"></i> Solicitar Préstamo
-                       </button>`
-                    : `<button class="btn btn-secondary w-100 fw-bold btn-sm mt-2" disabled>
-                        <i class="fa-solid fa-ban me-1"></i> No Disponible
-                       </button>`;
+                if (reservadoPorMi) {
+                    badgeHTML = `<span class="badge bg-warning text-dark mb-2"><i class="fa-solid fa-bookmark me-1"></i>Ya reservaste este libro</span>`;
+                    botonHTML = `<button class="btn btn-warning text-dark w-100 fw-bold btn-sm mt-2" disabled>
+                                    <i class="fa-solid fa-check-double me-1"></i> Libro en tu Poder
+                                 </button>`;
+                } else if (estaDisponible) {
+                    badgeHTML = `<span class="badge bg-success mb-2"><i class="fa-solid fa-circle-check me-1"></i>Disponible</span>`;
+                    botonHTML = `<button class="btn btn-outline-primary w-100 fw-bold btn-sm mt-2" onclick="solicitarPrestamo(${idMaterial}, '${SEMSAD.esc(titulo)}')">
+                                    <i class="fa-solid fa-hand-holding-hand me-1"></i> Solicitar Préstamo
+                                 </button>`;
+                } else {
+                    badgeHTML = `<span class="badge bg-danger mb-2"><i class="fa-solid fa-circle-xmark me-1"></i>Agotado</span>`;
+                    botonHTML = `<button class="btn btn-secondary w-100 fw-bold btn-sm mt-2" disabled>
+                                    <i class="fa-solid fa-ban me-1"></i> No Disponible
+                                 </button>`;
+                }
 
                 contenedor.innerHTML += `
                     <div class="col-12 col-md-6 col-lg-4">
@@ -210,7 +219,7 @@
                     } else {
                         alert(res.mensaje);
                     }
-                    cargarCatalogo(); // Recarga para actualizar stock
+                    cargarCatalogo();
                 } else {
                     if (typeof SEMSAD !== 'undefined' && SEMSAD.toast) {
                         SEMSAD.toast(res.mensaje || 'No se pudo procesar la solicitud.', 'error');

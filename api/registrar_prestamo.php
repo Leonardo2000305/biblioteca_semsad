@@ -26,16 +26,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $input = json_decode(file_get_contents('php://input'), true) ?: [];
 
-    // Capturar id_material
     $id_material = isset($_POST['id_material']) ? $_POST['id_material'] : (isset($input['id_material']) ? $input['id_material'] : (isset($input['id_libro']) ? $input['id_libro'] : ''));
 
-    // Capturar id_usuario (Si no viene en el body, toma la sesión activa)
-    $id_usuario = isset($_POST['id_usuario']) ? $_POST['id_usuario'] : (isset($input['id_usuario']) ? $input['id_usuario'] : (isset($_SESSION['id_usuario']) ? $_SESSION['id_usuario'] : ''));
+    // CAPTURAR ID DEL ESTUDIANTE LOGUEADO QUE REALIZA LA SOLICITUD
+    $id_usuario = !empty($input['id_usuario']) ? $input['id_usuario'] : (!empty($_POST['id_usuario']) ? $_POST['id_usuario'] : (!empty($_SESSION['id_usuario']) ? $_SESSION['id_usuario'] : ''));
 
     $dias_prestamo = isset($_POST['dias_prestamo']) ? intval($_POST['dias_prestamo']) : (isset($input['dias_prestamo']) ? intval($input['dias_prestamo']) : 7);
 
     if (empty($id_usuario)) {
-        echo json_encode(['status' => 'error', 'mensaje' => 'Debes iniciar sesión para solicitar un préstamo.']);
+        echo json_encode(['status' => 'error', 'mensaje' => 'Debes iniciar sesión con tu cuenta de estudiante para solicitar un préstamo.']);
         exit;
     }
 
@@ -45,26 +44,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     try {
-        // 1. Verificar estado del usuario
-        $sqlUser = "SELECT estado FROM Usuario WHERE id_usuario = :id_usuario LIMIT 1";
+        // 1. Obtener datos exactos del usuario en la base de datos
+        $sqlUser = "SELECT id_usuario, CONCAT(nombres, ' ', apellidos) AS nombre_completo, estado FROM Usuario WHERE id_usuario = :id_usuario LIMIT 1";
         $stmtUser = $conexion->prepare($sqlUser);
         $stmtUser->execute([':id_usuario' => $id_usuario]);
         $usuario = $stmtUser->fetch(PDO::FETCH_ASSOC);
 
         if (!$usuario) {
-            echo json_encode(['status' => 'error', 'mensaje' => 'El usuario no existe.']);
+            echo json_encode(['status' => 'error', 'mensaje' => 'No se encontró tu usuario registrado en el sistema.']);
             exit;
         }
 
         if (($usuario['estado'] ?? 'Activo') !== 'Activo') {
             echo json_encode([
                 'status' => 'error',
-                'mensaje' => 'Tu cuenta está ' . $usuario['estado'] . '. No puedes solicitar préstamos. Contacta a la biblioteca.'
+                'mensaje' => 'Tu cuenta (' . $usuario['nombre_completo'] . ') está ' . $usuario['estado'] . '. Contacta a la biblioteca.'
             ]);
             exit;
         }
 
-        // 2. Regla de Negocio: Máximo 5 préstamos activos por estudiante
+        // 2. Límite máximo de 5 préstamos
         $sqlCount = "SELECT COUNT(*) FROM Prestamo WHERE id_usuario = :id_usuario AND estado = 'Activo'";
         $stmtCount = $conexion->prepare($sqlCount);
         $stmtCount->execute([':id_usuario' => $id_usuario]);
@@ -73,14 +72,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($prestamos_activos >= 5) {
             echo json_encode([
                 'status' => 'error',
-                'mensaje' => 'Has alcanzado el límite máximo de 5 préstamos activos simultáneos.'
+                'mensaje' => 'Has alcanzado el límite máximo de 5 préstamos activos.'
             ]);
             exit;
         }
 
         $conexion->beginTransaction();
 
-        // 3. Obtener un ejemplar disponible de ese material
+        // 3. Obtener un ejemplar disponible
         $sqlCheck = "SELECT id_ejemplar FROM Ejemplar WHERE id_material = :id_material AND estado_ejemplar = 'Disponible' LIMIT 1 FOR UPDATE";
         $stmtCheck = $conexion->prepare($sqlCheck);
         $stmtCheck->execute([':id_material' => $id_material]);
@@ -93,14 +92,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         $id_ejemplar = $ejemplar['id_ejemplar'];
-
-        // 4. Determinar bibliotecario a cargo
-        $id_bibliotecario = isset($_SESSION['id_usuario']) ? $_SESSION['id_usuario'] : 1;
+        $id_bibliotecario = (!empty($_SESSION['id_usuario']) && $_SESSION['id_usuario'] != $id_usuario) ? $_SESSION['id_usuario'] : 1;
 
         $fecha_salida = date('Y-m-d H:i:s');
         $fecha_limite = date('Y-m-d H:i:s', strtotime("+$dias_prestamo days"));
 
-        // 5. Registrar el préstamo
+        // 4. Registrar préstamo A NOMBRE DEL ESTUDIANTE ($id_usuario)
         $sqlPrestamo = "INSERT INTO Prestamo (id_usuario, id_bibliotecario_entrega, fecha_salida, fecha_limite, estado) 
                         VALUES (:id_usuario, :id_bibliotecario, :fecha_salida, :fecha_limite, 'Activo')";
         $stmtPrestamo = $conexion->prepare($sqlPrestamo);
@@ -112,7 +109,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         ]);
         $id_prestamo = $conexion->lastInsertId();
 
-        // 6. Registrar en Detalle_Prestamo
+        // 5. Registrar en Detalle_Prestamo
         $sqlDetalle = "INSERT INTO Detalle_Prestamo (id_prestamo, id_ejemplar) VALUES (:id_prestamo, :id_ejemplar)";
         $stmtDetalle = $conexion->prepare($sqlDetalle);
         $stmtDetalle->execute([
@@ -120,7 +117,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ':id_ejemplar' => $id_ejemplar
         ]);
 
-        // 7. Cambiar el estado del ejemplar a 'Prestado'
+        // 6. Cambiar estado del ejemplar
         $sqlUpdate = "UPDATE Ejemplar SET estado_ejemplar = 'Prestado' WHERE id_ejemplar = :id_ejemplar";
         $stmtUpdate = $conexion->prepare($sqlUpdate);
         $stmtUpdate->execute([':id_ejemplar' => $id_ejemplar]);
@@ -131,10 +128,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         echo json_encode([
             'status' => 'success',
-            'mensaje' => "¡Préstamo registrado con éxito! Tienes hasta el $fecha_limite_formato (7 días) para devolverlo.",
+            'mensaje' => "¡Préstamo registrado exitosamente a nombre de " . $usuario['nombre_completo'] . "! Tienes hasta el $fecha_limite_formato (7 días).",
             'id_prestamo' => $id_prestamo,
-            'fecha_limite' => $fecha_limite,
-            'fecha_devolucion' => $fecha_limite_formato
+            'usuario' => $usuario['nombre_completo'],
+            'fecha_limite' => $fecha_limite
         ]);
 
     } catch (PDOException $e) {

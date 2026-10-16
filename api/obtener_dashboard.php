@@ -16,7 +16,7 @@ try {
     // El KPI representa títulos distintos prestados; evita que el mismo título se cuente
     // varias veces por copias o registros duplicados.
     $stmt3 = $conexion->query("
-        SELECT COUNT(DISTINCT e.id_material)
+        SELECT COUNT(DISTINCT dp.id_ejemplar)
         FROM Prestamo p
         INNER JOIN Detalle_Prestamo dp ON dp.id_prestamo = p.id_prestamo
         INNER JOIN Ejemplar e ON e.id_ejemplar = dp.id_ejemplar

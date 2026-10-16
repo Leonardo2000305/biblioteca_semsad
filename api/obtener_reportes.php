@@ -64,11 +64,17 @@ try {
     $morosos = $conexion->query("
         SELECT u.id_usuario, u.nombres, u.apellidos, u.correo, u.codigo_empleado, u.estado,
                COUNT(DISTINCT p.id_prestamo) AS prestamos_mora,
-               COALESCE(SUM(DISTINCT m.monto), 0) AS monto_pendiente
+               COALESCE(f.monto_pendiente, 0) AS monto_pendiente
         FROM Usuario u
         INNER JOIN Prestamo p ON p.id_usuario = u.id_usuario AND p.estado = 'Con Mora'
-        LEFT JOIN Multa m ON m.id_prestamo = p.id_prestamo AND m.estado_pago = 'Pendiente'
-        GROUP BY u.id_usuario, u.nombres, u.apellidos, u.correo, u.codigo_empleado, u.estado
+        LEFT JOIN (
+            SELECT p2.id_usuario, SUM(m2.monto) AS monto_pendiente
+            FROM Prestamo p2
+            INNER JOIN Multa m2 ON m2.id_prestamo = p2.id_prestamo
+            WHERE m2.estado_pago = 'Pendiente'
+            GROUP BY p2.id_usuario
+        ) f ON f.id_usuario = u.id_usuario
+        GROUP BY u.id_usuario, u.nombres, u.apellidos, u.correo, u.codigo_empleado, u.estado, f.monto_pendiente
         ORDER BY monto_pendiente DESC, u.apellidos ASC
     ")->fetchAll(PDO::FETCH_ASSOC);
 

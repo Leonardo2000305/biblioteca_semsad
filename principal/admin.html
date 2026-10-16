@@ -153,7 +153,12 @@
 
         <!-- MÓDULO 1: DASHBOARD GENERAL -->
         <div id="secDashboard" class="modulo-vista">
-            <h5 class="fw-bold text-dark mb-3">Resumen General</h5>
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="fw-bold text-dark mb-0">Resumen General</h5>
+                <button class="btn btn-sm btn-outline-primary fw-semibold" onclick="cargarDashboard()">
+                    <i class="fa-solid fa-rotate me-1"></i>Actualizar Dashboard
+                </button>
+            </div>
             <div class="row g-3 mb-4">
                 <div class="col-md-4">
                     <div class="card stat-card shadow-sm p-3 bg-white">

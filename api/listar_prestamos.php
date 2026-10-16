@@ -28,14 +28,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     $id_usuario = isset($_GET['usuario']) ? $_GET['usuario'] : (isset($_GET['id_usuario']) ? $_GET['id_usuario'] : null);
 
     try {
-        // Tablas alineadas con el esquema oficial de Alwaysdata
+        // Consulta para obtener nombre completo, CI, correo y teléfono del estudiante
         $sql = "SELECT p.id_prestamo, 
                        p.fecha_salida, 
                        p.fecha_limite, 
                        p.estado, 
                        mb.titulo AS bookTitle, 
                        CONCAT(u.nombres, ' ', u.apellidos) AS userName, 
-                       COALESCE(u.codigo_empleado, 'Sin Código') AS userCi
+                       u.correo AS userCorreo,
+                       COALESCE(u.codigo_empleado, 'Sin teléfono') AS userTelefono,
+                       u.id_usuario AS userId
                 FROM Prestamo p
                 INNER JOIN Detalle_Prestamo dp ON p.id_prestamo = dp.id_prestamo
                 INNER JOIN Ejemplar e ON dp.id_ejemplar = e.id_ejemplar
@@ -67,21 +69,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
                 $status = 'Vencido';
             }
 
-            $issueDate = $p['fecha_salida'] ? substr($p['fecha_salida'], 0, 10) : date('Y-m-d');
             $dueDate = $p['fecha_limite'] ? substr($p['fecha_limite'], 0, 10) : date('Y-m-d');
 
             return [
-                'id'          => (int)$p['id_prestamo'],
-                'id_prestamo' => (int)$p['id_prestamo'],
-                'userCi'      => $p['userCi'],
-                'userName'    => $p['userName'],
-                'bookTitle'   => $p['bookTitle'],
-                'issueDate'   => $issueDate,
-                'dueDate'     => $dueDate,
-                'daysLeft'    => $daysLeft,
-                'overdueDays' => $overdueDays,
-                'status'      => $status,
-                'code'        => 'PRE-' . str_pad($p['id_prestamo'], 3, '0', STR_PAD_LEFT)
+                'id'           => (int)$p['id_prestamo'],
+                'id_prestamo'  => (int)$p['id_prestamo'],
+                'userName'     => $p['userName'],
+                'userCorreo'   => $p['userCorreo'],
+                'userTelefono' => $p['userTelefono'],
+                'userCi'       => 'REG-' . str_pad($p['userId'], 4, '0', STR_PAD_LEFT),
+                'bookTitle'    => $p['bookTitle'],
+                'dueDate'      => $dueDate,
+                'status'       => $status
             ];
         }, $prestamos);
 

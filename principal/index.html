@@ -196,22 +196,37 @@
         }
 
         async function solicitarPrestamo(idMaterial, tituloLibro) {
-            let u = {};
+            let userObj = {};
             try {
-                if (typeof SEMSAD !== 'undefined' && SEMSAD.obtenerUsuario) {
-                    u = SEMSAD.obtenerUsuario() || {};
-                } else if (typeof SEMSAD !== 'undefined' && SEMSAD.getUser) {
-                    u = SEMSAD.getUser() || {};
+                if (typeof SEMSAD !== 'undefined') {
+                    if (typeof SEMSAD.obtenerUsuario === 'function') userObj = SEMSAD.obtenerUsuario() || {};
+                    else if (typeof SEMSAD.getUser === 'function') userObj = SEMSAD.getUser() || {};
+                    else if (typeof SEMSAD.getUsuario === 'function') userObj = SEMSAD.getUsuario() || {};
+                    else if (SEMSAD.usuario) userObj = SEMSAD.usuario;
+                    else if (SEMSAD.user) userObj = SEMSAD.user;
                 }
-                if (!u.id_usuario && !u.id && !u.correo) {
-                    u = JSON.parse(localStorage.getItem('usuario') || localStorage.getItem('semsad_user') || localStorage.getItem('user') || '{}');
+
+                if (!userObj.id_usuario && !userObj.id && !userObj.correo && !userObj.email) {
+                    const keys = ['usuario', 'semsad_usuario', 'semsad_user', 'user', 'sesion', 'semsad_sesion'];
+                    for (let k of keys) {
+                        try {
+                            const str = localStorage.getItem(k) || sessionStorage.getItem(k);
+                            if (str) {
+                                const parsed = JSON.parse(str);
+                                if (parsed && (parsed.id_usuario || parsed.id || parsed.correo || parsed.email)) {
+                                    userObj = parsed;
+                                    break;
+                                }
+                            }
+                        } catch(e) {}
+                    }
                 }
             } catch (e) {
-                console.error("Error leyendo usuario local:", e);
+                console.error("Error al obtener usuario local:", e);
             }
 
-            const idUsuario = u.id_usuario || u.id || 0;
-            const correoUsuario = u.correo || u.email || '';
+            const idUsuario = userObj.id_usuario || userObj.id || 0;
+            const correoUsuario = userObj.correo || userObj.email || '';
 
             if (!confirm(`¿Confirmas que deseas solicitar el préstamo de "${tituloLibro}" por 7 días?`)) {
                 return;

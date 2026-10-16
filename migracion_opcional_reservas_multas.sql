@@ -46,8 +46,36 @@ ALTER TABLE Multa
     ON DELETE SET NULL
     ON UPDATE CASCADE;
 
+-- Campos complementarios para perfil y metadatos bibliográficos.
+ALTER TABLE Usuario
+    ADD COLUMN carrera VARCHAR(120) NULL,
+    ADD COLUMN fotografia VARCHAR(500) NULL,
+    ADD COLUMN ultimo_acceso DATETIME NULL;
+
+ALTER TABLE MaterialBibliografico
+    ADD COLUMN edicion VARCHAR(80) NULL,
+    ADD COLUMN idioma VARCHAR(50) NULL;
+
+-- Historial de accesos exitosos para consulta y auditoría.
+CREATE TABLE historial_acceso (
+    id_acceso INT NOT NULL AUTO_INCREMENT,
+    id_usuario INT NOT NULL,
+    fecha_hora DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    ip_origen VARCHAR(45) NULL,
+    agente_usuario VARCHAR(255) NULL,
+    PRIMARY KEY (id_acceso),
+    KEY idx_acceso_usuario_fecha (id_usuario, fecha_hora),
+    CONSTRAINT fk_historial_acceso_usuario
+        FOREIGN KEY (id_usuario) REFERENCES Usuario (id_usuario)
+        ON DELETE CASCADE
+        ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 -- Verificación final recomendada:
 -- SHOW COLUMNS FROM Reserva;
 -- SHOW COLUMNS FROM Multa;
 -- SHOW CREATE TABLE Reserva;
 -- SHOW CREATE TABLE Multa;
+-- SHOW CREATE TABLE Usuario;
+-- SHOW CREATE TABLE MaterialBibliografico;
+-- SHOW CREATE TABLE historial_acceso;

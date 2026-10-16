@@ -708,6 +708,32 @@
                 else { SEMSAD.toast(res.mensaje || 'No se pudo eliminar el proveedor.', 'error'); }
             } catch (e) { SEMSAD.toast('Error de conexión al eliminar proveedor.', 'error'); }
         }
+        async function cargarOpcionesCatalogacion() {
+            if (opcionesCatalogacionCache) return opcionesCatalogacionCache;
+            try {
+                const resp = await fetch(window.SEMSAD_API + '/obtener_catalogacion.php', { credentials: 'include', cache: 'no-store' });
+                const res = await resp.json();
+                if (res.status !== 'success') throw new Error(res.mensaje || 'No se pudieron cargar las opciones.');
+                const tipos = res.tipos || [];
+                const editoriales = res.editoriales || [];
+                const categorias = res.categorias || [];
+                const metadata = res.metadatos_avanzados || {};
+                document.getElementById('lib_tipo').innerHTML = tipos.map(x => `<option value="${Number(x.id_tipo_material)}">${SEMSAD.esc(x.nombre)}</option>`).join('');
+                document.getElementById('lib_editorial').innerHTML = '<option value="0">Sin editorial</option>' + editoriales.map(x => `<option value="${Number(x.id_editorial)}">${SEMSAD.esc(x.nombre)}</option>`).join('');
+                document.getElementById('lib_categoria').innerHTML = categorias.map(x => `<option value="${Number(x.id_categoria)}">${SEMSAD.esc(x.nombre)}</option>`).join('');
+                document.getElementById('lib_edicion').disabled = metadata.edicion !== true;
+                document.getElementById('lib_idioma').disabled = metadata.idioma !== true;
+                if (metadata.edicion !== true || metadata.idioma !== true) {
+                    SEMSAD.toast('Edición e idioma requieren campos adicionales en la base de datos; el resto del formulario sigue disponible.', 'warning');
+                }
+                opcionesCatalogacionCache = res;
+                return res;
+            } catch (e) {
+                console.error('Error cargando opciones de catalogación:', e);
+                SEMSAD.toast('No se pudieron cargar tipos, editoriales o categorías. Revisa la conexión.', 'error');
+                return null;
+            }
+        }
         async function abrirModalLibro() {
             await cargarOpcionesCatalogacion();
             document.getElementById('modalLibroTitulo').innerText = 'Registrar Nuevo Libro';

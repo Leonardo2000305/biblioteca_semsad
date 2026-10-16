@@ -1,11 +1,17 @@
 <?php
+if (session_status() === PHP_SESSION_NONE) {
+    ini_set('session.cookie_samesite', 'None');
+    ini_set('session.cookie_secure', 'True');
+    session_start();
+}
+
 require_once __DIR__ . '/conexion.php';
 
-// Configurar encabezado JSON
 header('Content-Type: application/json; charset=utf-8');
 
 $q = strtolower(trim($_GET['q'] ?? $_GET['buscar'] ?? $_GET['query'] ?? ''));
 $categoria = (int)($_GET['categoria'] ?? 0);
+$id_usuario_sesion = (int)($_SESSION['id_usuario'] ?? 0);
 
 try {
     $sql = "
@@ -33,7 +39,14 @@ try {
                  JOIN UbicacionFisica u ON ej.id_ubicacion = u.id_ubicacion 
                  WHERE ej.id_material = m.id_material LIMIT 1),
                 'Sin Ubicación'
-            ) AS ubicacion
+            ) AS ubicacion,
+            (SELECT COUNT(*) 
+               FROM Prestamo p2 
+               JOIN Detalle_Prestamo dp2 ON p2.id_prestamo = dp2.id_prestamo
+               JOIN Ejemplar ej2 ON dp2.id_ejemplar = ej2.id_ejemplar
+              WHERE ej2.id_material = m.id_material 
+                AND p2.id_usuario = :id_sesion 
+                AND p2.estado = 'Activo') AS mi_prestamo_activo
         FROM MaterialBibliografico m
         LEFT JOIN Editorial e ON m.id_editorial = e.id_editorial
         INNER JOIN Categoria c ON m.id_categoria = c.id_categoria
@@ -41,7 +54,7 @@ try {
         WHERE 1=1
     ";
 
-    $params = [];
+    $params = [':id_sesion' => $id_usuario_sesion];
 
     if ($q !== '') {
         $sql .= " AND (LOWER(m.titulo) LIKE :q OR LOWER(m.codigo_isbn_issn) LIKE :q OR m.id_material IN (
@@ -65,6 +78,8 @@ try {
     $libros = [];
     foreach ($rows as $r) {
         $anioVal = $r['agno_publicacion'] ? (string)$r['agno_publicacion'] : 'N/A';
+        $reservadoPorMi = ((int)$r['mi_prestamo_activo']) > 0;
+
         $libros[] = [
             'id_material'      => (int)$r['id_material'],
             'id'               => (int)$r['id_material'],
@@ -72,10 +87,6 @@ try {
             'isbn'             => $r['isbn'],
             'codigo_isbn_issn' => $r['codigo_isbn_issn'],
             'agno_publicacion' => $anioVal,
-            'año_publicacion'  => $anioVal,
-            'año'              => $anioVal,
-            'anio'             => $anioVal,
-            'year'             => $anioVal,
             'editorial'        => $r['editorial'],
             'categoria'        => $r['categoria'],
             'tipo_material'    => $r['tipo_material'],
@@ -85,15 +96,17 @@ try {
             'total'            => (int)$r['stock_total'],
             'stock_disponible' => (int)$r['stock_disponible'],
             'disponible'       => (int)$r['stock_disponible'],
+            'reservado_por_mi' => $reservadoPorMi,
             'ubicacion'        => $r['ubicacion'],
-            'estado'           => ((int)$r['stock_disponible'] > 0) ? 'Disponible' : 'Agotado'
+            'estado'           => $reservadoPorMi ? 'Reservado' : (((int)$r['stock_disponible'] > 0) ? 'Disponible' : 'Agotado')
         ];
     }
 
     semsad_responder([
         'status' => 'success',
         'libros' => $libros,
-        'data'   => $libros
+        'data'   => $libros,
+        'datos'  => $libros
     ]);
 
 } catch (PDOException $e) {

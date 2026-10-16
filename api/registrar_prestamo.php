@@ -1,5 +1,6 @@
 <?php
 require_once 'conexion.php';
+require_once __DIR__ . '/usuario_actual.php';
 semsad_iniciar_sesion();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -27,64 +28,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $_POST['correo'] ?? ''
     );
 
-    $sess_id = (int)($_SESSION['id_usuario'] ?? 0);
-    $sess_email = trim($_SESSION['correo'] ?? $_SESSION['email'] ?? '');
 
     if ($id_material <= 0) {
         semsad_responder(['status' => 'error', 'mensaje' => 'Identificador de libro no válido.']);
     }
 
     try {
-        $usuario = null;
-
-        // 1. Buscar por Correo exacto
-        if (!empty($req_email)) {
-            $stmt = $conexion->prepare("SELECT id_usuario, nombres, apellidos, correo, estado, id_rol FROM Usuario WHERE LOWER(TRIM(correo)) = LOWER(TRIM(:e)) LIMIT 1");
-            $stmt->execute([':e' => $req_email]);
-            $usuario = $stmt->fetch(PDO::FETCH_ASSOC);
-        }
-
-        // 2. Buscar por ID directo
-        if (!$usuario && $req_id_user > 0) {
-            $stmt = $conexion->prepare("SELECT id_usuario, nombres, apellidos, correo, estado, id_rol FROM Usuario WHERE id_usuario = :id LIMIT 1");
-            $stmt->execute([':id' => $req_id_user]);
-            $usuario = $stmt->fetch(PDO::FETCH_ASSOC);
-        }
-
-        // 3. Buscar por coincidencia parcial de usuario
-        if (!$usuario && !empty($req_email)) {
-            $parts = explode('@', $req_email);
-            $usernamePart = $parts[0];
-            if (!empty($usernamePart)) {
-                $stmt = $conexion->prepare("SELECT id_usuario, nombres, apellidos, correo, estado, id_rol FROM Usuario WHERE LOWER(correo) LIKE LOWER(:p) LIMIT 1");
-                $stmt->execute([':p' => $usernamePart . '%']);
-                $usuario = $stmt->fetch(PDO::FETCH_ASSOC);
-            }
-        }
-
-        // 4. Buscar por Sesión PHP
-        if (!$usuario && !empty($sess_email)) {
-            $stmt = $conexion->prepare("SELECT id_usuario, nombres, apellidos, correo, estado, id_rol FROM Usuario WHERE LOWER(TRIM(correo)) = LOWER(TRIM(:e)) LIMIT 1");
-            $stmt->execute([':e' => $sess_email]);
-            $usuario = $stmt->fetch(PDO::FETCH_ASSOC);
-        }
-
-        if (!$usuario && $sess_id > 0) {
-            $stmt = $conexion->prepare("SELECT id_usuario, nombres, apellidos, correo, estado, id_rol FROM Usuario WHERE id_usuario = :id LIMIT 1");
-            $stmt->execute([':id' => $sess_id]);
-            $usuario = $stmt->fetch(PDO::FETCH_ASSOC);
-        }
-
-        // 5. Búsqueda de Respaldo Garantizada: Buscar usuario con rol Estudiante
-        if (!$usuario) {
-            $stmtFallback = $conexion->query("SELECT id_usuario, nombres, apellidos, correo, estado, id_rol FROM Usuario WHERE id_rol NOT IN (1, 2) AND estado = 'Activo' ORDER BY id_usuario DESC LIMIT 1");
-            $usuario = $stmtFallback->fetch(PDO::FETCH_ASSOC);
-        }
+        // Quién pide el libro: la sesión del servidor manda; nunca se adivina (ver usuario_actual.php)
+        $usuario = semsad_usuario_actual($conexion, $req_id_user, $req_email);
 
         if (!$usuario) {
             semsad_responder([
                 'status'  => 'error',
-                'mensaje' => 'No se detectó tu sesión activa de estudiante. Por favor, cierra sesión e inicia sesión nuevamente.'
+                'codigo'  => 'sin_sesion',
+                'mensaje' => 'Tu sesión expiró. Por favor, inicia sesión nuevamente para solicitar el libro.'
             ]);
         }
 

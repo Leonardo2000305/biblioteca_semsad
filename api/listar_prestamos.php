@@ -43,7 +43,7 @@ try {
             'usuario'       => $nombreCompleto,
             'userCorreo'    => $f['user_correo'] ?? '',
             'correo'        => $f['user_correo'] ?? '',
-            'userCi'        => !empty($f['user_ci']) ? $f['user_ci'] : 'EST-202401',
+            'userCi'        => !empty($f['user_ci']) ? $f['user_ci'] : 'Sin CI',
             'userTelefono'  => $f['user_telefono'] ?? '',
             'bookTitle'     => $f['libro_titulo'] ?? 'Libro',
             'libro'         => $f['libro_titulo'] ?? 'Libro',

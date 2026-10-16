@@ -112,6 +112,19 @@
         });
 
         function obtenerUsuarioLogueado() {
+            // Única fuente: el usuario que guardó el inicio de sesión actual (semsad_user).
+            // Antes se recorría todo el navegador y podía tomar datos viejos de otra cuenta.
+            const u = (typeof SEMSAD !== 'undefined' && SEMSAD.getUser) ? SEMSAD.getUser() : null;
+            if (u && (u.id || u.correo)) {
+                return {
+                    id_usuario: parseInt(u.id) || 0,
+                    correo: String(u.correo || '').trim(),
+                    nombres: '',
+                    apellidos: '',
+                    nombreCompleto: String(u.name || u.correo || '').trim()
+                };
+            }
+            return null;
             function extraerUser(candidate) {
                 if (!candidate) return null;
                 if (typeof candidate === 'string') {
@@ -313,6 +326,11 @@
                     }
                     cargarCatalogo();
                 } else {
+                    if (res.codigo === 'sin_sesion') {
+                        SEMSAD.toast(res.mensaje, 'error');
+                        setTimeout(() => { window.location.href = '../login/index.html'; }, 2500);
+                        return;
+                    }
                     if (typeof SEMSAD !== 'undefined' && SEMSAD.toast) {
                         SEMSAD.toast(res.mensaje || 'Error al procesar el préstamo.', 'error');
                     } else {

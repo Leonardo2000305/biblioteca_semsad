@@ -1,20 +1,13 @@
 <?php
 require_once 'conexion.php';
+require_once __DIR__ . '/usuario_actual.php';
 semsad_iniciar_sesion();
 header('Content-Type: application/json; charset=utf-8');
 
 try {
-    $req_id = (int)($_GET['id_usuario'] ?? $_GET['usuario_id'] ?? $_SESSION['id_usuario'] ?? 0);
-    $req_email = trim($_GET['correo'] ?? $_GET['email'] ?? $_SESSION['correo'] ?? '');
-
-    $id_usuario = 0;
-    if ($req_id > 0) {
-        $id_usuario = $req_id;
-    } else if (!empty($req_email)) {
-        $stmtU = $conexion->prepare("SELECT id_usuario FROM Usuario WHERE LOWER(TRIM(correo)) = LOWER(TRIM(:e)) LIMIT 1");
-        $stmtU->execute([':e' => $req_email]);
-        $id_usuario = (int)$stmtU->fetchColumn();
-    }
+    // La sesión del servidor manda; los datos del navegador solo cuentan si coinciden (ver usuario_actual.php)
+    $usuarioActual = semsad_usuario_actual($conexion, (int)($_GET['id_usuario'] ?? 0), (string)($_GET['correo'] ?? ''));
+    $id_usuario = $usuarioActual ? (int)$usuarioActual['id_usuario'] : 0;
 
     if ($id_usuario <= 0) {
         semsad_responder(['status' => 'error', 'mensaje' => 'Usuario no identificado.'], 400);

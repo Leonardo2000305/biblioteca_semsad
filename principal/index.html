@@ -196,6 +196,19 @@
         }
 
         async function solicitarPrestamo(idMaterial, tituloLibro) {
+            // Capturar datos del usuario desde SEMSAD o localStorage
+            const u = (typeof SEMSAD !== 'undefined' && SEMSAD.obtenerUsuario) 
+                ? SEMSAD.obtenerUsuario() 
+                : JSON.parse(localStorage.getItem('usuario') || localStorage.getItem('semsad_user') || '{}');
+
+            const idUsuario = u.id_usuario || u.id || 0;
+
+            if (!idUsuario) {
+                alert("Debes iniciar sesión con tu cuenta de estudiante.");
+                window.location.href = '../login/index.html';
+                return;
+            }
+
             if (!confirm(`¿Confirmas que deseas solicitar el préstamo de "${tituloLibro}" por 7 días?`)) {
                 return;
             }
@@ -207,6 +220,7 @@
                     credentials: 'include',
                     body: JSON.stringify({
                         id_material: idMaterial,
+                        id_usuario: idUsuario,
                         dias_prestamo: 7
                     })
                 });

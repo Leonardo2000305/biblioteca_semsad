@@ -26,8 +26,11 @@
                 <span>BIBLIOTECA SEMSAD</span>
             </a>
             <div class="d-flex align-items-center gap-2">
-                <button class="btn btn-outline-info btn-sm fw-bold me-2" data-bs-toggle="modal" data-bs-target="#modalMisPrestamos" onclick="cargarMisPrestamos()">
+                <button class="btn btn-outline-info btn-sm fw-bold me-1" data-bs-toggle="modal" data-bs-target="#modalMisPrestamos" onclick="cargarMisPrestamos()">
                     <i class="fa-solid fa-clock-rotate-left me-1"></i>Mis Préstamos
+                </button>
+                <button class="btn btn-outline-light btn-sm fw-bold me-2" data-bs-toggle="modal" data-bs-target="#modalPerfil" onclick="cargarPerfil()">
+                    <i class="fa-solid fa-user-pen me-1"></i>Mi Perfil
                 </button>
                 <span class="badge bg-primary px-3 py-2 fs-6 shadow-sm" id="badgeUsuario">
                     <i class="fa-solid fa-user-graduate me-1"></i><span id="nombreUsuarioHeader">Estudiante</span>
@@ -66,6 +69,38 @@
         <div class="row g-4" id="contenedorLibros"></div>
     </div>
 
+    <!-- MODAL MI PERFIL -->
+    <div class="modal fade" id="modalPerfil" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header bg-dark text-white">
+                    <h5 class="modal-title fw-bold"><i class="fa-solid fa-user-pen text-primary me-2"></i>Mi Perfil</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                </div>
+                <form id="formMiPerfil">
+                    <div class="modal-body">
+                        <div id="notaPerfilMigracion" class="alert alert-warning d-none small"></div>
+                        <div class="row g-3">
+                            <div class="col-md-6"><label class="form-label fw-bold" for="perfilNombres">Nombres *</label><input class="form-control" id="perfilNombres" maxlength="100" required></div>
+                            <div class="col-md-6"><label class="form-label fw-bold" for="perfilApellidos">Apellidos *</label><input class="form-control" id="perfilApellidos" maxlength="100" required></div>
+                            <div class="col-md-6"><label class="form-label fw-bold" for="perfilCorreo">Correo institucional</label><input class="form-control" id="perfilCorreo" readonly></div>
+                            <div class="col-md-6"><label class="form-label fw-bold" for="perfilCodigo">CI / Código institucional</label><input class="form-control" id="perfilCodigo" readonly></div>
+                            <div class="col-md-6"><label class="form-label fw-bold" for="perfilTelefono">Teléfono</label><input class="form-control" id="perfilTelefono" maxlength="50"></div>
+                            <div class="col-md-6"><label class="form-label fw-bold" for="perfilCarrera">Carrera / Programa</label><input class="form-control" id="perfilCarrera" maxlength="120" placeholder="Carrera o programa académico"></div>
+                            <div class="col-md-8"><label class="form-label fw-bold" for="perfilFoto">URL de fotografía (opcional)</label><input class="form-control" id="perfilFoto" maxlength="500" type="url" placeholder="https://..."></div>
+                            <div class="col-md-4 d-flex align-items-end"><img id="perfilFotoPreview" src="" alt="Vista previa de fotografía" class="rounded border d-none" style="max-width:70px;max-height:70px;object-fit:cover"></div>
+                        </div>
+                        <div class="small text-muted mt-3" id="perfilUltimoAcceso">Último acceso: No disponible</div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cerrar</button>
+                        <button type="submit" class="btn btn-primary fw-bold"><i class="fa-solid fa-floppy-disk me-1"></i>Guardar perfil</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
     <!-- MODAL MIS PRÉSTAMOS -->
     <div class="modal fade" id="modalMisPrestamos" tabindex="-1">
         <div class="modal-dialog modal-lg">
@@ -83,10 +118,11 @@
                                     <th>Fecha Solicitud</th>
                                     <th>Fecha Límite</th>
                                     <th>Estado</th>
+                                    <th class="no-print">Acción</th>
                                 </tr>
                             </thead>
                             <tbody id="tablaMisPrestamosBody">
-                                <tr><td colspan="4" class="text-center py-4">Cargando tus préstamos...</td></tr>
+                                <tr><td colspan="5" class="text-center py-4">Cargando tus préstamos...</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -102,14 +138,46 @@
         let todosLosLibros = [];
 
         document.addEventListener('DOMContentLoaded', () => {
-            const user = obtenerUsuarioLogueado();
-            if (user) {
-                document.getElementById('nombreUsuarioHeader').innerText = user.nombreCompleto || user.correo;
-            } else {
-                document.getElementById('nombreUsuarioHeader').innerText = "Estudiante";
-            }
-            cargarCatalogo();
+            document.getElementById('formMiPerfil')?.addEventListener('submit', guardarMiPerfil);
+            document.getElementById('perfilFoto')?.addEventListener('input', actualizarVistaPreviaPerfil);
+            iniciarVistaEstudiante();
         });
+
+        async function iniciarVistaEstudiante() {
+            try {
+                // La sesión del servidor es la fuente de verdad. localStorage solo guarda datos para la interfaz.
+                const resp = await fetch(window.SEMSAD_API + '/verificar_sesion.php', {
+                    credentials: 'include',
+                    cache: 'no-store'
+                });
+                const data = await resp.json();
+                if (data.status !== 'success' || !data.sesion_activa || !data.usuario) {
+                    localStorage.removeItem('semsad_user');
+                    alert('Tu sesión no está activa. Inicia sesión nuevamente para entrar a la biblioteca.');
+                    window.location.replace('../login/index.html');
+                    return;
+                }
+                const u = data.usuario;
+                if (['Administrador', 'Bibliotecario'].includes(u.rol)) {
+                    window.location.replace('./admin.html');
+                    return;
+                }
+                localStorage.setItem('semsad_user', JSON.stringify({
+                    id: u.id_usuario,
+                    name: u.nombreCompleto || u.nombre,
+                    role: u.rol,
+                    ci: u.ci,
+                    correo: u.correo,
+                    nombres: u.nombres,
+                    apellidos: u.apellidos
+                }));
+                document.getElementById('nombreUsuarioHeader').innerText = u.nombreCompleto || u.nombre || u.correo;
+                await cargarCatalogo();
+            } catch (error) {
+                console.error('No se pudo verificar la sesión:', error);
+                document.getElementById('contenedorLibros').innerHTML = '<div class="col-12 text-center py-5"><i class="fa-solid fa-circle-exclamation fa-3x text-danger mb-3"></i><p class="text-danger fs-5">No se pudo verificar la sesión con el servidor. Comprueba tu conexión e inténtalo de nuevo.</p><a class="btn btn-outline-primary" href="../login/index.html">Volver al inicio de sesión</a></div>';
+            }
+        }
 
         function obtenerUsuarioLogueado() {
             function extraerUser(candidate) {
@@ -179,9 +247,7 @@
         }
 
         async function cargarCatalogo() {
-            const userObj = obtenerUsuarioLogueado();
-            const idUsuario = userObj ? userObj.id_usuario : 0;
-            const correoUsuario = userObj ? userObj.correo : '';
+            // La identidad se valida por cookie/sesión en el backend; no enviar el ID desde el navegador.
 
             const contenedor = document.getElementById('contenedorLibros');
             contenedor.innerHTML = `
@@ -191,8 +257,7 @@
                 </div>`;
 
             try {
-                const url = window.SEMSAD_API + '/obtener_libros.php?id_usuario=' + idUsuario + '&correo=' + encodeURIComponent(correoUsuario);
-                const resp = await fetch(url, { credentials: 'include' });
+                const resp = await fetch(window.SEMSAD_API + '/obtener_libros.php', { credentials: 'include', cache: 'no-store' });
                 const res = await resp.json();
 
                 const listaLibros = res.libros || res.data || res.datos || [];
@@ -236,27 +301,27 @@
                 const autor = libro.autores || libro.autor || 'Autor no especificado';
                 
                 const stockDisponible = (libro.stock_disponible !== undefined) ? parseInt(libro.stock_disponible) : parseInt(libro.disponible || 0);
-                const reservadoPorMi = libro.reservado_por_mi === true;
-                const estaDisponible = stockDisponible > 0 && !reservadoPorMi;
-
+                const tengoPrestamo = libro.tengo_prestamo_activo === true || libro.reservado_por_mi === true;
+                const tengoReserva = libro.tengo_reserva_pendiente === true;
+                const hayReservasPendientes = libro.hay_reservas_pendientes === true;
                 let badgeHTML = '';
                 let botonHTML = '';
 
-                if (reservadoPorMi) {
-                    badgeHTML = `<span class="badge bg-warning text-dark mb-2"><i class="fa-solid fa-bookmark me-1"></i>Ya reservaste este libro</span>`;
-                    botonHTML = `<button class="btn btn-warning text-dark w-100 fw-bold btn-sm mt-2" disabled>
-                                    <i class="fa-solid fa-check-double me-1"></i> Libro en tu Poder
-                                 </button>`;
-                } else if (estaDisponible) {
-                    badgeHTML = `<span class="badge bg-success mb-2"><i class="fa-solid fa-circle-check me-1"></i>Disponible</span>`;
-                    botonHTML = `<button class="btn btn-outline-primary w-100 fw-bold btn-sm mt-2" onclick="solicitarPrestamo(${idMaterial}, '${SEMSAD.esc(titulo)}')">
-                                    <i class="fa-solid fa-hand-holding-hand me-1"></i> Solicitar Préstamo
-                                 </button>`;
+                if (tengoPrestamo) {
+                    badgeHTML = `<span class="badge bg-warning text-dark mb-2"><i class="fa-solid fa-bookmark me-1"></i>Préstamo activo</span>`;
+                    botonHTML = `<button class="btn btn-warning text-dark w-100 fw-bold btn-sm mt-2" disabled><i class="fa-solid fa-check-double me-1"></i> LIBRO EN TU PODER</button>`;
+                } else if (tengoReserva) {
+                    const posicion = Number(libro.prioridad_reserva || 0);
+                    badgeHTML = `<span class="badge bg-info text-dark mb-2"><i class="fa-solid fa-list-ol me-1"></i>En lista de espera · Posición ${posicion}</span>`;
+                    botonHTML = `<button class="btn btn-outline-danger w-100 fw-bold btn-sm mt-2" onclick="cancelarReserva(${Number(libro.id_reserva_pendiente) || 0})"><i class="fa-solid fa-xmark me-1"></i> Cancelar reserva</button>`;
+                } else if (stockDisponible > 0 && !hayReservasPendientes) {
+                    badgeHTML = `<span class="badge bg-success mb-2"><i class="fa-solid fa-circle-check me-1"></i>Disponible (${stockDisponible})</span>`;
+                    botonHTML = `<button class="btn btn-outline-primary w-100 fw-bold btn-sm mt-2" onclick="solicitarPrestamo(${idMaterial})"><i class="fa-solid fa-hand-holding-hand me-1"></i> Solicitar Préstamo</button>`;
                 } else {
-                    badgeHTML = `<span class="badge bg-danger mb-2"><i class="fa-solid fa-circle-xmark me-1"></i>Agotado</span>`;
-                    botonHTML = `<button class="btn btn-secondary w-100 fw-bold btn-sm mt-2" disabled>
-                                    <i class="fa-solid fa-ban me-1"></i> No Disponible
-                                 </button>`;
+                    badgeHTML = hayReservasPendientes
+                        ? `<span class="badge bg-warning text-dark mb-2"><i class="fa-solid fa-clock me-1"></i>En cola de reserva</span>`
+                        : `<span class="badge bg-danger mb-2"><i class="fa-solid fa-circle-xmark me-1"></i>Sin copias disponibles</span>`;
+                    botonHTML = `<button class="btn btn-outline-primary w-100 fw-bold btn-sm mt-2" onclick="solicitarReserva(${idMaterial})"><i class="fa-solid fa-bookmark me-1"></i> Unirme a lista de espera</button>`;
                 }
 
                 contenedor.innerHTML += `
@@ -276,31 +341,24 @@
             });
         }
 
-        async function solicitarPrestamo(idMaterial, tituloLibro) {
+        async function solicitarPrestamo(idMaterial) {
             const userObj = obtenerUsuarioLogueado();
-
-            if (!userObj || (!userObj.id_usuario && !userObj.correo)) {
-                alert("No se detectó tu sesión activa de estudiante. Redirigiendo al inicio de sesión...");
+            const libro = todosLosLibros.find(l => Number(l.id_material || l.id) === Number(idMaterial));
+            const tituloLibro = libro ? (libro.titulo || libro.nombre || 'este libro') : 'este libro';
+            if (!userObj || !userObj.id_usuario) {
+                alert('No se detectó tu sesión activa. Inicia sesión nuevamente.');
                 window.location.href = '../login/index.html';
                 return;
             }
-
-            const nombreSolicitante = userObj.nombreCompleto || userObj.correo;
-            if (!confirm(`¿Confirmas que deseas solicitar el préstamo de "${tituloLibro}" a nombre de ${nombreSolicitante} por 7 días?`)) {
-                return;
-            }
+            const nombreSolicitante = userObj.nombreCompleto || userObj.name || userObj.correo || 'tu cuenta';
+            if (!confirm(`¿Confirmas que deseas solicitar el préstamo de "${tituloLibro}" a nombre de ${nombreSolicitante} por 7 días?`)) return;
 
             try {
                 const resp = await fetch(window.SEMSAD_API + '/registrar_prestamo.php', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     credentials: 'include',
-                    body: JSON.stringify({
-                        id_material: idMaterial,
-                        id_usuario: userObj.id_usuario,
-                        correo: userObj.correo,
-                        dias_prestamo: 7
-                    })
+                    body: JSON.stringify({ id_material: Number(idMaterial) })
                 });
 
                 const res = await resp.json();
@@ -325,41 +383,174 @@
             }
         }
 
+        async function solicitarReserva(idMaterial) {
+            const libro = todosLosLibros.find(l => Number(l.id_material || l.id) === Number(idMaterial));
+            const titulo = libro ? (libro.titulo || libro.nombre || 'este libro') : 'este libro';
+            if (!confirm('¿Deseas unirte a la lista de espera para "' + titulo + '"?')) return;
+            try {
+                const resp = await fetch(window.SEMSAD_API + '/reservar_material.php', {
+                    method: 'POST', credentials: 'include',
+                    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                    body: JSON.stringify({ id_material: Number(idMaterial) })
+                });
+                const res = await resp.json();
+                if (res.status === 'success') {
+                    SEMSAD.toast(res.mensaje || 'Te añadimos a la lista de espera.', 'success');
+                    await cargarCatalogo();
+                } else {
+                    SEMSAD.toast(res.mensaje || 'No se pudo crear la reserva.', 'error');
+                }
+            } catch (e) {
+                console.error('Error al reservar:', e);
+                SEMSAD.toast('No se pudo conectar con el servidor para reservar.', 'error');
+            }
+        }
+
+        async function cancelarReserva(idReserva) {
+            if (!Number(idReserva) || !confirm('¿Cancelar tu reserva pendiente?')) return;
+            try {
+                const resp = await fetch(window.SEMSAD_API + '/cancelar_reserva.php', {
+                    method: 'POST', credentials: 'include',
+                    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                    body: JSON.stringify({ id_reserva: Number(idReserva) })
+                });
+                const res = await resp.json();
+                if (res.status === 'success') {
+                    SEMSAD.toast(res.mensaje || 'Reserva cancelada.', 'success');
+                    await cargarCatalogo();
+                } else {
+                    SEMSAD.toast(res.mensaje || 'No se pudo cancelar la reserva.', 'error');
+                }
+            } catch (e) {
+                console.error('Error al cancelar reserva:', e);
+                SEMSAD.toast('No se pudo conectar con el servidor.', 'error');
+            }
+        }
+
+        async function cargarPerfil() {
+            const warning = document.getElementById('notaPerfilMigracion');
+            try {
+                const resp = await fetch(window.SEMSAD_API + '/obtener_perfil.php', { credentials: 'include', cache: 'no-store' });
+                const res = await resp.json();
+                if (res.status !== 'success' || !res.perfil) { SEMSAD.toast(res.mensaje || 'No se pudo consultar tu perfil.', 'error'); return; }
+                const p = res.perfil;
+                document.getElementById('perfilNombres').value = p.nombres || '';
+                document.getElementById('perfilApellidos').value = p.apellidos || '';
+                document.getElementById('perfilCorreo').value = p.correo || '';
+                document.getElementById('perfilCodigo').value = p.codigo_empleado || '';
+                document.getElementById('perfilTelefono').value = p.telefono || '';
+                document.getElementById('perfilCarrera').value = p.carrera || '';
+                document.getElementById('perfilFoto').value = p.fotografia || '';
+                document.getElementById('perfilUltimoAcceso').textContent = 'Último acceso: ' + (p.ultimo_acceso || 'No disponible en la estructura actual de la base de datos');
+                const avanzado = p.campos_perfil_avanzado_disponibles === true;
+                document.getElementById('perfilCarrera').disabled = !avanzado;
+                document.getElementById('perfilFoto').disabled = !avanzado;
+                if (!avanzado) {
+                    warning.textContent = 'La base de datos aún no tiene campos para carrera y fotografía. Se pueden habilitar mediante migracion_opcional_reservas_multas.sql, después de hacer copia de seguridad y revisar phpMyAdmin.';
+                    warning.classList.remove('d-none');
+                } else { warning.classList.add('d-none'); }
+                actualizarVistaPreviaPerfil();
+            } catch (e) {
+                console.error('Error cargando perfil:', e);
+                SEMSAD.toast('No se pudo conectar con el servidor para cargar tu perfil.', 'error');
+            }
+        }
+
+        function actualizarVistaPreviaPerfil() {
+            const img = document.getElementById('perfilFotoPreview');
+            const url = (document.getElementById('perfilFoto')?.value || '').trim();
+            if (url && /^https?:\/\//i.test(url)) { img.src = url; img.classList.remove('d-none'); }
+            else { img.removeAttribute('src'); img.classList.add('d-none'); }
+        }
+
+        async function guardarMiPerfil(event) {
+            event.preventDefault();
+            const data = {
+                nombres: document.getElementById('perfilNombres').value.trim(),
+                apellidos: document.getElementById('perfilApellidos').value.trim(),
+                telefono: document.getElementById('perfilTelefono').value.trim(),
+                carrera: document.getElementById('perfilCarrera').value.trim(),
+                fotografia: document.getElementById('perfilFoto').value.trim()
+            };
+            try {
+                const resp = await fetch(window.SEMSAD_API + '/actualizar_perfil.php', {
+                    method: 'POST', credentials: 'include',
+                    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                const res = await resp.json();
+                if (res.status === 'success') {
+                    const current = SEMSAD.getUser() || {};
+                    current.name = (data.nombres + ' ' + data.apellidos).trim();
+                    current.nombres = data.nombres; current.apellidos = data.apellidos; current.telefono = data.telefono;
+                    if (res.perfil && res.perfil.carrera) current.carrera = res.perfil.carrera;
+                    SEMSAD.setUser(current);
+                    document.getElementById('nombreUsuarioHeader').textContent = current.name;
+                    SEMSAD.toast(res.mensaje || 'Perfil actualizado.', 'success');
+                    bootstrap.Modal.getOrCreateInstance(document.getElementById('modalPerfil')).hide();
+                } else { SEMSAD.toast(res.mensaje || 'No se pudo actualizar el perfil.', 'error'); }
+            } catch (e) {
+                console.error('Error actualizando perfil:', e);
+                SEMSAD.toast('Error de conexión al actualizar el perfil.', 'error');
+            }
+        }
         async function cargarMisPrestamos() {
             const userObj = obtenerUsuarioLogueado();
             const tbody = document.getElementById('tablaMisPrestamosBody');
-            tbody.innerHTML = '<tr><td colspan="4" class="text-center py-4"><i class="fa-solid fa-spinner fa-spin me-2 text-primary"></i>Cargando tus préstamos...</td></tr>';
-
-            if (!userObj) return;
-
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4"><i class="fa-solid fa-spinner fa-spin me-2 text-primary"></i>Cargando tus préstamos...</td></tr>';
+            if (!userObj) {
+                tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-muted">Inicia sesión nuevamente para consultar tus préstamos.</td></tr>';
+                return;
+            }
             try {
-                const url = window.SEMSAD_API + '/mis_prestamos.php?id_usuario=' + userObj.id_usuario + '&correo=' + encodeURIComponent(userObj.correo);
-                const resp = await fetch(url, { credentials: 'include' });
+                const resp = await fetch(window.SEMSAD_API + '/mis_prestamos.php', { credentials: 'include', cache: 'no-store' });
                 const res = await resp.json();
-
-                if (res.status === 'success' && res.prestamos.length > 0) {
+                if (res.status === 'success' && (res.prestamos || []).length > 0) {
                     tbody.innerHTML = '';
                     res.prestamos.forEach(p => {
                         let badge = '<span class="badge bg-primary">Activo</span>';
                         if (p.estado === 'Devuelto') badge = '<span class="badge bg-success">Devuelto</span>';
-                        if (p.estado === 'Vencido') badge = '<span class="badge bg-danger">Vencido (Con Mora)</span>';
-
-                        tbody.innerHTML += `
-                            <tr>
-                                <td class="fw-bold text-dark">${SEMSAD.esc(p.titulo)}</td>
-                                <td class="text-muted small">${SEMSAD.esc(p.fecha_salida)}</td>
-                                <td class="fw-bold text-primary">${SEMSAD.esc(p.fecha_limite)}</td>
-                                <td>${badge}</td>
-                            </tr>`;
+                        if (p.estado === 'Vencido' || p.estado === 'Con Mora') badge = '<span class="badge bg-danger">Vencido (Con Mora)</span>';
+                        if (p.estado === 'Reserva pendiente') badge = '<span class="badge bg-warning text-dark">Reserva pendiente</span>';
+                        const accion = p.estado === 'Activo' && Number(p.id_prestamo) > 0
+                            ? `<button class="btn btn-sm btn-outline-primary no-print" onclick="renovarPrestamo(${Number(p.id_prestamo)})"><i class="fa-solid fa-calendar-plus me-1"></i>Renovar</button>`
+                            : '<span class="text-muted">—</span>';
+                        tbody.innerHTML += `<tr>
+                            <td class="fw-bold text-dark">${SEMSAD.esc(p.titulo)}</td>
+                            <td class="text-muted small">${SEMSAD.esc(p.fecha_salida)}</td>
+                            <td class="fw-bold text-primary">${SEMSAD.esc(p.fecha_limite)}</td>
+                            <td>${badge}</td>
+                            <td class="no-print">${accion}</td>
+                        </tr>`;
                     });
                 } else {
-                    tbody.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-muted">No tienes registros de préstamos aún.</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-muted">No tienes registros de préstamos aún.</td></tr>';
                 }
             } catch (e) {
-                tbody.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-danger">Error al consultar tus préstamos.</td></tr>';
+                console.error('Error al consultar tus préstamos:', e);
+                tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-danger">Error al consultar tus préstamos.</td></tr>';
             }
         }
 
+        async function renovarPrestamo(idPrestamo) {
+            if (!Number(idPrestamo) || !confirm('¿Solicitar la renovación de este préstamo? El sistema validará si cumples las reglas de renovación.')) return;
+            try {
+                const resp = await fetch(window.SEMSAD_API + '/renovar_prestamo.php', {
+                    method: 'POST', credentials: 'include',
+                    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                    body: JSON.stringify({ id_prestamo: Number(idPrestamo) })
+                });
+                const res = await resp.json();
+                if (res.status === 'success') {
+                    SEMSAD.toast((res.mensaje || 'Renovación realizada.') + (res.fecha_limite ? ' Nueva fecha límite: ' + res.fecha_limite : ''), 'success');
+                    await cargarMisPrestamos();
+                    await cargarCatalogo();
+                } else { SEMSAD.toast(res.mensaje || 'No se pudo renovar el préstamo.', 'error'); }
+            } catch (e) {
+                console.error('Error al renovar:', e);
+                SEMSAD.toast('Error de conexión al renovar el préstamo.', 'error');
+            }
+        }
         function filtrarLibros() {
             const texto = document.getElementById('inputBuscar').value.toLowerCase().trim();
             if (!texto) {

@@ -1,47 +1,61 @@
 <?php
-// Permitir cookies de sesión en entornos con HTTPS/Vercel
-if (session_status() === PHP_SESSION_NONE) {
-    ini_set('session.cookie_samesite', 'None');
-    ini_set('session.cookie_secure', 'True');
-    session_start();
-}
+require_once __DIR__ . '/conexion.php';
+semsad_iniciar_sesion();
 
-// Configuración dinámica de CORS para permitir envío de cookies de sesión
-if (isset($_SERVER['HTTP_ORIGIN'])) {
-    header("Access-Control-Allow-Origin: " . $_SERVER['HTTP_ORIGIN']);
-} else {
-    header("Access-Control-Allow-Origin: *");
-}
-
-header("Access-Control-Allow-Credentials: true");
-header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
-header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
-header('Content-Type: application/json; charset=utf-8');
-
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    http_response_code(200);
-    exit;
-}
-
-// Verificar si existe un ID de usuario guardado en la sesión
-$id_usuario = $_SESSION['id_usuario'] ?? $_SESSION['usuario_id'] ?? $_SESSION['id'] ?? null;
-
-if ($id_usuario !== null) {
-    echo json_encode([
-        'status' => 'success',
-        'sesion_activa' => true,
-        'usuario' => [
-            'id_usuario' => $id_usuario,
-            'nombre'     => $_SESSION['nombre'] ?? $_SESSION['nombre_usuario'] ?? 'Usuario',
-            'rol'        => $_SESSION['rol'] ?? $_SESSION['id_rol'] ?? 'estudiante',
-            'ci'         => $_SESSION['ci'] ?? $_SESSION['codigo'] ?? ''
-        ]
-    ]);
-} else {
-    echo json_encode([
+$id_usuario = (int)($_SESSION['id_usuario'] ?? 0);
+if ($id_usuario <= 0) {
+    semsad_responder([
         'status' => 'error',
         'sesion_activa' => false,
         'mensaje' => 'No hay una sesión activa.'
     ]);
+}
+
+try {
+    $stmt = $conexion->prepare("
+        SELECT u.id_usuario, u.nombres, u.apellidos, u.correo,
+               u.codigo_empleado, u.estado, r.nombre AS rol
+        FROM Usuario u
+        LEFT JOIN Rol r ON r.id_rol = u.id_rol
+        WHERE u.id_usuario = :id
+        LIMIT 1
+    ");
+    $stmt->execute([':id' => $id_usuario]);
+    $usuario = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if (!$usuario || ($usuario['estado'] ?? '') !== 'Activo') {
+        semsad_responder([
+            'status' => 'error',
+            'sesion_activa' => false,
+            'mensaje' => 'La cuenta asociada a la sesión no está activa. Inicia sesión nuevamente.'
+        ]);
+    }
+
+    $nombreCompleto = trim(($usuario['nombres'] ?? '') . ' ' . ($usuario['apellidos'] ?? ''));
+    if ($nombreCompleto === '') $nombreCompleto = (string)$usuario['correo'];
+
+    $_SESSION['nombre'] = $nombreCompleto;
+    $_SESSION['correo'] = (string)$usuario['correo'];
+    $_SESSION['rol'] = (string)($usuario['rol'] ?? '');
+    $_SESSION['ci'] = (string)($usuario['codigo_empleado'] ?? '');
+
+    semsad_responder([
+        'status' => 'success',
+        'sesion_activa' => true,
+        'usuario' => [
+            'id_usuario' => (int)$usuario['id_usuario'],
+            'nombre' => $nombreCompleto,
+            'nombreCompleto' => $nombreCompleto,
+            'nombres' => (string)($usuario['nombres'] ?? ''),
+            'apellidos' => (string)($usuario['apellidos'] ?? ''),
+            'correo' => (string)($usuario['correo'] ?? ''),
+            'rol' => (string)($usuario['rol'] ?? ''),
+            'ci' => (string)($usuario['codigo_empleado'] ?? ''),
+            'estado' => (string)($usuario['estado'] ?? '')
+        ]
+    ]);
+} catch (Throwable $e) {
+    error_log('[SEMSAD] verificar_sesion: ' . $e->getMessage());
+    semsad_responder(['status' => 'error', 'sesion_activa' => false, 'mensaje' => 'No se pudo verificar la sesión en este momento.'], 500);
 }
 ?>

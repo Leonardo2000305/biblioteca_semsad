@@ -1,69 +1,92 @@
 <?php
-require_once 'conexion.php';
+require_once __DIR__ . '/conexion.php';
 semsad_iniciar_sesion();
-header('Content-Type: application/json; charset=utf-8');
+
+$id_usuario = (int)($_SESSION['id_usuario'] ?? 0);
+if ($id_usuario <= 0) {
+    semsad_responder(['status' => 'error', 'mensaje' => 'Tu sesión no está activa. Inicia sesión nuevamente.'], 401);
+}
 
 try {
-    $req_id = (int)($_GET['id_usuario'] ?? $_GET['usuario_id'] ?? $_SESSION['id_usuario'] ?? 0);
-    $req_email = trim($_GET['correo'] ?? $_GET['email'] ?? $_SESSION['correo'] ?? '');
-
-    $id_usuario = 0;
-    if ($req_id > 0) {
-        $id_usuario = $req_id;
-    } else if (!empty($req_email)) {
-        $stmtU = $conexion->prepare("SELECT id_usuario FROM Usuario WHERE LOWER(TRIM(correo)) = LOWER(TRIM(:e)) LIMIT 1");
-        $stmtU->execute([':e' => $req_email]);
-        $id_usuario = (int)$stmtU->fetchColumn();
-    }
-
-    if ($id_usuario <= 0) {
-        semsad_responder(['status' => 'error', 'mensaje' => 'Usuario no identificado.'], 400);
-    }
-
-    $conexion->exec("
-        UPDATE Prestamo 
-        SET estado = 'Vencido' 
-        WHERE estado = 'Activo' AND fecha_limite < NOW()
-    ");
-
-    $sql = "SELECT 
-                p.id_prestamo,
-                m.titulo AS libro_titulo,
-                m.autores AS libro_autores,
-                m.isbn AS libro_isbn,
-                p.fecha_salida,
-                p.fecha_limite,
-                p.estado
-            FROM Prestamo p
-            INNER JOIN Detalle_Prestamo dp ON p.id_prestamo = dp.id_prestamo
-            INNER JOIN Ejemplar e ON dp.id_ejemplar = e.id_ejemplar
-            INNER JOIN MaterialBibliografico m ON e.id_material = m.id_material
-            WHERE p.id_usuario = :u
-            ORDER BY p.id_prestamo DESC";
-
+    // El historial se filtra siempre por la sesión autenticada, no por un ID recibido por URL.
+    $sql = "
+        SELECT
+            p.id_prestamo,
+            p.fecha_salida,
+            p.fecha_limite,
+            p.fecha_devolucion_real,
+            p.estado,
+            m.titulo AS libro_titulo,
+            m.codigo_isbn_issn AS libro_isbn,
+            COALESCE(
+                (SELECT GROUP_CONCAT(CONCAT(a.nombres, ' ', a.apellidos) ORDER BY ma.orden_autor SEPARATOR ', ')
+                 FROM Material_Autor ma
+                 INNER JOIN Autor a ON a.id_autor = ma.id_autor
+                 WHERE ma.id_material = m.id_material),
+                'Autor no especificado'
+            ) AS libro_autores
+        FROM Prestamo p
+        INNER JOIN Detalle_Prestamo dp ON dp.id_prestamo = p.id_prestamo
+        INNER JOIN Ejemplar e ON e.id_ejemplar = dp.id_ejemplar
+        INNER JOIN MaterialBibliografico m ON m.id_material = e.id_material
+        WHERE p.id_usuario = :u
+        ORDER BY p.id_prestamo DESC
+    ";
     $stmt = $conexion->prepare($sql);
     $stmt->execute([':u' => $id_usuario]);
-    $filas = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
+    $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $hoy = strtotime(date('Y-m-d'));
     $misPrestamos = [];
-    foreach ($filas as $f) {
+
+    foreach ($rows as $f) {
+        $limiteTs = !empty($f['fecha_limite']) ? strtotime($f['fecha_limite']) : false;
+        $estadoOriginal = (string)($f['estado'] ?? 'Activo');
+        $estadoMostrar = $estadoOriginal;
+        if ($estadoOriginal === 'Con Mora' || ($estadoOriginal === 'Activo' && $limiteTs !== false && $limiteTs < $hoy)) {
+            $estadoMostrar = 'Vencido';
+        }
+
         $misPrestamos[] = [
-            'id_prestamo'   => (int)$f['id_prestamo'],
-            'titulo'        => $f['libro_titulo'] ?? 'Libro',
-            'autores'       => $f['libro_autores'] ?? 'S/N',
-            'isbn'          => $f['libro_isbn'] ?? 'S/N',
-            'fecha_salida'  => date('d/m/Y H:i', strtotime($f['fecha_salida'])),
-            'fecha_limite'  => date('d/m/Y', strtotime($f['fecha_limite'])),
-            'estado'        => $f['estado'] ?? 'Activo'
+            'id_prestamo' => (int)$f['id_prestamo'],
+            'titulo' => (string)($f['libro_titulo'] ?? 'Libro'),
+            'autores' => (string)($f['libro_autores'] ?? 'Autor no especificado'),
+            'isbn' => (string)($f['libro_isbn'] ?? 'S/N'),
+            'fecha_salida' => !empty($f['fecha_salida']) ? date('d/m/Y H:i', strtotime($f['fecha_salida'])) : '',
+            'fecha_limite' => $limiteTs !== false ? date('d/m/Y', $limiteTs) : 'S/F',
+            'fecha_devolucion_real' => !empty($f['fecha_devolucion_real']) ? date('d/m/Y H:i', strtotime($f['fecha_devolucion_real'])) : '',
+            'estado' => $estadoMostrar,
+            'estado_original' => $estadoOriginal
         ];
     }
 
-    semsad_responder([
-        'status' => 'success',
-        'prestamos' => $misPrestamos,
-        'data' => $misPrestamos
-    ]);
+    // Las reservas pendientes aparecen en el mismo historial, siempre filtradas por el usuario autenticado.
+    $stmtR = $conexion->prepare("
+        SELECT r.id_reserva, r.id_material, r.prioridad, mb.titulo
+        FROM Reserva r
+        INNER JOIN MaterialBibliografico mb ON mb.id_material = r.id_material
+        WHERE r.id_usuario = :u AND r.estado = 'Pendiente'
+        ORDER BY r.prioridad ASC, r.id_reserva ASC
+    ");
+    $stmtR->execute([':u' => $id_usuario]);
+    foreach ($stmtR->fetchAll(PDO::FETCH_ASSOC) as $r) {
+        $misPrestamos[] = [
+            'id_prestamo' => null,
+            'id_reserva' => (int)$r['id_reserva'],
+            'titulo' => (string)($r['titulo'] ?? 'Libro'),
+            'autores' => '',
+            'isbn' => '',
+            'fecha_salida' => 'Lista de espera · Posición ' . (int)$r['prioridad'],
+            'fecha_limite' => 'En espera',
+            'fecha_devolucion_real' => '',
+            'estado' => 'Reserva pendiente',
+            'estado_original' => 'Pendiente',
+            'prioridad' => (int)$r['prioridad']
+        ];
+    }
 
-} catch (Exception $e) {
-    semsad_responder(['status' => 'error', 'mensaje' => 'Error al obtener tus préstamos: ' . $e->getMessage()], 500);
+    semsad_responder(['status' => 'success', 'prestamos' => $misPrestamos, 'data' => $misPrestamos]);
+} catch (Throwable $e) {
+    error_log('[SEMSAD] mis_prestamos: ' . $e->getMessage());
+    semsad_responder(['status' => 'error', 'mensaje' => 'No se pudo obtener tu historial de préstamos.'], 500);
 }
+?>

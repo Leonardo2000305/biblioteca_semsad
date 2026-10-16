@@ -1,115 +1,114 @@
 <?php
-require_once 'conexion.php';
+require_once __DIR__ . '/conexion.php';
 semsad_iniciar_sesion();
 
-header('Content-Type: application/json; charset=utf-8');
-
 try {
-    // 1. Auto-sincronización silenciosa de stock para corregir ejemplares inconsistentes
-    try {
-        $conexion->exec("
-            UPDATE Ejemplar 
-            SET estado_ejemplar = 'Disponible' 
-            WHERE estado_ejemplar = 'Prestado' 
-            AND id_ejemplar NOT IN (
-                SELECT DISTINCT dp.id_ejemplar 
-                FROM Detalle_Prestamo dp 
-                INNER JOIN Prestamo p ON dp.id_prestamo = p.id_prestamo 
-                WHERE p.estado = 'Activo'
-            )
-        ");
-    } catch (Exception $ex) {}
+    // El catálogo se consulta en modo lectura. No corregimos estados de inventario dentro de un GET.
+    $id_usuario = (int)($_SESSION['id_usuario'] ?? 0);
+    $columnasMaterial = $conexion->query("SHOW COLUMNS FROM MaterialBibliografico")->fetchAll(PDO::FETCH_COLUMN, 0);
+    $tieneEdicion = in_array('edicion', $columnasMaterial, true);
+    $tieneIdioma = in_array('idioma', $columnasMaterial, true);
+    $camposOpcionales = '';
+    if ($tieneEdicion) $camposOpcionales .= ', mb.edicion';
+    if ($tieneIdioma) $camposOpcionales .= ', mb.idioma';
 
-    $req_id = (int)($_GET['id_usuario'] ?? $_GET['usuario_id'] ?? $_SESSION['id_usuario'] ?? 0);
-    $req_email = trim($_GET['correo'] ?? $_GET['email'] ?? $_SESSION['correo'] ?? '');
+    $sql = "
+        SELECT
+            mb.id_material,
+            mb.titulo,
+            mb.codigo_isbn_issn,
+            mb.agno_publicacion,
+            mb.id_tipo_material,
+            mb.id_editorial,
+            mb.id_categoria
+            $camposOpcionales,
+            COALESCE(
+                (SELECT GROUP_CONCAT(CONCAT(a.nombres, ' ', a.apellidos)
+                                     ORDER BY ma.orden_autor SEPARATOR ', ')
+                 FROM Material_Autor ma
+                 INNER JOIN Autor a ON a.id_autor = ma.id_autor
+                 WHERE ma.id_material = mb.id_material),
+                'Autor no especificado'
+            ) AS autores,
+            COALESCE((SELECT COUNT(*) FROM Ejemplar e
+                      WHERE e.id_material = mb.id_material AND e.estado_ejemplar <> 'Baja'), 0) AS total_ejemplares,
+            COALESCE((SELECT COUNT(*) FROM Ejemplar e
+                      WHERE e.id_material = mb.id_material AND e.estado_ejemplar = 'Disponible'), 0) AS stock_disponible,
+            COALESCE((SELECT COUNT(*) FROM Reserva r
+                      WHERE r.id_material = mb.id_material AND r.estado = 'Pendiente'), 0) AS reservas_pendientes
+        FROM MaterialBibliografico mb
+        ORDER BY mb.id_material DESC
+    ";
+    $materials = $conexion->query($sql)->fetchAll(PDO::FETCH_ASSOC);
 
-    $id_usuario = 0;
-    if ($req_id > 0) {
-        $id_usuario = $req_id;
-    } else if (!empty($req_email)) {
-        $stmtU = $conexion->prepare("SELECT id_usuario FROM Usuario WHERE LOWER(TRIM(correo)) = LOWER(TRIM(:e)) LIMIT 1");
-        $stmtU->execute([':e' => $req_email]);
-        $id_usuario = (int)$stmtU->fetchColumn();
-    }
-
-    // 2. Obtener libros base
-    $sql = "SELECT * FROM MaterialBibliografico ORDER BY id_material DESC";
-    $stmt = $conexion->query($sql);
-    $materiales = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-    // 3. Obtener ejemplares y agrupar disponibilidades en PHP
-    $sqlEjemplares = "SELECT id_ejemplar, id_material, estado_ejemplar FROM Ejemplar";
-    $stmtE = $conexion->query($sqlEjemplares);
-    $ejemplares = $stmtE->fetchAll(PDO::FETCH_ASSOC);
-
-    $ejemplaresPorMaterial = [];
-    foreach ($ejemplares as $ej) {
-        $mId = (int)$ej['id_material'];
-        if (!isset($ejemplaresPorMaterial[$mId])) {
-            $ejemplaresPorMaterial[$mId] = ['total' => 0, 'disponibles' => 0];
-        }
-        $ejemplaresPorMaterial[$mId]['total']++;
-        if (strtolower(trim($ej['estado_ejemplar'])) === 'disponible') {
-            $ejemplaresPorMaterial[$mId]['disponibles']++;
-        }
-    }
-
-    // 4. Obtener préstamos activos del usuario logueado
     $prestadosPorUsuario = [];
+    $reservasPorUsuario = [];
     if ($id_usuario > 0) {
-        $stmtP = $conexion->prepare("
-            SELECT DISTINCT e.id_material 
+        $stmt = $conexion->prepare("
+            SELECT DISTINCT e.id_material
             FROM Prestamo p
-            INNER JOIN Detalle_Prestamo dp ON p.id_prestamo = dp.id_prestamo
-            INNER JOIN Ejemplar e ON dp.id_ejemplar = e.id_ejemplar
-            WHERE p.id_usuario = :u AND p.estado = 'Activo'
+            INNER JOIN Detalle_Prestamo dp ON dp.id_prestamo = p.id_prestamo
+            INNER JOIN Ejemplar e ON e.id_ejemplar = dp.id_ejemplar
+            WHERE p.id_usuario = :u AND p.estado IN ('Activo', 'Con Mora')
         ");
-        $stmtP->execute([':u' => $id_usuario]);
-        $prestadosPorUsuario = $stmtP->fetchAll(PDO::FETCH_COLUMN);
+        $stmt->execute([':u' => $id_usuario]);
+        $prestadosPorUsuario = array_map('intval', $stmt->fetchAll(PDO::FETCH_COLUMN));
+
+        $stmtR = $conexion->prepare("
+            SELECT id_reserva, id_material, prioridad
+            FROM Reserva
+            WHERE id_usuario = :u AND estado = 'Pendiente'
+        ");
+        $stmtR->execute([':u' => $id_usuario]);
+        foreach ($stmtR->fetchAll(PDO::FETCH_ASSOC) as $r) {
+            $reservasPorUsuario[(int)$r['id_material']] = [
+                'id_reserva' => (int)$r['id_reserva'],
+                'prioridad' => (int)$r['prioridad']
+            ];
+        }
     }
 
-    // 5. Formatear respuesta estandarizada
     $libros = [];
-    foreach ($materiales as $m) {
-        $mId = (int)($m['id_material'] ?? $m['id'] ?? 0);
-        $disp = $ejemplaresPorMaterial[$mId]['disponibles'] ?? 0;
-        $tot  = $ejemplaresPorMaterial[$mId]['total'] ?? 0;
-        $reservado = in_array($mId, $prestadosPorUsuario);
-
-        $autorTexto = 'Autor no especificado';
-        if (!empty(trim($m['autores'] ?? ''))) {
-            $autorTexto = trim($m['autores']);
-        } else if (!empty(trim($m['autor'] ?? ''))) {
-            $autorTexto = trim($m['autor']);
-        } else if (!empty(trim($m['autores_material'] ?? ''))) {
-            $autorTexto = trim($m['autores_material']);
-        }
+    foreach ($materials as $m) {
+        $idMaterial = (int)$m['id_material'];
+        $reservaPropia = $reservasPorUsuario[$idMaterial] ?? null;
+        $prioridad = is_array($reservaPropia) ? $reservaPropia['prioridad'] : null;
+        $idReservaPropia = is_array($reservaPropia) ? $reservaPropia['id_reserva'] : null;
+        $autorTexto = (string)($m['autores'] ?? 'Autor no especificado');
+        $stock = (int)$m['stock_disponible'];
+        $queue = (int)$m['reservas_pendientes'];
 
         $libros[] = [
-            'id_material'      => $mId,
-            'id'               => $mId,
-            'titulo'           => !empty(trim($m['titulo'] ?? '')) ? trim($m['titulo']) : ($m['nombre'] ?? 'Sin título'),
-            'autores'          => $autorTexto,
-            'autor'            => $autorTexto,
-            'isbn'             => $m['isbn'] ?? $m['codigo_isbn_issn'] ?? $m['codigo_barras'] ?? 'S/N',
-            'agno_publicacion' => $m['agno_publicacion'] ?? $m['anio_publicacion'] ?? $m['anio'] ?? 'N/A',
-            'stock_disponible' => $disp,
-            'disponible'       => $disp,
-            'total_ejemplares' => $tot,
-            'reservado_por_mi' => $reservado
+            'id_material' => $idMaterial,
+            'id' => $idMaterial,
+            'titulo' => (string)($m['titulo'] ?? 'Sin título'),
+            'autores' => $autorTexto,
+            'autor' => $autorTexto,
+            'isbn' => (string)($m['codigo_isbn_issn'] ?? 'S/N'),
+            'codigo_isbn_issn' => (string)($m['codigo_isbn_issn'] ?? 'S/N'),
+            'agno_publicacion' => $m['agno_publicacion'] ?? 'N/A',
+            'id_tipo_material' => (int)($m['id_tipo_material'] ?? 0),
+            'id_editorial' => (int)($m['id_editorial'] ?? 0),
+            'id_categoria' => (int)($m['id_categoria'] ?? 0),
+            'edicion' => $tieneEdicion ? (string)($m['edicion'] ?? '') : '',
+            'idioma' => $tieneIdioma ? (string)($m['idioma'] ?? '') : '',
+            'tiene_metadatos_avanzados' => $tieneEdicion && $tieneIdioma,
+            'stock_disponible' => $stock,
+            'disponible' => $stock,
+            'total_ejemplares' => (int)$m['total_ejemplares'],
+            'reservado_por_mi' => in_array($idMaterial, $prestadosPorUsuario, true),
+            'tengo_prestamo_activo' => in_array($idMaterial, $prestadosPorUsuario, true),
+            'tengo_reserva_pendiente' => $prioridad !== null,
+            'prioridad_reserva' => $prioridad,
+            'id_reserva_pendiente' => $idReservaPropia,
+            'hay_reservas_pendientes' => $queue > 0,
+            'reservas_pendientes' => $queue
         ];
     }
 
-    semsad_responder([
-        'status' => 'success',
-        'libros' => $libros,
-        'data'   => $libros,
-        'datos'  => $libros
-    ]);
-
-} catch (Exception $e) {
-    semsad_responder([
-        'status'  => 'error',
-        'mensaje' => 'Error al obtener los libros: ' . $e->getMessage()
-    ], 500);
+    semsad_responder(['status' => 'success', 'libros' => $libros, 'data' => $libros, 'datos' => $libros]);
+} catch (Throwable $e) {
+    error_log('[SEMSAD] obtener_libros: ' . $e->getMessage());
+    semsad_responder(['status' => 'error', 'mensaje' => 'Error al obtener el catálogo de libros.'], 500);
 }
+?>

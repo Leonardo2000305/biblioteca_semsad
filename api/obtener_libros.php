@@ -5,6 +5,21 @@ semsad_iniciar_sesion();
 header('Content-Type: application/json; charset=utf-8');
 
 try {
+    // 1. Auto-sincronización silenciosa de stock para corregir ejemplares inconsistentes
+    try {
+        $conexion->exec("
+            UPDATE Ejemplar 
+            SET estado_ejemplar = 'Disponible' 
+            WHERE estado_ejemplar = 'Prestado' 
+            AND id_ejemplar NOT IN (
+                SELECT DISTINCT dp.id_ejemplar 
+                FROM Detalle_Prestamo dp 
+                INNER JOIN Prestamo p ON dp.id_prestamo = p.id_prestamo 
+                WHERE p.estado = 'Activo'
+            )
+        ");
+    } catch (Exception $ex) {}
+
     $req_id = (int)($_GET['id_usuario'] ?? $_GET['usuario_id'] ?? $_SESSION['id_usuario'] ?? 0);
     $req_email = trim($_GET['correo'] ?? $_GET['email'] ?? $_SESSION['correo'] ?? '');
 
@@ -12,17 +27,17 @@ try {
     if ($req_id > 0) {
         $id_usuario = $req_id;
     } else if (!empty($req_email)) {
-        $stmtU = $conexion->prepare("SELECT id_usuario FROM Usuario WHERE LOWER(correo) = LOWER(:e) LIMIT 1");
+        $stmtU = $conexion->prepare("SELECT id_usuario FROM Usuario WHERE LOWER(TRIM(correo)) = LOWER(TRIM(:e)) LIMIT 1");
         $stmtU->execute([':e' => $req_email]);
         $id_usuario = (int)$stmtU->fetchColumn();
     }
 
-    // 1. Obtener libros base
+    // 2. Obtener libros base
     $sql = "SELECT * FROM MaterialBibliografico ORDER BY id_material DESC";
     $stmt = $conexion->query($sql);
     $materiales = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-    // 2. Obtener ejemplares y agrupar disponibilidades en PHP para evitar errores de ONLY_FULL_GROUP_BY
+    // 3. Obtener ejemplares y agrupar disponibilidades en PHP
     $sqlEjemplares = "SELECT id_ejemplar, id_material, estado_ejemplar FROM Ejemplar";
     $stmtE = $conexion->query($sqlEjemplares);
     $ejemplares = $stmtE->fetchAll(PDO::FETCH_ASSOC);
@@ -34,12 +49,12 @@ try {
             $ejemplaresPorMaterial[$mId] = ['total' => 0, 'disponibles' => 0];
         }
         $ejemplaresPorMaterial[$mId]['total']++;
-        if (strtolower($ej['estado_ejemplar']) === 'disponible') {
+        if (strtolower(trim($ej['estado_ejemplar'])) === 'disponible') {
             $ejemplaresPorMaterial[$mId]['disponibles']++;
         }
     }
 
-    // 3. Obtener préstamos activos del usuario logueado
+    // 4. Obtener préstamos activos del usuario logueado
     $prestadosPorUsuario = [];
     if ($id_usuario > 0) {
         $stmtP = $conexion->prepare("
@@ -53,7 +68,7 @@ try {
         $prestadosPorUsuario = $stmtP->fetchAll(PDO::FETCH_COLUMN);
     }
 
-    // 4. Formatear respuesta estandarizada
+    // 5. Formatear respuesta estandarizada
     $libros = [];
     foreach ($materiales as $m) {
         $mId = (int)($m['id_material'] ?? $m['id'] ?? 0);
@@ -61,11 +76,21 @@ try {
         $tot  = $ejemplaresPorMaterial[$mId]['total'] ?? 0;
         $reservado = in_array($mId, $prestadosPorUsuario);
 
+        $autorTexto = 'Autor no especificado';
+        if (!empty(trim($m['autores'] ?? ''))) {
+            $autorTexto = trim($m['autores']);
+        } else if (!empty(trim($m['autor'] ?? ''))) {
+            $autorTexto = trim($m['autor']);
+        } else if (!empty(trim($m['autores_material'] ?? ''))) {
+            $autorTexto = trim($m['autores_material']);
+        }
+
         $libros[] = [
             'id_material'      => $mId,
             'id'               => $mId,
-            'titulo'           => $m['titulo'] ?? $m['nombre'] ?? 'Sin título',
-            'autores'          => $m['autores'] ?? $m['autor'] ?? 'Autor no especificado',
+            'titulo'           => !empty(trim($m['titulo'] ?? '')) ? trim($m['titulo']) : ($m['nombre'] ?? 'Sin título'),
+            'autores'          => $autorTexto,
+            'autor'            => $autorTexto,
             'isbn'             => $m['isbn'] ?? $m['codigo_isbn_issn'] ?? $m['codigo_barras'] ?? 'S/N',
             'agno_publicacion' => $m['agno_publicacion'] ?? $m['anio_publicacion'] ?? $m['anio'] ?? 'N/A',
             'stock_disponible' => $disp,

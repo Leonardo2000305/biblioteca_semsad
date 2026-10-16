@@ -245,9 +245,9 @@
                         <table class="table table-hover align-middle mb-0">
                             <thead class="table-light">
                                 <tr>
-                                    <th>Código</th>
                                     <th>Estudiante / Usuario</th>
                                     <th>CI / Registro</th>
+                                    <th>Teléfono / Celular</th>
                                     <th>Libro Reservado</th>
                                     <th>Fecha Límite</th>
                                     <th>Estado</th>
@@ -377,9 +377,12 @@
                     tbody.innerHTML = '';
                     lista.forEach(p => {
                         const idPrestamo = p.id || p.id_prestamo;
-                        const codigo = p.code || ('PRE-' + String(idPrestamo).padStart(3, '0'));
                         const usuario = p.userName || p.usuario || 'Estudiante';
-                        const ci = p.userCi || p.codigo || 'S/N';
+                        const correo = p.userCorreo || p.correo || '';
+                        const ci = p.userCi || 'REG-000';
+                        const telefono = (p.userTelefono && p.userTelefono !== 'Sin teléfono' && p.userTelefono !== 'Sin dato')
+                            ? `<span class="fw-semibold text-dark"><i class="fa-solid fa-phone me-1 text-muted small"></i>${SEMSAD.esc(p.userTelefono)}</span>`
+                            : `<span class="text-muted fst-italic">Sin teléfono</span>`;
                         const libro = p.bookTitle || p.libro || 'Libro';
                         const fechaLimite = p.dueDate || p.fecha_limite || 'S/F';
                         const estado = p.status || p.estado || 'Activo';
@@ -390,12 +393,12 @@
 
                         tbody.innerHTML += `
                             <tr>
-                                <td class="fw-bold text-dark">${SEMSAD.esc(codigo)}</td>
                                 <td>
                                     <div class="fw-bold text-dark">${SEMSAD.esc(usuario)}</div>
-                                    ${p.correo ? `<small class="text-muted">${SEMSAD.esc(p.correo)}</small>` : ''}
+                                    ${correo ? `<small class="text-muted">${SEMSAD.esc(correo)}</small>` : ''}
                                 </td>
                                 <td><span class="badge bg-light text-dark border font-monospace fs-6">${SEMSAD.esc(ci)}</span></td>
+                                <td>${telefono}</td>
                                 <td class="fw-bold text-primary">${SEMSAD.esc(libro)}</td>
                                 <td class="text-muted"><i class="fa-regular fa-calendar-days me-1"></i>${SEMSAD.esc(fechaLimite)}</td>
                                 <td>${badgeEstado}</td>

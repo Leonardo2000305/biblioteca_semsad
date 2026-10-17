@@ -11,12 +11,12 @@ try {
         $conexion->exec("
             UPDATE Ejemplar 
             SET estado_ejemplar = 'Disponible' 
-            WHERE estado_ejemplar = 'Prestado' 
+            WHERE estado_ejemplar IN ('Prestado', 'Reservado') 
             AND id_ejemplar NOT IN (
                 SELECT DISTINCT dp.id_ejemplar 
                 FROM Detalle_Prestamo dp 
                 INNER JOIN Prestamo p ON dp.id_prestamo = p.id_prestamo 
-                WHERE p.estado = 'Activo'
+                WHERE p.estado IN ('Activo', 'Vencido', 'Con Mora')
             )
         ");
     } catch (Exception $ex) {}
@@ -55,11 +55,33 @@ try {
             FROM Prestamo p
             INNER JOIN Detalle_Prestamo dp ON p.id_prestamo = dp.id_prestamo
             INNER JOIN Ejemplar e ON dp.id_ejemplar = e.id_ejemplar
-            WHERE p.id_usuario = :u AND p.estado = 'Activo'
+            WHERE p.id_usuario = :u AND p.estado IN ('Activo', 'Vencido', 'Con Mora')
         ");
         $stmtP->execute([':u' => $id_usuario]);
         $prestadosPorUsuario = $stmtP->fetchAll(PDO::FETCH_COLUMN);
     }
+
+    // 4b. Datos extra (no obligatorios: si la tabla no existe, simplemente no se muestran)
+    $categoriaPorMaterial = [];
+    try {
+        foreach ($conexion->query("SELECT m.id_material, c.nombre FROM MaterialBibliografico m INNER JOIN Categoria c ON c.id_categoria = m.id_categoria")->fetchAll(PDO::FETCH_ASSOC) as $f) {
+            $categoriaPorMaterial[(int)$f['id_material']] = $f['nombre'];
+        }
+    } catch (Throwable $ignorar) {}
+    $colaPorMaterial = [];
+    $miTurno = [];
+    try {
+        foreach ($conexion->query("SELECT id_material, COUNT(*) AS n FROM Reserva WHERE estado = 'Pendiente' GROUP BY id_material")->fetchAll(PDO::FETCH_ASSOC) as $f) {
+            $colaPorMaterial[(int)$f['id_material']] = (int)$f['n'];
+        }
+        if ($id_usuario > 0) {
+            $q = $conexion->prepare("SELECT id_material, prioridad FROM Reserva WHERE id_usuario = :u AND estado = 'Pendiente'");
+            $q->execute([':u' => $id_usuario]);
+            foreach ($q->fetchAll(PDO::FETCH_ASSOC) as $f) {
+                $miTurno[(int)$f['id_material']] = (int)$f['prioridad'];
+            }
+        }
+    } catch (Throwable $ignorar) {}
 
     // 5. Formatear respuesta estandarizada
     $libros = [];
@@ -89,7 +111,10 @@ try {
             'stock_disponible' => $disp,
             'disponible'       => $disp,
             'total_ejemplares' => $tot,
-            'reservado_por_mi' => $reservado
+            'reservado_por_mi' => $reservado,
+            'categoria'        => $categoriaPorMaterial[$mId] ?? '',
+            'en_cola'          => $colaPorMaterial[$mId] ?? 0,
+            'mi_turno'         => $miTurno[$mId] ?? 0
         ];
     }
 

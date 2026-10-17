@@ -1,6 +1,7 @@
 <?php
 require_once 'conexion.php';
-semsad_iniciar_sesion();
+// Solo personal de la biblioteca (Administrador / Bibliotecario)
+semsad_requerir_rol(['Administrador', 'Bibliotecario']);
 header('Content-Type: application/json; charset=utf-8');
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {

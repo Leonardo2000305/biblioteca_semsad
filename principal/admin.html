@@ -37,6 +37,7 @@
             <a href="#" class="nav-link" onclick="verModulo('inventario', this)"><i class="fa-solid fa-boxes-stacked"></i> Inventario</a>
             <a href="#" class="nav-link" onclick="verModulo('ventanilla', this)"><i class="fa-solid fa-right-left"></i> Ventanilla</a>
             <a href="#" class="nav-link" onclick="verModulo('multas', this)"><i class="fa-solid fa-hand-holding-dollar"></i> Multas y Sanciones</a>
+            <a href="#" class="nav-link" onclick="verModulo('reportes', this)"><i class="fa-solid fa-chart-pie"></i> Reportes</a>
             <a href="#" class="nav-link" onclick="verModulo('auditoria', this)"><i class="fa-solid fa-shield-halved"></i> Auditoría Claves</a>
             <a href="#" class="nav-link" onclick="verModulo('usuarios', this)"><i class="fa-solid fa-users"></i> Usuarios Registrados</a>
         </div>
@@ -140,6 +141,33 @@
 
         <!-- MÓDULO 3: VENTANILLA -->
         <div id="secVentanilla" class="modulo-vista d-none">
+            <div class="card table-card shadow-sm bg-white mb-4 no-print">
+                <div class="card-header bg-white py-3 border-bottom">
+                    <h5 class="fw-bold mb-0 text-dark"><i class="fa-solid fa-file-circle-plus text-success me-2"></i>Registrar préstamo en ventanilla</h5>
+                </div>
+                <div class="card-body">
+                    <form id="formPrestamoVentanilla" class="row g-3 align-items-end">
+                        <div class="col-12 col-md-4">
+                            <label class="form-label fw-bold">Estudiante / Docente</label>
+                            <select id="vUsuario" class="form-select" required><option value="">-- Seleccionar usuario --</option></select>
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <label class="form-label fw-bold">Libro</label>
+                            <select id="vLibro" class="form-select" required><option value="">-- Seleccionar libro --</option></select>
+                        </div>
+                        <div class="col-6 col-md-2">
+                            <label class="form-label fw-bold">Tipo</label>
+                            <select id="vTipo" class="form-select">
+                                <option value="Domicilio">A domicilio (7 días)</option>
+                                <option value="Sala">En sala (hoy)</option>
+                            </select>
+                        </div>
+                        <div class="col-6 col-md-2">
+                            <button type="submit" class="btn btn-success w-100 fw-bold"><i class="fa-solid fa-check me-1"></i>Autorizar</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
             <div class="card table-card shadow-sm bg-white">
                 <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center border-bottom">
                     <h5 class="fw-bold mb-0 text-dark">
@@ -196,6 +224,43 @@
                         </table>
                     </div>
                 </div>
+            </div>
+        </div>
+
+        <!-- MÓDULO REPORTES E INDICADORES -->
+        <div id="secReportes" class="modulo-vista d-none">
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3 no-print">
+                <small class="text-muted" id="repGenerado"></small>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-sm btn-outline-primary" onclick="cargarReportes()"><i class="fa-solid fa-rotate me-1"></i>Actualizar</button>
+                    <button class="btn btn-sm btn-success" onclick="exportarReporteExcel()"><i class="fa-solid fa-file-excel me-1"></i>Exportar Excel</button>
+                    <button class="btn btn-sm btn-danger" onclick="window.print()"><i class="fa-solid fa-file-pdf me-1"></i>Imprimir / PDF</button>
+                </div>
+            </div>
+            <div class="row g-3 mb-3" id="repResumen"></div>
+            <div class="row g-3">
+                <div class="col-12 col-lg-6"><div class="card table-card shadow-sm bg-white h-100">
+                    <div class="card-header bg-white fw-bold"><i class="fa-solid fa-ranking-star text-primary me-2"></i>Libros más solicitados</div>
+                    <div class="card-body p-0"><table class="table table-sm mb-0"><tbody id="repMasSolicitados"></tbody></table></div>
+                </div></div>
+                <div class="col-12 col-lg-6"><div class="card table-card shadow-sm bg-white h-100">
+                    <div class="card-header bg-white fw-bold"><i class="fa-solid fa-triangle-exclamation text-warning me-2"></i>Stock crítico (0 o 1 copia disponible)</div>
+                    <div class="card-body p-0"><table class="table table-sm mb-0"><tbody id="repStock"></tbody></table></div>
+                </div></div>
+                <div class="col-12"><div class="card table-card shadow-sm bg-white">
+                    <div class="card-header bg-white fw-bold"><i class="fa-solid fa-user-clock text-danger me-2"></i>Usuarios morosos</div>
+                    <div class="card-body p-0"><div class="table-responsive"><table class="table table-sm mb-0">
+                        <thead class="table-light"><tr><th>Usuario</th><th>Libro</th><th>Fecha límite</th><th>Días</th><th>Multa (Bs)</th></tr></thead>
+                        <tbody id="repMorosos"></tbody></table></div></div>
+                </div></div>
+                <div class="col-12 col-lg-6"><div class="card table-card shadow-sm bg-white h-100">
+                    <div class="card-header bg-white fw-bold"><i class="fa-solid fa-boxes-stacked text-secondary me-2"></i>Inventario por estado</div>
+                    <div class="card-body p-0"><table class="table table-sm mb-0"><tbody id="repInventario"></tbody></table></div>
+                </div></div>
+                <div class="col-12 col-lg-6"><div class="card table-card shadow-sm bg-white h-100">
+                    <div class="card-header bg-white fw-bold"><i class="fa-solid fa-hourglass-half text-info me-2"></i>Lista de espera (reservas)</div>
+                    <div class="card-body p-0"><table class="table table-sm mb-0"><tbody id="repReservas"></tbody></table></div>
+                </div></div>
             </div>
         </div>
 
@@ -388,6 +453,7 @@
                 'inventario': 'Inventario de Libros',
                 'ventanilla': 'Ventanilla de Atención',
                 'multas': 'Control de Multas y Sanciones',
+                'reportes': 'Reportes e Indicadores',
                 'auditoria': 'Auditoría de Seguridad',
                 'usuarios': 'Padrón de Usuarios Registrados'
             };
@@ -399,6 +465,9 @@
             } else if (nombreModulo === 'multas') {
                 document.getElementById('secMultas').classList.remove('d-none');
                 cargarMultas();
+            } else if (nombreModulo === 'reportes') {
+                document.getElementById('secReportes').classList.remove('d-none');
+                cargarReportes();
             } else if (nombreModulo === 'auditoria') {
                 document.getElementById('secAuditoria').classList.remove('d-none');
                 cargarAuditoria();
@@ -408,6 +477,7 @@
             } else if (nombreModulo === 'ventanilla') {
                 document.getElementById('secVentanilla').classList.remove('d-none');
                 cargarVentanilla();
+                cargarFormularioVentanilla();
             } else {
                 document.getElementById('secDashboard').classList.remove('d-none');
                 cargarDashboard();
@@ -795,6 +865,101 @@
                     cargarUsuariosRegistrados();
                 } else { alert(res.mensaje); }
             } catch (ex) { alert("Error al cambiar estado."); }
+        }
+    </script>
+    <script>
+        /* ── Ventanilla: registrar préstamo (RF08) ───────────────────────────── */
+        async function cargarFormularioVentanilla() {
+            const selU = document.getElementById('vUsuario'), selL = document.getElementById('vLibro');
+            const uPrev = selU.value, lPrev = selL.value;
+            try {
+                const [ru, rl] = await Promise.all([
+                    fetch(window.SEMSAD_API + '/obtener_usuarios.php', { credentials: 'include' }).then(r => r.json()),
+                    fetch(window.SEMSAD_API + '/obtener_libros.php', { credentials: 'include' }).then(r => r.json())
+                ]);
+                const usuarios = (ru.data || []).filter(u => (u.estado || 'Activo') === 'Activo' && u.rol !== 'Administrador' && u.rol !== 'Bibliotecario');
+                selU.innerHTML = '<option value="">-- Seleccionar usuario --</option>' + usuarios.map(u =>
+                    `<option value="${parseInt(u.id_usuario || u.id)}">${SEMSAD.esc((u.nombres || '') + ' ' + (u.apellidos || ''))} · ${SEMSAD.esc(u.codigo_empleado || u.correo || '')}</option>`).join('');
+                selL.innerHTML = '<option value="">-- Seleccionar libro --</option>' + (rl.libros || []).map(l =>
+                    `<option value="${parseInt(l.id_material)}" ${parseInt(l.disponible) < 1 ? 'disabled' : ''}>${SEMSAD.esc(l.titulo)} (${parseInt(l.disponible)} disp.)</option>`).join('');
+                selU.value = uPrev; selL.value = lPrev;
+            } catch (e) { console.error('Formulario ventanilla:', e); }
+        }
+
+        document.getElementById('formPrestamoVentanilla').addEventListener('submit', async (ev) => {
+            ev.preventDefault();
+            try {
+                const resp = await fetch(window.SEMSAD_API + '/registrar_prestamo_ventanilla.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({
+                        id_usuario: parseInt(document.getElementById('vUsuario').value),
+                        id_material: parseInt(document.getElementById('vLibro').value),
+                        tipo: document.getElementById('vTipo').value
+                    })
+                });
+                const res = await resp.json();
+                SEMSAD.toast(res.mensaje || 'No se pudo registrar el préstamo.', res.status === 'success' ? 'success' : 'error');
+                if (res.status === 'success') {
+                    document.getElementById('vLibro').value = '';
+                    cargarFormularioVentanilla(); cargarVentanilla(true); cargarDashboard();
+                }
+            } catch (e) { SEMSAD.toast('Error de conexión con el servidor.', 'error'); }
+        });
+
+        /* ── Reportes e indicadores (RF16 a RF19) ───────────────────────────── */
+        let ultimoReporte = null;
+
+        function filasSimples(arr, vacio, fn) {
+            return arr.length ? arr.map(fn).join('') : `<tr><td class="text-muted text-center py-3">${vacio}</td></tr>`;
+        }
+
+        async function cargarReportes() {
+            try {
+                const resp = await fetch(window.SEMSAD_API + '/obtener_reportes.php', { credentials: 'include' });
+                const r = await resp.json();
+                if (r.status !== 'success') { SEMSAD.toast(r.mensaje || 'No se pudieron generar los reportes.', 'error'); return; }
+                ultimoReporte = r;
+                document.getElementById('repGenerado').innerText = 'Generado: ' + r.generado;
+
+                const t = (titulo, valor, color) => `<div class="col-6 col-lg-3"><div class="card stat-card shadow-sm border-start border-4 border-${color}"><div class="card-body">
+                    <small class="text-muted fw-bold">${titulo}</small><div class="fs-3 fw-bold">${valor}</div></div></div></div>`;
+                const x = r.resumen;
+                document.getElementById('repResumen').innerHTML =
+                    t('Préstamos hoy', x.prestamos_hoy, 'primary') + t('Devoluciones hoy', x.devoluciones_hoy, 'success') +
+                    t('Préstamos activos', x.prestamos_activos, 'warning') + t('Multas pendientes', x.multas_pendientes + ' (' + Number(x.multas_monto_pend).toFixed(2) + ' Bs)', 'danger') +
+                    t('Multas cobradas', Number(x.multas_cobradas).toFixed(2) + ' Bs', 'success') + t('Usuarios bloqueados', x.usuarios_bloqueados, 'secondary');
+
+                document.getElementById('repMasSolicitados').innerHTML = filasSimples(r.mas_solicitados, 'Aún no hay préstamos registrados.', l =>
+                    `<tr><td>${SEMSAD.esc(l.titulo)}<br><small class="text-muted">${SEMSAD.esc(l.autores || '')}</small></td><td class="text-end fw-bold">${parseInt(l.veces)} veces</td></tr>`);
+                document.getElementById('repStock').innerHTML = filasSimples(r.stock_critico, 'Todos los libros tienen buen stock.', l =>
+                    `<tr><td>${SEMSAD.esc(l.titulo)}</td><td class="text-end"><span class="badge bg-${parseInt(l.disponibles || 0) === 0 ? 'danger' : 'warning text-dark'}">${parseInt(l.disponibles || 0)} / ${parseInt(l.total)}</span></td></tr>`);
+                document.getElementById('repMorosos').innerHTML = r.morosos.length ? r.morosos.map(m =>
+                    `<tr><td>${SEMSAD.esc(m.usuario)}<br><small class="text-muted">${SEMSAD.esc(m.correo)}</small></td><td>${SEMSAD.esc(m.libro)}</td><td>${SEMSAD.esc(m.limite)}</td><td>${parseInt(m.dias)}</td><td class="fw-bold text-danger">${Number(m.monto).toFixed(2)}</td></tr>`).join('')
+                    : '<tr><td colspan="5" class="text-center text-muted py-3">No hay usuarios morosos.</td></tr>';
+                document.getElementById('repInventario').innerHTML = Object.entries(r.inventario).map(([k, v]) =>
+                    `<tr><td>${SEMSAD.esc(k)}</td><td class="text-end fw-bold">${parseInt(v)}</td></tr>`).join('');
+                document.getElementById('repReservas').innerHTML = filasSimples(r.reservas, 'No hay usuarios en lista de espera.', e =>
+                    `<tr><td>${SEMSAD.esc(e.titulo || 'Libro')}<br><small class="text-muted">${SEMSAD.esc(((e.nombres || '') + ' ' + (e.apellidos || '')).trim() || e.correo || '')}</small></td><td class="text-end">Turno ${parseInt(e.turno)}</td></tr>`);
+            } catch (e) { SEMSAD.toast('Error de conexión al generar reportes.', 'error'); }
+        }
+
+        function exportarReporteExcel() {
+            if (!ultimoReporte) { SEMSAD.toast('Primero genera el reporte.', 'warning'); return; }
+            const r = ultimoReporte, filas = [];
+            const add = (...c) => filas.push(c.map(v => '"' + String(v ?? '').replace(/"/g, '""') + '"').join(';'));
+            add('REPORTE BIBLIOTECA SEMSAD', r.generado); add();
+            add('RESUMEN'); Object.entries(r.resumen).forEach(([k, v]) => add(k, v)); add();
+            add('LIBROS MAS SOLICITADOS', 'Veces'); r.mas_solicitados.forEach(l => add(l.titulo, l.veces)); add();
+            add('USUARIOS MOROSOS', 'Libro', 'Fecha limite', 'Dias', 'Multa Bs'); r.morosos.forEach(m => add(m.usuario, m.libro, m.limite, m.dias, m.monto)); add();
+            add('STOCK CRITICO', 'Disponibles', 'Total'); r.stock_critico.forEach(l => add(l.titulo, l.disponibles || 0, l.total)); add();
+            add('INVENTARIO POR ESTADO', 'Cantidad'); Object.entries(r.inventario).forEach(([k, v]) => add(k, v));
+            const blob = new Blob(['\ufeffsep=;\n' + filas.join('\n')], { type: 'text/csv;charset=utf-8' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = 'reporte_biblioteca_semsad_' + new Date().toISOString().slice(0, 10) + '.csv';
+            document.body.appendChild(a); a.click(); a.remove();
         }
     </script>
 </body>

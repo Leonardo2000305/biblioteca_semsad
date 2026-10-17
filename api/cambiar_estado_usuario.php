@@ -1,5 +1,6 @@
 <?php
 require_once 'conexion.php';
+require_once __DIR__ . '/ayudas_prestamo.php';
 // Solo personal de la biblioteca (Administrador / Bibliotecario)
 semsad_requerir_rol(['Administrador', 'Bibliotecario']);
 header('Content-Type: application/json; charset=utf-8');
@@ -14,8 +15,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     try {
+        // La columna estado puede ser ENUM('Activo','Suspendido','Bloqueado'): se usa el valor que exista de verdad.
+        $valor = $nuevo_estado === 'Activo'
+            ? 'Activo'
+            : semsad_valor_enum($conexion, 'Usuario', 'estado', ['Inactivo', 'Suspendido', 'Bloqueado']);
+        if ($valor === null) {
+            semsad_responder(['status' => 'error', 'mensaje' => 'La base de datos no tiene un estado de baja para usuarios.'], 500);
+        }
         $stmt = $conexion->prepare("UPDATE Usuario SET estado = :e WHERE id_usuario = :id");
-        $stmt->execute([':e' => $nuevo_estado, ':id' => $id_usuario]);
+        $stmt->execute([':e' => $valor, ':id' => $id_usuario]);
 
         semsad_responder([
             'status'  => 'success',

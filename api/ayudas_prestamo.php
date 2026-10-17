@@ -59,3 +59,41 @@ function semsad_marcar_vencidos(PDO $c): void
         error_log('[SEMSAD] semsad_marcar_vencidos: ' . $e->getMessage());
     }
 }
+
+/**
+ * Lista de espera: si hay gente en cola para el libro, las copias disponibles son para los primeros turnos.
+ * Devuelve un mensaje de error si $idUsuario NO puede llevarse el libro ahora, o null si puede.
+ */
+function semsad_turno_permite(PDO $c, int $idUsuario, int $idMaterial): ?string
+{
+    try {
+        $q = $c->prepare("SELECT COUNT(*) FROM Ejemplar WHERE id_material = :m AND estado_ejemplar = 'Disponible'");
+        $q->execute([':m' => $idMaterial]);
+        $disponibles = (int)$q->fetchColumn();
+
+        $q = $c->prepare("SELECT id_usuario FROM Reserva WHERE id_material = :m AND estado = 'Pendiente' ORDER BY prioridad ASC, id_reserva ASC");
+        $q->execute([':m' => $idMaterial]);
+        $cola = array_map('intval', $q->fetchAll(PDO::FETCH_COLUMN));
+        if (!$cola || $disponibles < 1) {
+            return null;   // sin cola (o sin copias: ya lo valida quien llama)
+        }
+        $pos = array_search($idUsuario, $cola, true);
+        if ($pos !== false) {
+            return $pos < $disponibles ? null : 'Hay ' . $pos . ' persona(s) antes que tú en la lista de espera de este libro.';
+        }
+        return count($cola) >= $disponibles
+            ? 'Las copias disponibles de este libro están reservadas para la lista de espera. Anótate para tener turno.'
+            : null;
+    } catch (Throwable $e) {
+        return null;       // sin tabla Reserva: no se aplica la regla
+    }
+}
+
+/** Marca como atendida la reserva pendiente del usuario para ese libro (cuando por fin lo lleva). */
+function semsad_atender_reserva(PDO $c, int $idUsuario, int $idMaterial): void
+{
+    try {
+        $c->prepare("UPDATE Reserva SET estado = 'Atendida' WHERE id_usuario = :u AND id_material = :m AND estado = 'Pendiente'")
+          ->execute([':u' => $idUsuario, ':m' => $idMaterial]);
+    } catch (Throwable $e) { /* sin tabla Reserva */ }
+}

@@ -1,6 +1,7 @@
 <?php
 require_once 'conexion.php';
 require_once __DIR__ . '/usuario_actual.php';
+require_once __DIR__ . '/ayudas_prestamo.php';
 semsad_iniciar_sesion();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -82,6 +83,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         } catch (PDOException $ignorar) { /* sin tabla Multa: no se aplica la regla */ }
 
+        // Lista de espera: las copias libres son para los primeros turnos
+        $motivoTurno = semsad_turno_permite($conexion, $id_usuario, $id_material);
+        if ($motivoTurno !== null) {
+            semsad_responder(['status' => 'error', 'mensaje' => $motivoTurno]);
+        }
+
         // Verificar si el estudiante ya tiene este mismo libro activo
         $stmtYaPrestado = $conexion->prepare("
             SELECT COUNT(*) FROM Prestamo p
@@ -143,6 +150,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmtE->execute([':e' => $id_ejemplar]);
 
         $conexion->commit();
+        semsad_atender_reserva($conexion, $id_usuario, $id_material);
 
         $fecha_fmt = date('d/m/Y', strtotime("+$dias_prestamo days"));
 

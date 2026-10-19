@@ -37,12 +37,13 @@ try {
         'usuarios_bloqueados'  => (int)$unico("SELECT COUNT(*) AS v FROM Usuario WHERE estado IN ('Bloqueado','Suspendido')"),
     ];
 
+    $exprAutores = semsad_expr_autores($conexion, 'm');
     $masSolicitados = semsad_leer($conexion,
-        "SELECT m.titulo, m.autores, COUNT(*) AS veces
+        "SELECT m.titulo, $exprAutores AS autores, COUNT(*) AS veces
            FROM Detalle_Prestamo dp
      INNER JOIN Ejemplar e ON e.id_ejemplar = dp.id_ejemplar
      INNER JOIN MaterialBibliografico m ON m.id_material = e.id_material
-       GROUP BY m.id_material, m.titulo, m.autores
+       GROUP BY m.id_material, m.titulo
        ORDER BY veces DESC, m.titulo ASC LIMIT 10");
 
     $morosos = [];

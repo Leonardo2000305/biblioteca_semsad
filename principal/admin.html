@@ -527,8 +527,8 @@
                                 <td>${SEMSAD.esc(libro.agno_publicacion)}</td>
                                 <td>${badge}</td>
                                 <td class="text-center no-print">
-                                    <button class="btn btn-warning btn-sm fw-bold me-1" onclick="editarLibro(${libro.id_material}, '${SEMSAD.esc(libro.titulo)}', '${SEMSAD.esc(libro.autores)}', '${SEMSAD.esc(libro.isbn)}', ${libro.agno_publicacion}, ${libro.total_ejemplares || 1})"><i class="fa-solid fa-pen-to-square"></i></button>
-                                    <button class="btn btn-danger btn-sm fw-bold" onclick="eliminarLibro(${libro.id_material}, '${SEMSAD.esc(libro.titulo)}')"><i class="fa-solid fa-trash"></i></button>
+                                    <button class="btn btn-warning btn-sm fw-bold me-1" onclick="editarLibro(${libro.id_material}, ${SEMSAD.jsArg(libro.titulo)}, ${SEMSAD.jsArg(libro.autores)}, ${SEMSAD.jsArg(libro.isbn)}, ${libro.agno_publicacion}, ${libro.total_ejemplares || 1})"><i class="fa-solid fa-pen-to-square"></i></button>
+                                    <button class="btn btn-danger btn-sm fw-bold" onclick="eliminarLibro(${libro.id_material}, ${SEMSAD.jsArg(libro.titulo)})"><i class="fa-solid fa-trash"></i></button>
                                 </td>
                             </tr>`;
                     });
@@ -637,7 +637,7 @@
                                 <td class="text-muted">${SEMSAD.esc(p.dueDate)}</td>
                                 <td>${badge}</td>
                                 <td class="text-center no-print">
-                                    <button class="btn btn-success btn-sm fw-bold px-3" onclick="registrarDevolucion(${p.id}, '${SEMSAD.esc(p.bookTitle)}')"><i class="fa-solid fa-rotate-left me-1"></i> Devuelto</button>
+                                    <button class="btn btn-success btn-sm fw-bold px-3" onclick="registrarDevolucion(${p.id}, ${SEMSAD.jsArg(p.bookTitle)})"><i class="fa-solid fa-rotate-left me-1"></i> Devuelto</button>
                                 </td>
                             </tr>`;
                     });
@@ -798,7 +798,7 @@
                                 <td><span class="badge bg-dark">${rolStr}</span></td>
                                 <td>${badge}</td>
                                 <td class="text-center no-print">
-                                    <button class="btn btn-warning btn-sm me-1 fw-bold" onclick="editarUsuario(${u.id_usuario}, '${SEMSAD.esc(u.nombres)}', '${SEMSAD.esc(u.apellidos || '')}', '${SEMSAD.esc(u.correo)}', '${SEMSAD.esc(u.telefono || '')}', '${SEMSAD.esc(u.codigo_empleado || '')}', ${u.id_rol})"><i class="fa-solid fa-pen"></i></button>
+                                    <button class="btn btn-warning btn-sm me-1 fw-bold" onclick="editarUsuario(${u.id_usuario}, ${SEMSAD.jsArg(u.nombres)}, ${SEMSAD.jsArg(u.apellidos || '')}, ${SEMSAD.jsArg(u.correo)}, ${SEMSAD.jsArg(u.telefono || '')}, ${SEMSAD.jsArg(u.codigo_empleado || '')}, ${u.id_rol})"><i class="fa-solid fa-pen"></i></button>
                                     <button class="btn btn-${estadoStr === 'Activo' ? 'danger' : 'success'} btn-sm fw-bold" onclick="cambiarEstadoUsuario(${u.id_usuario}, '${estadoStr === 'Activo' ? 'Inactivo' : 'Activo'}')">${estadoStr === 'Activo' ? 'Desactivar' : 'Activar'}</button>
                                 </td>
                             </tr>`;

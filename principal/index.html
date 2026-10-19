@@ -267,7 +267,7 @@
                                  </button>`;
                 } else if (estaDisponible) {
                     badgeHTML = `<span class="badge bg-success mb-2"><i class="fa-solid fa-circle-check me-1"></i>Disponible</span>`;
-                    botonHTML = `<button class="btn btn-outline-primary w-100 fw-bold btn-sm mt-2" onclick="solicitarPrestamo(${idMaterial}, '${SEMSAD.esc(titulo)}')">
+                    botonHTML = `<button class="btn btn-outline-primary w-100 fw-bold btn-sm mt-2" onclick="solicitarPrestamo(${idMaterial}, ${SEMSAD.jsArg(titulo)})">
                                     <i class="fa-solid fa-hand-holding-hand me-1"></i> Solicitar Préstamo
                                  </button>`;
                 } else {
@@ -278,9 +278,9 @@
                     const enCola = parseInt(libro.en_cola || 0);
                     if (parseInt(libro.mi_turno || 0) > 0) {
                         botonHTML += `<div class="small text-center text-warning-emphasis fw-semibold mt-2"><i class="fa-solid fa-hourglass-half me-1"></i>En lista de espera · tu turno: ${parseInt(libro.mi_turno)}</div>
-                                      <button class="btn btn-outline-secondary w-100 btn-sm mt-1" onclick="reservarMaterial(${idMaterial}, '${SEMSAD.esc(titulo)}', 'cancelar')">Salir de la lista de espera</button>`;
+                                      <button class="btn btn-outline-secondary w-100 btn-sm mt-1" onclick="reservarMaterial(${idMaterial}, ${SEMSAD.jsArg(titulo)}, 'cancelar')">Salir de la lista de espera</button>`;
                     } else {
-                        botonHTML += `<button class="btn btn-outline-warning w-100 fw-bold btn-sm mt-2" onclick="reservarMaterial(${idMaterial}, '${SEMSAD.esc(titulo)}')">
+                        botonHTML += `<button class="btn btn-outline-warning w-100 fw-bold btn-sm mt-2" onclick="reservarMaterial(${idMaterial}, ${SEMSAD.jsArg(titulo)})">
                                         <i class="fa-solid fa-hourglass-half me-1"></i> Anotarme en lista de espera${enCola > 0 ? ' (' + enCola + ' esperando)' : ''}
                                       </button>`;
                     }

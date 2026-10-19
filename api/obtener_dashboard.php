@@ -1,5 +1,6 @@
 <?php
 require_once 'conexion.php';
+semsad_requerir_rol(['Administrador', 'Bibliotecario']);
 
 try {
     // 1. Total de Títulos de Libros en el Catálogo

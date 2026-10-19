@@ -26,7 +26,9 @@ try {
     $id_usuario = $usuarioActual ? (int)$usuarioActual['id_usuario'] : 0;
 
     // 2. Obtener libros base
-    $sql = "SELECT * FROM MaterialBibliografico ORDER BY id_material DESC";
+    // Autores: columna 'autores' si existe; si no, se arman desde Material_Autor + Autor
+    $exprAutores = semsad_expr_autores($conexion, 'm');
+    $sql = "SELECT m.*, $exprAutores AS autores_material FROM MaterialBibliografico m ORDER BY m.id_material DESC";
     $stmt = $conexion->query($sql);
     $materiales = $stmt->fetchAll(PDO::FETCH_ASSOC);
 

@@ -4,79 +4,143 @@ require_once 'conexion.php';
 semsad_requerir_rol(['Administrador', 'Bibliotecario']);
 header('Content-Type: application/json; charset=utf-8');
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $input = json_decode(file_get_contents('php://input') ?: '', true) ?: [];
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    semsad_responder(['status' => 'error', 'mensaje' => 'Método no permitido.'], 405);
+}
 
-    $id_material     = (int)($input['id_material'] ?? $_POST['id_material'] ?? 0);
-    $titulo          = trim($input['titulo'] ?? $_POST['titulo'] ?? '');
-    $autores         = trim($input['autores'] ?? $_POST['autores'] ?? '');
-    $isbn            = trim($input['isbn'] ?? $_POST['isbn'] ?? '');
-    $agno_publicacion= (int)($input['agno_publicacion'] ?? $_POST['agno_publicacion'] ?? date('Y'));
-    $num_ejemplares  = (int)($input['num_ejemplares'] ?? $_POST['num_ejemplares'] ?? 1);
+$input = json_decode(file_get_contents('php://input') ?: '', true) ?: [];
+$campo = function (string $k, $defecto = '') use ($input) {
+    return $input[$k] ?? $_POST[$k] ?? $defecto;
+};
 
-    if (empty($titulo)) {
-        semsad_responder(['status' => 'error', 'mensaje' => 'El título del libro es obligatorio.']);
-    }
+$id_material      = (int)$campo('id_material', 0);
+$titulo           = trim((string)$campo('titulo'));
+$autoresTexto     = trim((string)$campo('autores'));
+$isbn             = trim((string)$campo('isbn'));
+$agno_publicacion = (int)$campo('agno_publicacion', date('Y'));
+$num_ejemplares   = (int)$campo('num_ejemplares', 1);
 
-    try {
-        $conexion->beginTransaction();
+if ($titulo === '') {
+    semsad_responder(['status' => 'error', 'mensaje' => 'El título del libro es obligatorio.']);
+}
 
-        if ($id_material > 0) {
-            $stmt = $conexion->prepare("
-                UPDATE MaterialBibliografico 
-                SET titulo = :t, autores = :a, isbn = :i, agno_publicacion = :y 
-                WHERE id_material = :id
-            ");
-            $stmt->execute([
-                ':t'  => $titulo,
-                ':a'  => $autores,
-                ':i'  => $isbn,
-                ':y'  => $agno_publicacion,
-                ':id' => $id_material
-            ]);
+/* Primer id existente de una tabla de apoyo (tipo, categoría, ubicación). Evita FK vacías en columnas NOT NULL. */
+function gl_primer_id(PDO $c, string $tabla, string $col, string $preferido = ''): ?int
+{
+    $orden = $preferido !== '' ? "ORDER BY (nombre = " . $c->quote($preferido) . ") DESC, $col" : "ORDER BY $col";
+    $v = $c->query("SELECT $col FROM $tabla $orden LIMIT 1")->fetchColumn();
+    return $v === false ? null : (int)$v;
+}
 
-            $stmtCount = $conexion->prepare("SELECT COUNT(*) FROM Ejemplar WHERE id_material = :id");
-            $stmtCount->execute([':id' => $id_material]);
-            $countActual = (int)$stmtCount->fetchColumn();
+/* Guarda la lista de autores ("A, B; C") en Autor y Material_Autor, reemplazando la anterior. */
+function gl_guardar_autores(PDO $c, int $idMaterial, string $texto): void
+{
+    $c->prepare('DELETE FROM Material_Autor WHERE id_material = :m')->execute([':m' => $idMaterial]);
 
-            if ($num_ejemplares > $countActual) {
-                $diferencia = $num_ejemplares - $countActual;
-                $stmtAddE = $conexion->prepare("INSERT INTO Ejemplar (id_material, estado_ejemplar) VALUES (:id, 'Disponible')");
-                for ($k = 0; $k < $diferencia; $k++) {
-                    $stmtAddE->execute([':id' => $id_material]);
-                }
-            }
-
-            $msg = "Libro \"$titulo\" actualizado correctamente.";
+    $nombres = array_values(array_filter(array_map('trim', preg_split('/[,;]/', $texto)), 'strlen'));
+    $usados = [];
+    $orden = 1;
+    foreach ($nombres as $nombreCompleto) {
+        $partes = preg_split('/\s+/', $nombreCompleto);
+        if (count($partes) > 1) {
+            $apellidos = array_pop($partes);
+            $nombre = implode(' ', $partes);
         } else {
-            $stmt = $conexion->prepare("
-                INSERT INTO MaterialBibliografico (titulo, autores, isbn, agno_publicacion) 
-                VALUES (:t, :a, :i, :y)
-            ");
-            $stmt->execute([
-                ':t' => $titulo,
-                ':a' => $autores,
-                ':i' => $isbn,
-                ':y' => $agno_publicacion
-            ]);
-            $id_material = (int)$conexion->lastInsertId();
-
-            $stmtAddE = $conexion->prepare("INSERT INTO Ejemplar (id_material, estado_ejemplar) VALUES (:id, 'Disponible')");
-            $cant = max(1, $num_ejemplares);
-            for ($k = 0; $k < $cant; $k++) {
-                $stmtAddE->execute([':id' => $id_material]);
-            }
-
-            $msg = "Nuevo libro \"$titulo\" registrado con $cant ejemplar(es) disponible(s).";
+            $nombre = $partes[0];
+            $apellidos = '';
         }
 
-        $conexion->commit();
-        semsad_responder(['status' => 'success', 'mensaje' => $msg, 'id_material' => $id_material]);
+        $q = $c->prepare('SELECT id_autor FROM Autor WHERE LOWER(nombres) = LOWER(:n) AND LOWER(apellidos) = LOWER(:a) LIMIT 1');
+        $q->execute([':n' => $nombre, ':a' => $apellidos]);
+        $idAutor = $q->fetchColumn();
+        if ($idAutor === false) {
+            $c->prepare('INSERT INTO Autor (nombres, apellidos) VALUES (:n, :a)')->execute([':n' => $nombre, ':a' => $apellidos]);
+            $idAutor = $c->lastInsertId();
+        }
+        $idAutor = (int)$idAutor;
+        if (isset($usados[$idAutor])) {
+            continue;   // el mismo autor no se repite
+        }
+        $usados[$idAutor] = true;
 
-    } catch (Exception $e) {
-        if ($conexion->inTransaction()) $conexion->rollBack();
-        semsad_responder(['status' => 'error', 'mensaje' => 'Error al guardar libro: ' . $e->getMessage()], 500);
+        $c->prepare('INSERT INTO Material_Autor (id_material, id_autor, orden_autor) VALUES (:m, :a, :o)')
+          ->execute([':m' => $idMaterial, ':a' => $idAutor, ':o' => $orden++]);
     }
-} else {
-    semsad_responder(['status' => 'error', 'mensaje' => 'Método no permitido.'], 405);
+}
+
+try {
+    $conexion->beginTransaction();
+
+    // Columnas reales de la base (cada instalación puede tener un esquema un poco distinto)
+    $datos = ['titulo' => $titulo, 'agno_publicacion' => $agno_publicacion];
+    if (semsad_tiene_columna($conexion, 'MaterialBibliografico', 'codigo_isbn_issn')) {
+        $datos['codigo_isbn_issn'] = $isbn !== '' ? $isbn : null;
+    } elseif (semsad_tiene_columna($conexion, 'MaterialBibliografico', 'isbn')) {
+        $datos['isbn'] = $isbn;
+    }
+    $autoresEnColumna = semsad_tiene_columna($conexion, 'MaterialBibliografico', 'autores');
+    if ($autoresEnColumna) {
+        $datos['autores'] = $autoresTexto;
+    }
+
+    if ($id_material > 0) {
+        $sets = [];
+        $params = [':id' => $id_material];
+        foreach ($datos as $col => $val) {
+            $sets[] = "$col = :$col";
+            $params[":$col"] = $val;
+        }
+        $conexion->prepare('UPDATE MaterialBibliografico SET ' . implode(', ', $sets) . ' WHERE id_material = :id')
+                 ->execute($params);
+
+        $stmtCount = $conexion->prepare('SELECT COUNT(*) FROM Ejemplar WHERE id_material = :id');
+        $stmtCount->execute([':id' => $id_material]);
+        $countActual = (int)$stmtCount->fetchColumn();
+
+        if ($num_ejemplares > $countActual) {
+            $idUbicacion = gl_primer_id($conexion, 'UbicacionFisica', 'id_ubicacion');
+            $stmtAddE = $conexion->prepare("INSERT INTO Ejemplar (id_material, id_ubicacion, estado_ejemplar) VALUES (:id, :u, 'Disponible')");
+            for ($k = 0; $k < $num_ejemplares - $countActual; $k++) {
+                $stmtAddE->execute([':id' => $id_material, ':u' => $idUbicacion]);
+            }
+        }
+
+        $msg = "Libro \"$titulo\" actualizado correctamente.";
+    } else {
+        // Campos obligatorios del libro nuevo: tipo "Libro" y primera categoría disponible
+        $datos['id_tipo_material'] = gl_primer_id($conexion, 'TipoMaterial', 'id_tipo_material', 'Libro');
+        $datos['id_categoria'] = gl_primer_id($conexion, 'Categoria', 'id_categoria');
+        $cols = implode(', ', array_keys($datos));
+        $marcas = implode(', ', array_map(fn($c) => ":$c", array_keys($datos)));
+        $params = [];
+        foreach ($datos as $col => $val) {
+            $params[":$col"] = $val;
+        }
+        $conexion->prepare("INSERT INTO MaterialBibliografico ($cols) VALUES ($marcas)")->execute($params);
+        $id_material = (int)$conexion->lastInsertId();
+
+        $idUbicacion = gl_primer_id($conexion, 'UbicacionFisica', 'id_ubicacion');
+        $stmtAddE = $conexion->prepare("INSERT INTO Ejemplar (id_material, id_ubicacion, estado_ejemplar) VALUES (:id, :u, 'Disponible')");
+        $cant = max(1, $num_ejemplares);
+        for ($k = 0; $k < $cant; $k++) {
+            $stmtAddE->execute([':id' => $id_material, ':u' => $idUbicacion]);
+        }
+
+        $msg = "Nuevo libro \"$titulo\" registrado con $cant ejemplar(es) disponible(s).";
+    }
+
+    if (!$autoresEnColumna) {
+        gl_guardar_autores($conexion, $id_material, $autoresTexto);
+    }
+
+    $conexion->commit();
+    semsad_responder(['status' => 'success', 'mensaje' => $msg, 'id_material' => $id_material]);
+
+} catch (Exception $e) {
+    if ($conexion->inTransaction()) $conexion->rollBack();
+    // ISBN/código repetido (la columna es única): mensaje claro en vez del error SQL
+    if (strpos($e->getMessage(), '1062') !== false && strpos($e->getMessage(), 'codigo_isbn_issn') !== false) {
+        semsad_responder(['status' => 'error', 'mensaje' => 'Ya existe otro libro registrado con ese ISBN/código.'], 409);
+    }
+    semsad_responder(['status' => 'error', 'mensaje' => 'Error al guardar libro: ' . $e->getMessage()], 500);
 }

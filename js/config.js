@@ -18,6 +18,11 @@ window.SEMSAD = {
         ));
     },
 
+    // Texto seguro como argumento dentro de onclick="…": JSON (comillas y apóstrofes escapados) + escape HTML.
+    jsArg(valor) {
+        return this.esc(JSON.stringify(String(valor == null ? '' : valor)));
+    },
+
     // Aviso emergente (toast). tipo: 'success' (verde) | 'error' (rojo) | 'warning' (amarillo) | 'info' (azul)
     toast(mensaje, tipo = 'info', duracionMs = 5000) {
         if (!document.getElementById('semsad-toast-css')) {

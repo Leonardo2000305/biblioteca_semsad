@@ -1,6 +1,7 @@
 <?php
 require_once 'conexion.php';
-semsad_iniciar_sesion();
+// Solo personal de la biblioteca (Administrador / Bibliotecario)
+semsad_requerir_rol(['Administrador', 'Bibliotecario']);
 header('Content-Type: application/json; charset=utf-8');
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -25,7 +26,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $hash = password_hash($password, PASSWORD_BCRYPT);
                 $stmt = $conexion->prepare("
                     UPDATE Usuario 
-                    SET nombres = :n, apellidos = :a, correo = :c, password_hash = :p, telefono = :t, codigo_empleado = :cod, id_rol = :r 
+                    SET nombres = :n, apellidos = :a, correo = :c, contrasena = :p, telefono = :t, codigo_empleado = :cod, id_rol = :r 
                     WHERE id_usuario = :id
                 ");
                 $stmt->execute([
@@ -59,7 +60,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             $stmt = $conexion->prepare("
-                INSERT INTO Usuario (nombres, apellidos, correo, password_hash, telefono, codigo_empleado, id_rol, estado) 
+                INSERT INTO Usuario (nombres, apellidos, correo, contrasena, telefono, codigo_empleado, id_rol, estado) 
                 VALUES (:n, :a, :c, :p, :t, :cod, :r, 'Activo')
             ");
             $stmt->execute([

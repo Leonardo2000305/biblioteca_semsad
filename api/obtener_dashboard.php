@@ -1,5 +1,6 @@
 <?php
 require_once 'conexion.php';
+semsad_requerir_rol(['Administrador', 'Bibliotecario']);
 
 try {
     // 1. Total de Títulos de Libros en el Catálogo
@@ -11,7 +12,7 @@ try {
     $disponibles = (int)$stmt2->fetchColumn();
 
     // 3. Préstamos y Reservas Activas en Ventanilla
-    $stmt3 = $conexion->query("SELECT COUNT(*) FROM Prestamo WHERE estado = 'Activo'");
+    $stmt3 = $conexion->query("SELECT COUNT(*) FROM Prestamo WHERE estado IN ('Activo', 'Vencido', 'Con Mora')");
     $prestamos_activos = (int)$stmt3->fetchColumn();
 
     semsad_responder([

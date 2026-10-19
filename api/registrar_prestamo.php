@@ -1,6 +1,7 @@
 <?php
 require_once 'conexion.php';
 require_once __DIR__ . '/usuario_actual.php';
+require_once __DIR__ . '/ayudas_prestamo.php';
 semsad_iniciar_sesion();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -70,12 +71,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ]);
         }
 
+        // RF13: con multas pendientes no se prestan más libros
+        try {
+            $stmtMulta = $conexion->prepare("SELECT COUNT(*) FROM Multa m INNER JOIN Prestamo p ON p.id_prestamo = m.id_prestamo WHERE p.id_usuario = :u AND m.estado_pago = 'Pendiente'");
+            $stmtMulta->execute([':u' => $id_usuario]);
+            if ((int)$stmtMulta->fetchColumn() > 0) {
+                semsad_responder([
+                    'status'  => 'error',
+                    'mensaje' => "$nombreCompleto, tienes multas pendientes. Regulariza tu cuenta en ventanilla para pedir libros."
+                ]);
+            }
+        } catch (PDOException $ignorar) { /* sin tabla Multa: no se aplica la regla */ }
+
+        // Lista de espera: las copias libres son para los primeros turnos
+        $motivoTurno = semsad_turno_permite($conexion, $id_usuario, $id_material);
+        if ($motivoTurno !== null) {
+            semsad_responder(['status' => 'error', 'mensaje' => $motivoTurno]);
+        }
+
         // Verificar si el estudiante ya tiene este mismo libro activo
         $stmtYaPrestado = $conexion->prepare("
             SELECT COUNT(*) FROM Prestamo p
             INNER JOIN Detalle_Prestamo dp ON p.id_prestamo = dp.id_prestamo
             INNER JOIN Ejemplar e ON dp.id_ejemplar = e.id_ejemplar
-            WHERE p.id_usuario = :u AND e.id_material = :m AND p.estado = 'Activo'
+            WHERE p.id_usuario = :u AND e.id_material = :m AND p.estado IN ('Activo', 'Vencido', 'Con Mora')
         ");
         $stmtYaPrestado->execute([':u' => $id_usuario, ':m' => $id_material]);
         if ((int)$stmtYaPrestado->fetchColumn() > 0) {
@@ -86,7 +105,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         // Límite máximo de 5 préstamos activos
-        $stmtCount = $conexion->prepare("SELECT COUNT(*) FROM Prestamo WHERE id_usuario = :u AND estado = 'Activo'");
+        $stmtCount = $conexion->prepare("SELECT COUNT(*) FROM Prestamo WHERE id_usuario = :u AND estado IN ('Activo', 'Vencido', 'Con Mora')");
         $stmtCount->execute([':u' => $id_usuario]);
         if ((int)$stmtCount->fetchColumn() >= 5) {
             semsad_responder([
@@ -131,6 +150,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmtE->execute([':e' => $id_ejemplar]);
 
         $conexion->commit();
+        semsad_atender_reserva($conexion, $id_usuario, $id_material);
 
         $fecha_fmt = date('d/m/Y', strtotime("+$dias_prestamo days"));
 

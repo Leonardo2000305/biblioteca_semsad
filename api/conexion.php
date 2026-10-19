@@ -37,7 +37,8 @@ function semsad_cors(array $cfg): void
 {
     $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
     if ($origin !== '') {
-        $permitido = preg_match('#^https://([a-z0-9-]+\.)*vercel\.app$#i', $origin)
+        // Solo la web oficial (o localhost y orígenes listados). Antes cualquier *.vercel.app podía leer respuestas autenticadas.
+        $permitido = $origin === rtrim((string)$cfg['frontend_url'], '/')
             || preg_match('#^https?://(localhost|127\.0\.0\.1)(:\d+)?$#i', $origin)
             || in_array($origin, (array)$cfg['allowed_origins'], true);
 
@@ -68,6 +69,70 @@ function semsad_responder(array $datos, int $codigoHttp = 200): void
     http_response_code($codigoHttp);
     echo json_encode($datos, JSON_UNESCAPED_UNICODE);
     exit;
+}
+
+/* Protección CSRF: todas las páginas envían JSON (Content-Type application/json). Un formulario de otro sitio no puede hacerlo. */
+if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && stripos($_SERVER['CONTENT_TYPE'] ?? '', 'application/json') === false) {
+    semsad_responder(['status' => 'error', 'mensaje' => 'Solicitud no válida.'], 415);
+}
+
+/* ── Esquema: la base puede tener o no ciertas columnas; el código se adapta en vez de fallar ── */
+function semsad_tiene_columna(PDO $c, string $tabla, string $columna): bool
+{
+    static $cache = [];
+    $clave = strtolower("$tabla.$columna");
+    if (!isset($cache[$clave])) {
+        try {
+            $q = $c->prepare('SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() AND LOWER(table_name) = :t AND LOWER(column_name) = :c');
+            $q->execute([':t' => strtolower($tabla), ':c' => strtolower($columna)]);
+            $cache[$clave] = (int)$q->fetchColumn() > 0;
+        } catch (Throwable $e) {
+            $cache[$clave] = false;
+        }
+    }
+    return $cache[$clave];
+}
+
+function semsad_tiene_tabla(PDO $c, string $tabla): bool
+{
+    static $cache = [];
+    $clave = strtolower($tabla);
+    if (!isset($cache[$clave])) {
+        try {
+            $q = $c->prepare('SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND LOWER(table_name) = :t');
+            $q->execute([':t' => $clave]);
+            $cache[$clave] = (int)$q->fetchColumn() > 0;
+        } catch (Throwable $e) {
+            $cache[$clave] = false;
+        }
+    }
+    return $cache[$clave];
+}
+
+/** Expresión SQL con los autores del libro: columna autores, o si no existe, la tabla Material_Autor + Autor. */
+function semsad_expr_autores(PDO $c, string $alias = 'm'): string
+{
+    if (semsad_tiene_columna($c, 'MaterialBibliografico', 'autores')) {
+        return "$alias.autores";
+    }
+    if (semsad_tiene_tabla($c, 'Material_Autor') && semsad_tiene_tabla($c, 'Autor')) {
+        return "(SELECT GROUP_CONCAT(CONCAT(a.nombres, ' ', a.apellidos) ORDER BY ma.orden_autor SEPARATOR ', ')
+                   FROM Material_Autor ma INNER JOIN Autor a ON a.id_autor = ma.id_autor
+                  WHERE ma.id_material = $alias.id_material)";
+    }
+    return 'NULL';
+}
+
+/** Expresión SQL con el ISBN / código del libro, sea cual sea la columna que exista. */
+function semsad_expr_isbn(PDO $c, string $alias = 'm'): string
+{
+    if (semsad_tiene_columna($c, 'MaterialBibliografico', 'isbn')) {
+        return "$alias.isbn";
+    }
+    if (semsad_tiene_columna($c, 'MaterialBibliografico', 'codigo_isbn_issn')) {
+        return "$alias.codigo_isbn_issn";
+    }
+    return 'NULL';
 }
 
 function semsad_leer_json(): array

@@ -51,6 +51,9 @@
                         <span class="input-group-text bg-white border-0 text-muted"><i class="fa-solid fa-magnifying-glass"></i></span>
                         <input type="text" id="inputBuscar" class="form-control border-0 px-3" placeholder="Buscar por título, autor o código..." onkeyup="filtrarLibros()">
                     </div>
+                    <select id="selCategoria" class="form-select border-0 mt-2 d-none" onchange="filtrarLibros()" aria-label="Filtrar por categoría">
+                        <option value="">Todas las categorías</option>
+                    </select>
                 </div>
             </div>
         </div>
@@ -83,10 +86,11 @@
                                     <th>Fecha Solicitud</th>
                                     <th>Fecha Límite</th>
                                     <th>Estado</th>
+                                    <th>Acción</th>
                                 </tr>
                             </thead>
                             <tbody id="tablaMisPrestamosBody">
-                                <tr><td colspan="4" class="text-center py-4">Cargando tus préstamos...</td></tr>
+                                <tr><td colspan="5" class="text-center py-4">Cargando tus préstamos...</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -212,6 +216,7 @@
 
                 if (res.status === 'success' && listaLibros.length > 0) {
                     todosLosLibros = listaLibros;
+                    poblarCategorias();
                     renderizarLibros(todosLosLibros);
                 } else {
                     contenedor.innerHTML = `
@@ -262,7 +267,7 @@
                                  </button>`;
                 } else if (estaDisponible) {
                     badgeHTML = `<span class="badge bg-success mb-2"><i class="fa-solid fa-circle-check me-1"></i>Disponible</span>`;
-                    botonHTML = `<button class="btn btn-outline-primary w-100 fw-bold btn-sm mt-2" onclick="solicitarPrestamo(${idMaterial}, '${SEMSAD.esc(titulo)}')">
+                    botonHTML = `<button class="btn btn-outline-primary w-100 fw-bold btn-sm mt-2" onclick="solicitarPrestamo(${idMaterial}, ${SEMSAD.jsArg(titulo)})">
                                     <i class="fa-solid fa-hand-holding-hand me-1"></i> Solicitar Préstamo
                                  </button>`;
                 } else {
@@ -270,14 +275,25 @@
                     botonHTML = `<button class="btn btn-secondary w-100 fw-bold btn-sm mt-2" disabled>
                                     <i class="fa-solid fa-ban me-1"></i> No Disponible
                                  </button>`;
+                    const enCola = parseInt(libro.en_cola || 0);
+                    if (parseInt(libro.mi_turno || 0) > 0) {
+                        botonHTML += `<div class="small text-center text-warning-emphasis fw-semibold mt-2"><i class="fa-solid fa-hourglass-half me-1"></i>En lista de espera · tu turno: ${parseInt(libro.mi_turno)}</div>
+                                      <button class="btn btn-outline-secondary w-100 btn-sm mt-1" onclick="reservarMaterial(${idMaterial}, ${SEMSAD.jsArg(titulo)}, 'cancelar')">Salir de la lista de espera</button>`;
+                    } else {
+                        botonHTML += `<button class="btn btn-outline-warning w-100 fw-bold btn-sm mt-2" onclick="reservarMaterial(${idMaterial}, ${SEMSAD.jsArg(titulo)})">
+                                        <i class="fa-solid fa-hourglass-half me-1"></i> Anotarme en lista de espera${enCola > 0 ? ' (' + enCola + ' esperando)' : ''}
+                                      </button>`;
+                    }
                 }
+
+                const catHTML = libro.categoria ? `<span class="badge bg-light text-secondary border ms-1 mb-2">${SEMSAD.esc(libro.categoria)}</span>` : '';
 
                 contenedor.innerHTML += `
                     <div class="col-12 col-md-6 col-lg-4">
                         <div class="card book-card h-100 shadow-sm p-3 bg-white">
                             <div class="card-body d-flex flex-column justify-content-between">
                                 <div>
-                                    ${badgeHTML}
+                                    ${badgeHTML}${catHTML}
                                     <h5 class="fw-bold text-dark mb-1">${SEMSAD.esc(titulo)}</h5>
                                     <p class="text-muted small mb-2"><i class="fa-solid fa-user-pen me-1"></i>${SEMSAD.esc(autor)}</p>
                                     <p class="text-secondary extra-small mb-3"><i class="fa-solid fa-barcode me-1"></i>ISBN: ${SEMSAD.esc(isbn)} | Año: ${SEMSAD.esc(anio)}</p>
@@ -346,7 +362,7 @@
         async function cargarMisPrestamos() {
             const userObj = obtenerUsuarioLogueado();
             const tbody = document.getElementById('tablaMisPrestamosBody');
-            tbody.innerHTML = '<tr><td colspan="4" class="text-center py-4"><i class="fa-solid fa-spinner fa-spin me-2 text-primary"></i>Cargando tus préstamos...</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4"><i class="fa-solid fa-spinner fa-spin me-2 text-primary"></i>Cargando tus préstamos...</td></tr>';
 
             if (!userObj) return;
 
@@ -360,7 +376,7 @@
                     res.prestamos.forEach(p => {
                         let badge = '<span class="badge bg-primary">Activo</span>';
                         if (p.estado === 'Devuelto') badge = '<span class="badge bg-success">Devuelto</span>';
-                        if (p.estado === 'Vencido') badge = '<span class="badge bg-danger">Vencido (Con Mora)</span>';
+                        if (p.estado === 'Vencido' || p.estado === 'Con Mora') badge = '<span class="badge bg-danger">Vencido (Con Mora)</span>';
 
                         tbody.innerHTML += `
                             <tr>
@@ -368,19 +384,30 @@
                                 <td class="text-muted small">${SEMSAD.esc(p.fecha_salida)}</td>
                                 <td class="fw-bold text-primary">${SEMSAD.esc(p.fecha_limite)}</td>
                                 <td>${badge}</td>
+                                <td>${p.estado === 'Activo' ? `<button class="btn btn-outline-primary btn-sm fw-bold" onclick="renovarPrestamo(${parseInt(p.id_prestamo)})"><i class="fa-solid fa-rotate me-1"></i>Renovar</button>` : ''}</td>
                             </tr>`;
                     });
                 } else {
-                    tbody.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-muted">No tienes registros de préstamos aún.</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-muted">No tienes registros de préstamos aún.</td></tr>';
                 }
             } catch (e) {
-                tbody.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-danger">Error al consultar tus préstamos.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-danger">Error al consultar tus préstamos.</td></tr>';
             }
+        }
+
+        function poblarCategorias() {
+            const sel = document.getElementById('selCategoria');
+            const nombres = [...new Set(todosLosLibros.map(l => l.categoria).filter(Boolean))].sort();
+            const actual = sel.value;
+            sel.innerHTML = '<option value="">Todas las categorías</option>' + nombres.map(n => `<option value="${SEMSAD.esc(n)}">${SEMSAD.esc(n)}</option>`).join('');
+            sel.value = nombres.includes(actual) ? actual : '';
+            sel.classList.toggle('d-none', nombres.length === 0);
         }
 
         function filtrarLibros() {
             const texto = document.getElementById('inputBuscar').value.toLowerCase().trim();
-            if (!texto) {
+            const categoria = document.getElementById('selCategoria').value;
+            if (!texto && !categoria) {
                 renderizarLibros(todosLosLibros);
                 return;
             }
@@ -388,9 +415,47 @@
                 const titulo = (libro.titulo || libro.nombre || '').toLowerCase();
                 const autor = (libro.autores || libro.autor || '').toLowerCase();
                 const isbn = (libro.isbn || libro.codigo_isbn_issn || libro.codigo_barras || '').toLowerCase();
-                return titulo.includes(texto) || autor.includes(texto) || isbn.includes(texto);
+                const coincideTexto = !texto || titulo.includes(texto) || autor.includes(texto) || isbn.includes(texto);
+                const coincideCategoria = !categoria || libro.categoria === categoria;
+                return coincideTexto && coincideCategoria;
             });
             renderizarLibros(filtrados);
+        }
+
+        // Lista de espera para libros agotados (RF11)
+        async function reservarMaterial(idMaterial, titulo, accion) {
+            try {
+                const resp = await fetch(window.SEMSAD_API + '/reservar_material.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ id_material: idMaterial, accion: accion || 'reservar' })
+                });
+                const res = await resp.json();
+                SEMSAD.toast(res.mensaje || 'No se pudo completar la operación.', res.status === 'success' ? 'success' : 'error');
+                if (res.codigo === 'sin_sesion') { setTimeout(() => { window.location.href = '../login/index.html'; }, 2500); return; }
+                if (res.status === 'success') cargarCatalogo();
+            } catch (e) {
+                SEMSAD.toast('Error de conexión con el servidor.', 'error');
+            }
+        }
+
+        // Renovación de préstamos (RF10)
+        async function renovarPrestamo(idPrestamo) {
+            if (!confirm('¿Quieres renovar este préstamo por 7 días más?')) return;
+            try {
+                const resp = await fetch(window.SEMSAD_API + '/renovar_prestamo.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ id_prestamo: idPrestamo })
+                });
+                const res = await resp.json();
+                SEMSAD.toast(res.mensaje || 'No se pudo renovar.', res.status === 'success' ? 'success' : 'error');
+                if (res.status === 'success') cargarMisPrestamos();
+            } catch (e) {
+                SEMSAD.toast('Error de conexión con el servidor.', 'error');
+            }
         }
     </script>
 </body>

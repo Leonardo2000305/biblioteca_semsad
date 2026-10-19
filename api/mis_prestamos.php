@@ -1,6 +1,7 @@
 <?php
 require_once 'conexion.php';
 require_once __DIR__ . '/usuario_actual.php';
+require_once __DIR__ . '/ayudas_prestamo.php';
 semsad_iniciar_sesion();
 header('Content-Type: application/json; charset=utf-8');
 
@@ -13,17 +14,15 @@ try {
         semsad_responder(['status' => 'error', 'mensaje' => 'Usuario no identificado.'], 400);
     }
 
-    $conexion->exec("
-        UPDATE Prestamo 
-        SET estado = 'Vencido' 
-        WHERE estado = 'Activo' AND fecha_limite < NOW()
-    ");
+    semsad_marcar_vencidos($conexion);   // usa un estado que exista en la base (antes podía fallar)
 
+    $exprAutores = semsad_expr_autores($conexion, 'm');   // columna autores, o Material_Autor si no existe
+    $exprIsbn = semsad_expr_isbn($conexion, 'm');
     $sql = "SELECT 
                 p.id_prestamo,
                 m.titulo AS libro_titulo,
-                m.autores AS libro_autores,
-                m.isbn AS libro_isbn,
+                $exprAutores AS libro_autores,
+                $exprIsbn AS libro_isbn,
                 p.fecha_salida,
                 p.fecha_limite,
                 p.estado

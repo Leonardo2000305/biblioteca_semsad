@@ -4,15 +4,15 @@ semsad_requerir_rol(['Administrador', 'Bibliotecario']);
 
 try {
     // 1. Total de Títulos de Libros en el Catálogo
-    $stmt1 = $conexion->query("SELECT COUNT(*) FROM MaterialBibliografico");
+    $stmt1 = $conexion->query("SELECT COUNT(*) FROM materialbibliografico");
     $total_libros = (int)$stmt1->fetchColumn();
 
     // 2. Libros (Títulos Únicos) con al menos un Ejemplar Disponible
-    $stmt2 = $conexion->query("SELECT COUNT(DISTINCT e.id_material) FROM Ejemplar e INNER JOIN MaterialBibliografico m ON m.id_material = e.id_material WHERE " . semsad_sql_ejemplar_libre('e') . "");
+    $stmt2 = $conexion->query("SELECT COUNT(DISTINCT e.id_material) FROM ejemplar e INNER JOIN materialbibliografico m ON m.id_material = e.id_material WHERE " . semsad_sql_ejemplar_libre('e') . "");
     $disponibles = (int)$stmt2->fetchColumn();
 
     // 3. Préstamos y Reservas Activas en Ventanilla
-    $stmt3 = $conexion->query("SELECT COUNT(*) FROM Prestamo WHERE estado IN ('Activo', 'Vencido', 'Con Mora')");
+    $stmt3 = $conexion->query("SELECT COUNT(*) FROM prestamo WHERE estado IN ('Activo', 'Vencido', 'Con Mora')");
     $prestamos_activos = (int)$stmt3->fetchColumn();
 
     semsad_responder([

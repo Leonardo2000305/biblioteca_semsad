@@ -73,7 +73,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         // RF13: con multas pendientes no se prestan más libros
         try {
-            $stmtMulta = $conexion->prepare("SELECT COUNT(*) FROM Multa m INNER JOIN Prestamo p ON p.id_prestamo = m.id_prestamo WHERE p.id_usuario = :u AND m.estado_pago = 'Pendiente'");
+            $stmtMulta = $conexion->prepare("SELECT COUNT(*) FROM multa m INNER JOIN prestamo p ON p.id_prestamo = m.id_prestamo WHERE p.id_usuario = :u AND m.estado_pago = 'Pendiente'");
             $stmtMulta->execute([':u' => $id_usuario]);
             if ((int)$stmtMulta->fetchColumn() > 0) {
                 semsad_responder([
@@ -91,9 +91,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         // Verificar si el estudiante ya tiene este mismo libro activo
         $stmtYaPrestado = $conexion->prepare("
-            SELECT COUNT(*) FROM Prestamo p
-            INNER JOIN Detalle_Prestamo dp ON p.id_prestamo = dp.id_prestamo
-            INNER JOIN Ejemplar e ON dp.id_ejemplar = e.id_ejemplar
+            SELECT COUNT(*) FROM prestamo p
+            INNER JOIN detalle_prestamo dp ON p.id_prestamo = dp.id_prestamo
+            INNER JOIN ejemplar e ON dp.id_ejemplar = e.id_ejemplar
             WHERE p.id_usuario = :u AND e.id_material = :m AND p.estado IN ('Activo', 'Vencido', 'Con Mora')
         ");
         $stmtYaPrestado->execute([':u' => $id_usuario, ':m' => $id_material]);
@@ -105,7 +105,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         // Límite máximo de 5 préstamos activos
-        $stmtCount = $conexion->prepare("SELECT COUNT(*) FROM Prestamo WHERE id_usuario = :u AND estado IN ('Activo', 'Vencido', 'Con Mora')");
+        $stmtCount = $conexion->prepare("SELECT COUNT(*) FROM prestamo WHERE id_usuario = :u AND estado IN ('Activo', 'Vencido', 'Con Mora')");
         $stmtCount->execute([':u' => $id_usuario]);
         if ((int)$stmtCount->fetchColumn() >= 5) {
             semsad_responder([
@@ -117,7 +117,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $conexion->beginTransaction();
 
         // Buscar ejemplar disponible con bloqueo de fila
-        $stmtCheck = $conexion->prepare("SELECT e.id_ejemplar FROM Ejemplar e WHERE e.id_material = :m AND " . semsad_sql_ejemplar_libre('e') . " LIMIT 1 FOR UPDATE");
+        $stmtCheck = $conexion->prepare("SELECT e.id_ejemplar FROM ejemplar e WHERE e.id_material = :m AND " . semsad_sql_ejemplar_libre('e') . " LIMIT 1 FOR UPDATE");
         $stmtCheck->execute([':m' => $id_material]);
         $ejemplar = $stmtCheck->fetch(PDO::FETCH_ASSOC);
 
@@ -133,7 +133,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $fecha_limite = date('Y-m-d H:i:s', strtotime("+$dias_prestamo days"));
 
         // Insertar préstamo
-        $stmtP = $conexion->prepare("INSERT INTO Prestamo (id_usuario, id_bibliotecario_entrega, fecha_salida, fecha_limite, estado) VALUES (:u, :b, :salida, :limite, 'Activo')");
+        $stmtP = $conexion->prepare("INSERT INTO prestamo (id_usuario, id_bibliotecario_entrega, fecha_salida, fecha_limite, estado) VALUES (:u, :b, :salida, :limite, 'Activo')");
         $stmtP->execute([
             ':u'      => $id_usuario,
             ':b'      => $id_bibliotecario,
@@ -143,10 +143,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $id_prestamo = (int)$conexion->lastInsertId();
 
         // Insertar detalle y actualizar estado del ejemplar
-        $stmtD = $conexion->prepare("INSERT INTO Detalle_Prestamo (id_prestamo, id_ejemplar) VALUES (:p, :e)");
+        $stmtD = $conexion->prepare("INSERT INTO detalle_prestamo (id_prestamo, id_ejemplar) VALUES (:p, :e)");
         $stmtD->execute([':p' => $id_prestamo, ':e' => $id_ejemplar]);
 
-        $stmtE = $conexion->prepare("UPDATE Ejemplar SET estado_ejemplar = 'Prestado' WHERE id_ejemplar = :e");
+        $stmtE = $conexion->prepare("UPDATE ejemplar SET estado_ejemplar = 'Prestado' WHERE id_ejemplar = :e");
         $stmtE->execute([':e' => $id_ejemplar]);
 
         $conexion->commit();

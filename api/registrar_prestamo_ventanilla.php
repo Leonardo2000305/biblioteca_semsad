@@ -39,7 +39,7 @@ try {
     }
 
     try {
-        $q = $conexion->prepare("SELECT COUNT(*) FROM Multa m INNER JOIN Prestamo p ON p.id_prestamo = m.id_prestamo WHERE p.id_usuario = :u AND m.estado_pago = 'Pendiente'");
+        $q = $conexion->prepare("SELECT COUNT(*) FROM multa m INNER JOIN prestamo p ON p.id_prestamo = m.id_prestamo WHERE p.id_usuario = :u AND m.estado_pago = 'Pendiente'");
         $q->execute([':u' => $idUsuario]);
         if ((int)$q->fetchColumn() > 0) {
             semsad_responder(['status' => 'error', 'mensaje' => "$nombre tiene multas pendientes. Debe cancelarlas antes de recibir otro libro."]);
@@ -53,20 +53,20 @@ try {
         semsad_responder(['status' => 'error', 'mensaje' => $motivoTurno]);
     }
 
-    $q = $conexion->prepare("SELECT COUNT(*) FROM Prestamo p INNER JOIN Detalle_Prestamo dp ON dp.id_prestamo = p.id_prestamo INNER JOIN Ejemplar e ON e.id_ejemplar = dp.id_ejemplar WHERE p.id_usuario = :u AND e.id_material = :m AND p.estado IN ($activos)");
+    $q = $conexion->prepare("SELECT COUNT(*) FROM prestamo p INNER JOIN detalle_prestamo dp ON dp.id_prestamo = p.id_prestamo INNER JOIN ejemplar e ON e.id_ejemplar = dp.id_ejemplar WHERE p.id_usuario = :u AND e.id_material = :m AND p.estado IN ($activos)");
     $q->execute([':u' => $idUsuario, ':m' => $idMaterial]);
     if ((int)$q->fetchColumn() > 0) {
         semsad_responder(['status' => 'error', 'mensaje' => "$nombre ya tiene este libro en préstamo."]);
     }
 
-    $q = $conexion->prepare("SELECT COUNT(*) FROM Prestamo WHERE id_usuario = :u AND estado IN ($activos)");
+    $q = $conexion->prepare("SELECT COUNT(*) FROM prestamo WHERE id_usuario = :u AND estado IN ($activos)");
     $q->execute([':u' => $idUsuario]);
     if ((int)$q->fetchColumn() >= 5) {
         semsad_responder(['status' => 'error', 'mensaje' => "$nombre ya tiene el límite de 5 préstamos activos."]);
     }
 
     $conexion->beginTransaction();
-    $q = $conexion->prepare("SELECT e.id_ejemplar, m.titulo FROM Ejemplar e INNER JOIN MaterialBibliografico m ON m.id_material = e.id_material WHERE e.id_material = :m AND " . semsad_sql_ejemplar_libre('e') . " LIMIT 1 FOR UPDATE");
+    $q = $conexion->prepare("SELECT e.id_ejemplar, m.titulo FROM ejemplar e INNER JOIN materialbibliografico m ON m.id_material = e.id_material WHERE e.id_material = :m AND " . semsad_sql_ejemplar_libre('e') . " LIMIT 1 FOR UPDATE");
     $q->execute([':m' => $idMaterial]);
     $ejemplar = $q->fetch(PDO::FETCH_ASSOC);
     if (!$ejemplar) {
@@ -77,11 +77,11 @@ try {
     $salida = date('Y-m-d H:i:s');
     $limite = $tipo === 'Sala' ? date('Y-m-d 23:59:59') : date('Y-m-d H:i:s', strtotime('+7 days'));
 
-    $conexion->prepare("INSERT INTO Prestamo (id_usuario, id_bibliotecario_entrega, fecha_salida, fecha_limite, estado) VALUES (:u, :b, :s, :l, 'Activo')")
+    $conexion->prepare("INSERT INTO prestamo (id_usuario, id_bibliotecario_entrega, fecha_salida, fecha_limite, estado) VALUES (:u, :b, :s, :l, 'Activo')")
              ->execute([':u' => $idUsuario, ':b' => (int)$_SESSION['id_usuario'], ':s' => $salida, ':l' => $limite]);
     $idPrestamo = (int)$conexion->lastInsertId();
-    $conexion->prepare('INSERT INTO Detalle_Prestamo (id_prestamo, id_ejemplar) VALUES (:p, :e)')->execute([':p' => $idPrestamo, ':e' => $ejemplar['id_ejemplar']]);
-    $conexion->prepare("UPDATE Ejemplar SET estado_ejemplar = 'Prestado' WHERE id_ejemplar = :e")->execute([':e' => $ejemplar['id_ejemplar']]);
+    $conexion->prepare('INSERT INTO detalle_prestamo (id_prestamo, id_ejemplar) VALUES (:p, :e)')->execute([':p' => $idPrestamo, ':e' => $ejemplar['id_ejemplar']]);
+    $conexion->prepare("UPDATE ejemplar SET estado_ejemplar = 'Prestado' WHERE id_ejemplar = :e")->execute([':e' => $ejemplar['id_ejemplar']]);
     $conexion->commit();
     semsad_atender_reserva($conexion, $idUsuario, $idMaterial);
 

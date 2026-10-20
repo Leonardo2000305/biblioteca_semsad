@@ -22,22 +22,22 @@ try {
                 COALESCE(tm.nombre, 'General') AS tipo_material,
                 COALESCE(c.nombre, 'General') AS categoryLabel,
                 COALESCE(e.nombre, 'Sin Editorial') AS editorial,
-                (SELECT COUNT(*) FROM Ejemplar ej WHERE ej.id_material = mb.id_material AND ej.estado_ejemplar != 'Baja') AS total,
-                (SELECT COUNT(*) FROM Ejemplar ej WHERE ej.id_material = mb.id_material AND " . semsad_sql_ejemplar_libre('ej') . ") AS stock,
+                (SELECT COUNT(*) FROM ejemplar ej WHERE ej.id_material = mb.id_material AND ej.estado_ejemplar != 'Baja') AS total,
+                (SELECT COUNT(*) FROM ejemplar ej WHERE ej.id_material = mb.id_material AND " . semsad_sql_ejemplar_libre('ej') . ") AS stock,
                 COALESCE(
                     (SELECT GROUP_CONCAT(CONCAT(a.nombres, ' ', a.apellidos) SEPARATOR ', ')
-                     FROM Material_Autor ma JOIN Autor a ON ma.id_autor = a.id_autor
+                     FROM material_autor ma JOIN autor a ON ma.id_autor = a.id_autor
                      WHERE ma.id_material = mb.id_material),
                     'Varios Autores'
                 ) AS author,
                 COALESCE(
-                    (SELECT u.sala FROM Ejemplar ej2 JOIN UbicacionFisica u ON ej2.id_ubicacion = u.id_ubicacion WHERE ej2.id_material = mb.id_material LIMIT 1),
+                    (SELECT u.sala FROM ejemplar ej2 JOIN ubicacionfisica u ON ej2.id_ubicacion = u.id_ubicacion WHERE ej2.id_material = mb.id_material LIMIT 1),
                     'Estante Principal'
                 ) AS shelf
-            FROM MaterialBibliografico mb
-            LEFT JOIN TipoMaterial tm ON mb.id_tipo_material = tm.id_tipo_material
-            LEFT JOIN Categoria c ON mb.id_categoria = c.id_categoria
-            LEFT JOIN Editorial e ON mb.id_editorial = e.id_editorial
+            FROM materialbibliografico mb
+            LEFT JOIN tipomaterial tm ON mb.id_tipo_material = tm.id_tipo_material
+            LEFT JOIN categoria c ON mb.id_categoria = c.id_categoria
+            LEFT JOIN editorial e ON mb.id_editorial = e.id_editorial
             WHERE 1=1";
 
     $params = [];

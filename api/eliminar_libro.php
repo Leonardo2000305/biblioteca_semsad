@@ -15,9 +15,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
         $stmtActivos = $conexion->prepare("
             SELECT COUNT(*) 
-            FROM Prestamo p
-            INNER JOIN Detalle_Prestamo dp ON p.id_prestamo = dp.id_prestamo
-            INNER JOIN Ejemplar e ON dp.id_ejemplar = e.id_ejemplar
+            FROM prestamo p
+            INNER JOIN detalle_prestamo dp ON p.id_prestamo = dp.id_prestamo
+            INNER JOIN ejemplar e ON dp.id_ejemplar = e.id_ejemplar
             WHERE e.id_material = :id AND p.estado IN ('Activo', 'Vencido', 'Con Mora')
         ");
         $stmtActivos->execute([':id' => $id_material]);
@@ -31,14 +31,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $conexion->beginTransaction();
 
         $conexion->exec("
-            DELETE FROM Detalle_Prestamo 
-            WHERE id_ejemplar IN (SELECT id_ejemplar FROM Ejemplar WHERE id_material = $id_material)
+            DELETE FROM detalle_prestamo 
+            WHERE id_ejemplar IN (SELECT id_ejemplar FROM ejemplar WHERE id_material = $id_material)
         ");
 
-        $stmtE = $conexion->prepare("DELETE FROM Ejemplar WHERE id_material = :id");
+        $stmtE = $conexion->prepare("DELETE FROM ejemplar WHERE id_material = :id");
         $stmtE->execute([':id' => $id_material]);
 
-        $stmtM = $conexion->prepare("DELETE FROM MaterialBibliografico WHERE id_material = :id");
+        $stmtM = $conexion->prepare("DELETE FROM materialbibliografico WHERE id_material = :id");
         $stmtM->execute([':id' => $id_material]);
 
         $conexion->commit();

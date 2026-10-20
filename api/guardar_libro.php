@@ -35,7 +35,7 @@ function gl_primer_id(PDO $c, string $tabla, string $col, string $preferido = ''
 /* Guarda la lista de autores ("A, B; C") en Autor y Material_Autor, reemplazando la anterior. */
 function gl_guardar_autores(PDO $c, int $idMaterial, string $texto): void
 {
-    $c->prepare('DELETE FROM Material_Autor WHERE id_material = :m')->execute([':m' => $idMaterial]);
+    $c->prepare('DELETE FROM material_autor WHERE id_material = :m')->execute([':m' => $idMaterial]);
 
     $nombres = array_values(array_filter(array_map('trim', preg_split('/[,;]/', $texto)), 'strlen'));
     $usados = [];
@@ -50,11 +50,11 @@ function gl_guardar_autores(PDO $c, int $idMaterial, string $texto): void
             $apellidos = '';
         }
 
-        $q = $c->prepare('SELECT id_autor FROM Autor WHERE LOWER(nombres) = LOWER(:n) AND LOWER(apellidos) = LOWER(:a) LIMIT 1');
+        $q = $c->prepare('SELECT id_autor FROM autor WHERE LOWER(nombres) = LOWER(:n) AND LOWER(apellidos) = LOWER(:a) LIMIT 1');
         $q->execute([':n' => $nombre, ':a' => $apellidos]);
         $idAutor = $q->fetchColumn();
         if ($idAutor === false) {
-            $c->prepare('INSERT INTO Autor (nombres, apellidos) VALUES (:n, :a)')->execute([':n' => $nombre, ':a' => $apellidos]);
+            $c->prepare('INSERT INTO autor (nombres, apellidos) VALUES (:n, :a)')->execute([':n' => $nombre, ':a' => $apellidos]);
             $idAutor = $c->lastInsertId();
         }
         $idAutor = (int)$idAutor;
@@ -63,7 +63,7 @@ function gl_guardar_autores(PDO $c, int $idMaterial, string $texto): void
         }
         $usados[$idAutor] = true;
 
-        $c->prepare('INSERT INTO Material_Autor (id_material, id_autor, orden_autor) VALUES (:m, :a, :o)')
+        $c->prepare('INSERT INTO material_autor (id_material, id_autor, orden_autor) VALUES (:m, :a, :o)')
           ->execute([':m' => $idMaterial, ':a' => $idAutor, ':o' => $orden++]);
     }
 }
@@ -73,12 +73,12 @@ try {
 
     // Columnas reales de la base (cada instalación puede tener un esquema un poco distinto)
     $datos = ['titulo' => $titulo, 'agno_publicacion' => $agno_publicacion];
-    if (semsad_tiene_columna($conexion, 'MaterialBibliografico', 'codigo_isbn_issn')) {
+    if (semsad_tiene_columna($conexion, 'materialbibliografico', 'codigo_isbn_issn')) {
         $datos['codigo_isbn_issn'] = $isbn !== '' ? $isbn : null;
-    } elseif (semsad_tiene_columna($conexion, 'MaterialBibliografico', 'isbn')) {
+    } elseif (semsad_tiene_columna($conexion, 'materialbibliografico', 'isbn')) {
         $datos['isbn'] = $isbn;
     }
-    $autoresEnColumna = semsad_tiene_columna($conexion, 'MaterialBibliografico', 'autores');
+    $autoresEnColumna = semsad_tiene_columna($conexion, 'materialbibliografico', 'autores');
     if ($autoresEnColumna) {
         $datos['autores'] = $autoresTexto;
     }
@@ -90,16 +90,16 @@ try {
             $sets[] = "$col = :$col";
             $params[":$col"] = $val;
         }
-        $conexion->prepare('UPDATE MaterialBibliografico SET ' . implode(', ', $sets) . ' WHERE id_material = :id')
+        $conexion->prepare('UPDATE materialbibliografico SET ' . implode(', ', $sets) . ' WHERE id_material = :id')
                  ->execute($params);
 
-        $stmtCount = $conexion->prepare('SELECT COUNT(*) FROM Ejemplar WHERE id_material = :id');
+        $stmtCount = $conexion->prepare('SELECT COUNT(*) FROM ejemplar WHERE id_material = :id');
         $stmtCount->execute([':id' => $id_material]);
         $countActual = (int)$stmtCount->fetchColumn();
 
         if ($num_ejemplares > $countActual) {
-            $idUbicacion = gl_primer_id($conexion, 'UbicacionFisica', 'id_ubicacion');
-            $stmtAddE = $conexion->prepare("INSERT INTO Ejemplar (id_material, id_ubicacion, estado_ejemplar) VALUES (:id, :u, 'Disponible')");
+            $idUbicacion = gl_primer_id($conexion, 'ubicacionfisica', 'id_ubicacion');
+            $stmtAddE = $conexion->prepare("INSERT INTO ejemplar (id_material, id_ubicacion, estado_ejemplar) VALUES (:id, :u, 'Disponible')");
             for ($k = 0; $k < $num_ejemplares - $countActual; $k++) {
                 $stmtAddE->execute([':id' => $id_material, ':u' => $idUbicacion]);
             }
@@ -108,19 +108,19 @@ try {
         $msg = "Libro \"$titulo\" actualizado correctamente.";
     } else {
         // Campos obligatorios del libro nuevo: tipo "Libro" y primera categoría disponible
-        $datos['id_tipo_material'] = gl_primer_id($conexion, 'TipoMaterial', 'id_tipo_material', 'Libro');
-        $datos['id_categoria'] = gl_primer_id($conexion, 'Categoria', 'id_categoria');
+        $datos['id_tipo_material'] = gl_primer_id($conexion, 'tipomaterial', 'id_tipo_material', 'Libro');
+        $datos['id_categoria'] = gl_primer_id($conexion, 'categoria', 'id_categoria');
         $cols = implode(', ', array_keys($datos));
         $marcas = implode(', ', array_map(fn($c) => ":$c", array_keys($datos)));
         $params = [];
         foreach ($datos as $col => $val) {
             $params[":$col"] = $val;
         }
-        $conexion->prepare("INSERT INTO MaterialBibliografico ($cols) VALUES ($marcas)")->execute($params);
+        $conexion->prepare("INSERT INTO materialbibliografico ($cols) VALUES ($marcas)")->execute($params);
         $id_material = (int)$conexion->lastInsertId();
 
-        $idUbicacion = gl_primer_id($conexion, 'UbicacionFisica', 'id_ubicacion');
-        $stmtAddE = $conexion->prepare("INSERT INTO Ejemplar (id_material, id_ubicacion, estado_ejemplar) VALUES (:id, :u, 'Disponible')");
+        $idUbicacion = gl_primer_id($conexion, 'ubicacionfisica', 'id_ubicacion');
+        $stmtAddE = $conexion->prepare("INSERT INTO ejemplar (id_material, id_ubicacion, estado_ejemplar) VALUES (:id, :u, 'Disponible')");
         $cant = max(1, $num_ejemplares);
         for ($k = 0; $k < $cant; $k++) {
             $stmtAddE->execute([':id' => $id_material, ':u' => $idUbicacion]);

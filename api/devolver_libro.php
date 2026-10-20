@@ -17,34 +17,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $conexion->beginTransaction();
 
         // 1. Obtener ejemplares asociados
-        $stmtD = $conexion->prepare("SELECT id_ejemplar FROM Detalle_Prestamo WHERE id_prestamo = :p");
+        $stmtD = $conexion->prepare("SELECT id_ejemplar FROM detalle_prestamo WHERE id_prestamo = :p");
         $stmtD->execute([':p' => $id_prestamo]);
         $ejemplares = $stmtD->fetchAll(PDO::FETCH_COLUMN);
 
         // 2. Marcar préstamo como Devuelto
-        $stmtP = $conexion->prepare("UPDATE Prestamo SET estado = 'Devuelto' WHERE id_prestamo = :p");
+        $stmtP = $conexion->prepare("UPDATE prestamo SET estado = 'Devuelto' WHERE id_prestamo = :p");
         $stmtP->execute([':p' => $id_prestamo]);
 
         // Fecha real de devolución (la usan los reportes). Si la columna no existe, se ignora.
         try {
-            $conexion->prepare("UPDATE Prestamo SET fecha_devolucion_real = NOW() WHERE id_prestamo = :p")->execute([':p' => $id_prestamo]);
+            $conexion->prepare("UPDATE prestamo SET fecha_devolucion_real = NOW() WHERE id_prestamo = :p")->execute([':p' => $id_prestamo]);
         } catch (Exception $ignorar) {}
 
         // 3. Marcar ejemplares como Disponibles
         if (!empty($ejemplares)) {
             $inClause = implode(',', array_map('intval', $ejemplares));
-            $conexion->exec("UPDATE Ejemplar SET estado_ejemplar = 'Disponible' WHERE id_ejemplar IN ($inClause)");
+            $conexion->exec("UPDATE ejemplar SET estado_ejemplar = 'Disponible' WHERE id_ejemplar IN ($inClause)");
         }
 
         // 4. Autocorrección de seguridad: Liberar cualquier ejemplar huérfano
         $conexion->exec("
-            UPDATE Ejemplar 
+            UPDATE ejemplar 
             SET estado_ejemplar = 'Disponible' 
             WHERE estado_ejemplar = 'Prestado' 
             AND id_ejemplar NOT IN (
                 SELECT DISTINCT dp.id_ejemplar 
-                FROM Detalle_Prestamo dp 
-                INNER JOIN Prestamo p ON dp.id_prestamo = p.id_prestamo 
+                FROM detalle_prestamo dp 
+                INNER JOIN prestamo p ON dp.id_prestamo = p.id_prestamo 
                 WHERE p.estado IN ('Activo', 'Vencido', 'Con Mora')
             )
         ");

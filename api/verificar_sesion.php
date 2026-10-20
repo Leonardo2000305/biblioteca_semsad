@@ -25,7 +25,7 @@ if ($id_usuario !== null) {
         'sesion_activa' => true,
         'usuario' => [
             'id_usuario' => $id_usuario,
-            'nombre'     => $_SESSION['nombre'] ?? $_SESSION['nombre_usuario'] ?? 'Usuario',
+            'nombre'     => $_SESSION['nombre'] ?? $_SESSION['nombre_usuario'] ?? 'usuario',
             'rol'        => $_SESSION['rol'] ?? $_SESSION['id_rol'] ?? 'estudiante',
             'ci'         => $_SESSION['ci'] ?? $_SESSION['codigo'] ?? ''
         ]

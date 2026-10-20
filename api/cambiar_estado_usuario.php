@@ -18,11 +18,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // La columna estado puede ser ENUM('Activo','Suspendido','Bloqueado'): se usa el valor que exista de verdad.
         $valor = $nuevo_estado === 'Activo'
             ? 'Activo'
-            : semsad_valor_enum($conexion, 'Usuario', 'estado', ['Inactivo', 'Suspendido', 'Bloqueado']);
+            : semsad_valor_enum($conexion, 'usuario', 'estado', ['Inactivo', 'Suspendido', 'Bloqueado']);
         if ($valor === null) {
             semsad_responder(['status' => 'error', 'mensaje' => 'La base de datos no tiene un estado de baja para usuarios.'], 500);
         }
-        $stmt = $conexion->prepare("UPDATE Usuario SET estado = :e WHERE id_usuario = :id");
+        $stmt = $conexion->prepare("UPDATE usuario SET estado = :e WHERE id_usuario = :id");
         $stmt->execute([':e' => $valor, ':id' => $id_usuario]);
 
         semsad_responder([

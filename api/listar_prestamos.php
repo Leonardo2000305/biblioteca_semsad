@@ -13,7 +13,6 @@ try {
                 u.apellidos AS user_apellidos,
                 u.correo AS user_correo,
                 u.codigo_empleado AS user_ci,
-                " . (semsad_tiene_columna($conexion, 'Usuario', 'telefono') ? 'u.telefono' : "''") . " AS user_telefono,
                 m.titulo AS libro_titulo,
                 " . semsad_expr_isbn($conexion, 'm') . " AS libro_codigo,
                 p.fecha_salida,
@@ -29,6 +28,14 @@ try {
 
     $stmt = $conexion->query($sql);
     $filas = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    // Teléfonos en consulta aparte: si la tabla no tiene esa columna, el listado igual funciona
+    $telefonos = [];
+    try {
+        $telefonos = $conexion->query("SELECT id_usuario, telefono FROM usuario")->fetchAll(PDO::FETCH_KEY_PAIR);
+    } catch (Throwable $ignorar) {
+        $telefonos = [];
+    }
 
     $prestamos = [];
     foreach ($filas as $f) {
@@ -58,7 +65,7 @@ try {
             'userCorreo'    => $f['user_correo'] ?? '',
             'correo'        => $f['user_correo'] ?? '',
             'userCi'        => !empty($f['user_ci']) ? $f['user_ci'] : 'Sin CI',
-            'userTelefono'  => $f['user_telefono'] ?? '',
+            'userTelefono'  => (string)($telefonos[(int)$f['id_usuario']] ?? ''),
             'bookTitle'     => $f['libro_titulo'] ?? 'Libro',
             'bookCodigo'    => !empty($f['libro_codigo']) ? $f['libro_codigo'] : ('ID ' . (int)$f['id_prestamo']),
             'fechaSalida'   => !empty($f['fecha_salida']) ? date('d/m/Y H:i', strtotime($f['fecha_salida'])) : 'S/F',

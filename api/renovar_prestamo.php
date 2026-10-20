@@ -27,7 +27,7 @@ try {
     semsad_marcar_vencidos($conexion);
 
     $conexion->beginTransaction();
-    $q = $conexion->prepare('SELECT id_prestamo, id_usuario, estado, fecha_limite FROM Prestamo WHERE id_prestamo = :p FOR UPDATE');
+    $q = $conexion->prepare('SELECT id_prestamo, id_usuario, estado, fecha_limite FROM prestamo WHERE id_prestamo = :p FOR UPDATE');
     $q->execute([':p' => $idPrestamo]);
     $p = $q->fetch(PDO::FETCH_ASSOC);
 
@@ -44,7 +44,7 @@ try {
 
     if (!$error) {
         try {
-            $q = $conexion->prepare("SELECT COUNT(*) FROM Multa m INNER JOIN Prestamo pr ON pr.id_prestamo = m.id_prestamo WHERE pr.id_usuario = :u AND m.estado_pago = 'Pendiente'");
+            $q = $conexion->prepare("SELECT COUNT(*) FROM multa m INNER JOIN prestamo pr ON pr.id_prestamo = m.id_prestamo WHERE pr.id_usuario = :u AND m.estado_pago = 'Pendiente'");
             $q->execute([':u' => $idUsuario]);
             if ((int)$q->fetchColumn() > 0) {
                 $error = 'Tienes multas pendientes. Regulariza tu cuenta para renovar.';
@@ -53,12 +53,12 @@ try {
     }
 
     if (!$error) {
-        $q = $conexion->prepare('SELECT DISTINCT e.id_material FROM Detalle_Prestamo dp INNER JOIN Ejemplar e ON e.id_ejemplar = dp.id_ejemplar WHERE dp.id_prestamo = :p');
+        $q = $conexion->prepare('SELECT DISTINCT e.id_material FROM detalle_prestamo dp INNER JOIN ejemplar e ON e.id_ejemplar = dp.id_ejemplar WHERE dp.id_prestamo = :p');
         $q->execute([':p' => $idPrestamo]);
         $materiales = $q->fetchAll(PDO::FETCH_COLUMN);
         try {
             foreach ($materiales as $m) {
-                $q = $conexion->prepare("SELECT COUNT(*) FROM Reserva WHERE id_material = :m AND estado = 'Pendiente' AND id_usuario <> :u");
+                $q = $conexion->prepare("SELECT COUNT(*) FROM reserva WHERE id_material = :m AND estado = 'Pendiente' AND id_usuario <> :u");
                 $q->execute([':m' => $m, ':u' => $idUsuario]);
                 if ((int)$q->fetchColumn() > 0) {
                     $error = 'Otro usuario está esperando este libro, por eso no se puede renovar.';
@@ -68,9 +68,9 @@ try {
         } catch (PDOException $ignorar) { /* sin tabla Reserva */ }
     }
 
-    $tieneContador = in_array('num_renovaciones', array_map('strtolower', $conexion->query('SHOW COLUMNS FROM Prestamo')->fetchAll(PDO::FETCH_COLUMN, 0)), true);
+    $tieneContador = in_array('num_renovaciones', array_map('strtolower', $conexion->query('SHOW COLUMNS FROM prestamo')->fetchAll(PDO::FETCH_COLUMN, 0)), true);
     if (!$error && $tieneContador) {
-        $q = $conexion->prepare('SELECT num_renovaciones FROM Prestamo WHERE id_prestamo = :p');
+        $q = $conexion->prepare('SELECT num_renovaciones FROM prestamo WHERE id_prestamo = :p');
         $q->execute([':p' => $idPrestamo]);
         if ((int)$q->fetchColumn() >= SEMSAD_MAX_RENOVACIONES) {
             $error = 'Ya usaste las ' . SEMSAD_MAX_RENOVACIONES . ' renovaciones permitidas para este préstamo.';
@@ -84,8 +84,8 @@ try {
 
     $nuevo = date('Y-m-d H:i:s', strtotime($p['fecha_limite'] . ' +7 days'));
     $sql = $tieneContador
-        ? 'UPDATE Prestamo SET fecha_limite = :l, num_renovaciones = num_renovaciones + 1 WHERE id_prestamo = :p'
-        : 'UPDATE Prestamo SET fecha_limite = :l WHERE id_prestamo = :p';
+        ? 'UPDATE prestamo SET fecha_limite = :l, num_renovaciones = num_renovaciones + 1 WHERE id_prestamo = :p'
+        : 'UPDATE prestamo SET fecha_limite = :l WHERE id_prestamo = :p';
     $conexion->prepare($sql)->execute([':l' => $nuevo, ':p' => $idPrestamo]);
     $conexion->commit();
 

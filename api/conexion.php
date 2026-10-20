@@ -80,8 +80,8 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && stripos($_SERVER['CONTENT_T
 function semsad_sql_ejemplar_libre(string $a = 'e'): string
 {
     return "$a.estado_ejemplar NOT IN ('En Mantenimiento', 'Baja') AND NOT EXISTS (
-                SELECT 1 FROM Detalle_Prestamo dpx
-                INNER JOIN Prestamo px ON px.id_prestamo = dpx.id_prestamo
+                SELECT 1 FROM detalle_prestamo dpx
+                INNER JOIN prestamo px ON px.id_prestamo = dpx.id_prestamo
                 WHERE dpx.id_ejemplar = $a.id_ejemplar AND px.estado IN ('Activo', 'Vencido', 'Con Mora'))";
 }
 
@@ -121,12 +121,12 @@ function semsad_tiene_tabla(PDO $c, string $tabla): bool
 /** Expresión SQL con los autores del libro: columna autores, o si no existe, la tabla Material_Autor + Autor. */
 function semsad_expr_autores(PDO $c, string $alias = 'm'): string
 {
-    if (semsad_tiene_columna($c, 'MaterialBibliografico', 'autores')) {
+    if (semsad_tiene_columna($c, 'materialbibliografico', 'autores')) {
         return "$alias.autores";
     }
-    if (semsad_tiene_tabla($c, 'Material_Autor') && semsad_tiene_tabla($c, 'Autor')) {
+    if (semsad_tiene_tabla($c, 'material_autor') && semsad_tiene_tabla($c, 'autor')) {
         return "(SELECT GROUP_CONCAT(CONCAT(a.nombres, ' ', a.apellidos) ORDER BY ma.orden_autor SEPARATOR ', ')
-                   FROM Material_Autor ma INNER JOIN Autor a ON a.id_autor = ma.id_autor
+                   FROM material_autor ma INNER JOIN autor a ON a.id_autor = ma.id_autor
                   WHERE ma.id_material = $alias.id_material)";
     }
     return 'NULL';
@@ -135,10 +135,10 @@ function semsad_expr_autores(PDO $c, string $alias = 'm'): string
 /** Expresión SQL con el ISBN / código del libro, sea cual sea la columna que exista. */
 function semsad_expr_isbn(PDO $c, string $alias = 'm'): string
 {
-    if (semsad_tiene_columna($c, 'MaterialBibliografico', 'isbn')) {
+    if (semsad_tiene_columna($c, 'materialbibliografico', 'isbn')) {
         return "$alias.isbn";
     }
-    if (semsad_tiene_columna($c, 'MaterialBibliografico', 'codigo_isbn_issn')) {
+    if (semsad_tiene_columna($c, 'materialbibliografico', 'codigo_isbn_issn')) {
         return "$alias.codigo_isbn_issn";
     }
     return 'NULL';

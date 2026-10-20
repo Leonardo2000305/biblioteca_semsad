@@ -49,11 +49,11 @@ function semsad_calcular_mora(?string $fechaLimite, ?int $ahora = null): array
 function semsad_marcar_vencidos(PDO $c): void
 {
     try {
-        $estado = semsad_valor_enum($c, 'Prestamo', 'estado', ['Vencido', 'Con Mora']);
+        $estado = semsad_valor_enum($c, 'prestamo', 'estado', ['Vencido', 'Con Mora']);
         if ($estado === null) {
             return;
         }
-        $q = $c->prepare("UPDATE Prestamo SET estado = :e WHERE estado = 'Activo' AND fecha_limite < NOW()");
+        $q = $c->prepare("UPDATE prestamo SET estado = :e WHERE estado = 'Activo' AND fecha_limite < NOW()");
         $q->execute([':e' => $estado]);
     } catch (Throwable $e) {
         error_log('[SEMSAD] semsad_marcar_vencidos: ' . $e->getMessage());
@@ -67,11 +67,11 @@ function semsad_marcar_vencidos(PDO $c): void
 function semsad_turno_permite(PDO $c, int $idUsuario, int $idMaterial): ?string
 {
     try {
-        $q = $c->prepare("SELECT COUNT(*) FROM Ejemplar e WHERE e.id_material = :m AND " . semsad_sql_ejemplar_libre('e'));
+        $q = $c->prepare("SELECT COUNT(*) FROM ejemplar e WHERE e.id_material = :m AND " . semsad_sql_ejemplar_libre('e'));
         $q->execute([':m' => $idMaterial]);
         $disponibles = (int)$q->fetchColumn();
 
-        $q = $c->prepare("SELECT id_usuario FROM Reserva WHERE id_material = :m AND estado = 'Pendiente' ORDER BY prioridad ASC, id_reserva ASC");
+        $q = $c->prepare("SELECT id_usuario FROM reserva WHERE id_material = :m AND estado = 'Pendiente' ORDER BY prioridad ASC, id_reserva ASC");
         $q->execute([':m' => $idMaterial]);
         $cola = array_map('intval', $q->fetchAll(PDO::FETCH_COLUMN));
         if (!$cola || $disponibles < 1) {
@@ -93,7 +93,7 @@ function semsad_turno_permite(PDO $c, int $idUsuario, int $idMaterial): ?string
 function semsad_atender_reserva(PDO $c, int $idUsuario, int $idMaterial): void
 {
     try {
-        $c->prepare("UPDATE Reserva SET estado = 'Atendida' WHERE id_usuario = :u AND id_material = :m AND estado = 'Pendiente'")
+        $c->prepare("UPDATE reserva SET estado = 'Atendida' WHERE id_usuario = :u AND id_material = :m AND estado = 'Pendiente'")
           ->execute([':u' => $idUsuario, ':m' => $idMaterial]);
     } catch (Throwable $e) { /* sin tabla Reserva */ }
 }

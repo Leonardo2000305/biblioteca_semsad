@@ -12,11 +12,11 @@ try {
         "SELECT p.id_prestamo, p.id_usuario, p.estado, p.fecha_limite,
                 u.correo AS usuario_correo,
                 dp.id_ejemplar, e.id_material, e.estado_ejemplar, m.titulo
-           FROM Prestamo p
-      LEFT JOIN Usuario u ON u.id_usuario = p.id_usuario
-      LEFT JOIN Detalle_Prestamo dp ON dp.id_prestamo = p.id_prestamo
-      LEFT JOIN Ejemplar e ON e.id_ejemplar = dp.id_ejemplar
-      LEFT JOIN MaterialBibliografico m ON m.id_material = e.id_material
+           FROM prestamo p
+      LEFT JOIN usuario u ON u.id_usuario = p.id_usuario
+      LEFT JOIN detalle_prestamo dp ON dp.id_prestamo = p.id_prestamo
+      LEFT JOIN ejemplar e ON e.id_ejemplar = dp.id_ejemplar
+      LEFT JOIN materialbibliografico m ON m.id_material = e.id_material
           WHERE p.estado IN ('Activo', 'Vencido', 'Con Mora')
        ORDER BY p.id_prestamo DESC"
     )->fetchAll(PDO::FETCH_ASSOC);
@@ -35,7 +35,7 @@ try {
 
     $ejemplares = $conexion->query(
         "SELECT e.id_material, m.titulo, e.estado_ejemplar, COUNT(*) AS cantidad
-           FROM Ejemplar e LEFT JOIN MaterialBibliografico m ON m.id_material = e.id_material
+           FROM ejemplar e LEFT JOIN materialbibliografico m ON m.id_material = e.id_material
        GROUP BY e.id_material, m.titulo, e.estado_ejemplar ORDER BY e.id_material"
     )->fetchAll(PDO::FETCH_ASSOC);
 

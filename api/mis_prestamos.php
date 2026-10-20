@@ -26,10 +26,10 @@ try {
                 p.fecha_salida,
                 p.fecha_limite,
                 p.estado
-            FROM Prestamo p
-            INNER JOIN Detalle_Prestamo dp ON p.id_prestamo = dp.id_prestamo
-            INNER JOIN Ejemplar e ON dp.id_ejemplar = e.id_ejemplar
-            INNER JOIN MaterialBibliografico m ON e.id_material = m.id_material
+            FROM prestamo p
+            INNER JOIN detalle_prestamo dp ON p.id_prestamo = dp.id_prestamo
+            INNER JOIN ejemplar e ON dp.id_ejemplar = e.id_ejemplar
+            INNER JOIN materialbibliografico m ON e.id_material = m.id_material
             WHERE p.id_usuario = :u
             ORDER BY p.id_prestamo DESC";
 

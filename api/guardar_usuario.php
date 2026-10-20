@@ -27,7 +27,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (!empty($password)) {
                 $hash = password_hash($password, PASSWORD_BCRYPT);
                 $stmt = $conexion->prepare("
-                    UPDATE Usuario 
+                    UPDATE usuario 
                     SET nombres = :n, apellidos = :a, correo = :c, contrasena = :p, telefono = :t, codigo_empleado = :cod, id_rol = :r 
                     WHERE id_usuario = :id
                 ");
@@ -37,7 +37,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 ]);
             } else {
                 $stmt = $conexion->prepare("
-                    UPDATE Usuario 
+                    UPDATE usuario 
                     SET nombres = :n, apellidos = :a, correo = :c, telefono = :t, codigo_empleado = :cod, id_rol = :r 
                     WHERE id_usuario = :id
                 ");
@@ -63,7 +63,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (strlen($password) < 6) {
                 semsad_responder(['status' => 'error', 'mensaje' => 'La contraseña debe tener al menos 6 caracteres.']);
             }
-            if (!semsad_tiene_columna($conexion, 'Usuario', 'telefono')) {
+            if (!semsad_tiene_columna($conexion, 'usuario', 'telefono')) {
                 semsad_responder(['status' => 'error', 'mensaje' => 'Falta la columna telefono en la tabla usuario. Hay que agregarla antes de registrar usuarios.']);
             }
 
@@ -84,17 +84,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             // Duplicados: correo, CI y teléfono (mismos mensajes que el registro público)
-            $dupCorreo = $conexion->prepare('SELECT COUNT(*) FROM Usuario WHERE LOWER(TRIM(correo)) = :v');
+            $dupCorreo = $conexion->prepare('SELECT COUNT(*) FROM usuario WHERE LOWER(TRIM(correo)) = :v');
             $dupCorreo->execute([':v' => $correo]);
             if ((int)$dupCorreo->fetchColumn() > 0) {
                 semsad_responder(['status' => 'error', 'mensaje' => 'El correo electrónico ya está registrado en el sistema.']);
             }
-            $dupCi = $conexion->prepare('SELECT COUNT(*) FROM Usuario WHERE codigo_empleado = :v');
+            $dupCi = $conexion->prepare('SELECT COUNT(*) FROM usuario WHERE codigo_empleado = :v');
             $dupCi->execute([':v' => $codigo_empleado]);
             if ((int)$dupCi->fetchColumn() > 0) {
                 semsad_responder(['status' => 'error', 'mensaje' => 'La CI / Código de estudiante ya está registrada.']);
             }
-            $dupTel = $conexion->prepare('SELECT COUNT(*) FROM Usuario WHERE telefono = :v');
+            $dupTel = $conexion->prepare('SELECT COUNT(*) FROM usuario WHERE telefono = :v');
             $dupTel->execute([':v' => $telefono]);
             if ((int)$dupTel->fetchColumn() > 0) {
                 semsad_responder(['status' => 'error', 'mensaje' => '¡Registro bloqueado! Este número de teléfono ya pertenece a otra cuenta.']);
@@ -102,7 +102,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             $hash = password_hash($password, PASSWORD_BCRYPT);
             $stmt = $conexion->prepare("
-                INSERT INTO Usuario (nombres, apellidos, correo, contrasena, telefono, codigo_empleado, id_rol, estado) 
+                INSERT INTO usuario (nombres, apellidos, correo, contrasena, telefono, codigo_empleado, id_rol, estado) 
                 VALUES (:n, :a, :c, :p, :t, :cod, :r, 'Activo')
             ");
             $stmt->execute([

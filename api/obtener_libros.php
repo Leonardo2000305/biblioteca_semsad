@@ -9,13 +9,13 @@ try {
     // 1. Auto-sincronización silenciosa de stock para corregir ejemplares inconsistentes
     try {
         $conexion->exec("
-            UPDATE Ejemplar 
+            UPDATE ejemplar 
             SET estado_ejemplar = 'Disponible' 
             WHERE estado_ejemplar IN ('Prestado', 'Reservado') 
             AND id_ejemplar NOT IN (
                 SELECT DISTINCT dp.id_ejemplar 
-                FROM Detalle_Prestamo dp 
-                INNER JOIN Prestamo p ON dp.id_prestamo = p.id_prestamo 
+                FROM detalle_prestamo dp 
+                INNER JOIN prestamo p ON dp.id_prestamo = p.id_prestamo 
                 WHERE p.estado IN ('Activo', 'Vencido', 'Con Mora')
             )
         ");
@@ -28,14 +28,14 @@ try {
     // 2. Obtener libros base
     // Autores: columna 'autores' si existe; si no, se arman desde Material_Autor + Autor
     $exprAutores = semsad_expr_autores($conexion, 'm');
-    $sql = "SELECT m.*, $exprAutores AS autores_material FROM MaterialBibliografico m ORDER BY m.id_material DESC";
+    $sql = "SELECT m.*, $exprAutores AS autores_material FROM materialbibliografico m ORDER BY m.id_material DESC";
     $stmt = $conexion->query($sql);
     $materiales = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     // 3. Obtener ejemplares y agrupar disponibilidades en PHP
     $sqlEjemplares = "SELECT e.id_ejemplar, e.id_material, e.estado_ejemplar,
                              CASE WHEN " . semsad_sql_ejemplar_libre('e') . " THEN 1 ELSE 0 END AS libre
-                      FROM Ejemplar e";
+                      FROM ejemplar e";
     $stmtE = $conexion->query($sqlEjemplares);
     $ejemplares = $stmtE->fetchAll(PDO::FETCH_ASSOC);
 
@@ -56,9 +56,9 @@ try {
     if ($id_usuario > 0) {
         $stmtP = $conexion->prepare("
             SELECT DISTINCT e.id_material 
-            FROM Prestamo p
-            INNER JOIN Detalle_Prestamo dp ON p.id_prestamo = dp.id_prestamo
-            INNER JOIN Ejemplar e ON dp.id_ejemplar = e.id_ejemplar
+            FROM prestamo p
+            INNER JOIN detalle_prestamo dp ON p.id_prestamo = dp.id_prestamo
+            INNER JOIN ejemplar e ON dp.id_ejemplar = e.id_ejemplar
             WHERE p.id_usuario = :u AND p.estado IN ('Activo', 'Vencido', 'Con Mora')
         ");
         $stmtP->execute([':u' => $id_usuario]);
@@ -68,18 +68,18 @@ try {
     // 4b. Datos extra (no obligatorios: si la tabla no existe, simplemente no se muestran)
     $categoriaPorMaterial = [];
     try {
-        foreach ($conexion->query("SELECT m.id_material, c.nombre FROM MaterialBibliografico m INNER JOIN Categoria c ON c.id_categoria = m.id_categoria")->fetchAll(PDO::FETCH_ASSOC) as $f) {
+        foreach ($conexion->query("SELECT m.id_material, c.nombre FROM materialbibliografico m INNER JOIN categoria c ON c.id_categoria = m.id_categoria")->fetchAll(PDO::FETCH_ASSOC) as $f) {
             $categoriaPorMaterial[(int)$f['id_material']] = $f['nombre'];
         }
     } catch (Throwable $ignorar) {}
     $colaPorMaterial = [];
     $miTurno = [];
     try {
-        foreach ($conexion->query("SELECT id_material, COUNT(*) AS n FROM Reserva WHERE estado = 'Pendiente' GROUP BY id_material")->fetchAll(PDO::FETCH_ASSOC) as $f) {
+        foreach ($conexion->query("SELECT id_material, COUNT(*) AS n FROM reserva WHERE estado = 'Pendiente' GROUP BY id_material")->fetchAll(PDO::FETCH_ASSOC) as $f) {
             $colaPorMaterial[(int)$f['id_material']] = (int)$f['n'];
         }
         if ($id_usuario > 0) {
-            $q = $conexion->prepare("SELECT id_material, prioridad FROM Reserva WHERE id_usuario = :u AND estado = 'Pendiente'");
+            $q = $conexion->prepare("SELECT id_material, prioridad FROM reserva WHERE id_usuario = :u AND estado = 'Pendiente'");
             $q->execute([':u' => $id_usuario]);
             foreach ($q->fetchAll(PDO::FETCH_ASSOC) as $f) {
                 $miTurno[(int)$f['id_material']] = (int)$f['prioridad'];

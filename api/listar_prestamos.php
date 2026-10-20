@@ -18,11 +18,11 @@ try {
                 p.fecha_salida,
                 p.fecha_limite,
                 p.estado
-            FROM Prestamo p
-            LEFT JOIN Usuario u ON p.id_usuario = u.id_usuario
-            LEFT JOIN Detalle_Prestamo dp ON p.id_prestamo = dp.id_prestamo
-            LEFT JOIN Ejemplar e ON dp.id_ejemplar = e.id_ejemplar
-            LEFT JOIN MaterialBibliografico m ON e.id_material = m.id_material
+            FROM prestamo p
+            LEFT JOIN usuario u ON p.id_usuario = u.id_usuario
+            LEFT JOIN detalle_prestamo dp ON p.id_prestamo = dp.id_prestamo
+            LEFT JOIN ejemplar e ON dp.id_ejemplar = e.id_ejemplar
+            LEFT JOIN materialbibliografico m ON e.id_material = m.id_material
             WHERE p.estado IN ('Activo', 'Vencido', 'Con Mora')
             ORDER BY p.id_prestamo DESC";
 

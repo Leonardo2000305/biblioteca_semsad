@@ -28,32 +28,32 @@ try {
     $unico = fn(string $sql, array $p = [], $def = 0) => (semsad_leer($conexion, $sql, $p, null)[0] ?? ['v' => $def])['v'] ?? $def;
 
     $resumen = [
-        'prestamos_hoy'        => (int)$unico("SELECT COUNT(*) AS v FROM Prestamo WHERE DATE(fecha_salida) = :h", [':h' => $hoy]),
-        'devoluciones_hoy'     => (int)$unico("SELECT COUNT(*) AS v FROM Prestamo WHERE DATE(fecha_devolucion_real) = :h", [':h' => $hoy]),
-        'prestamos_activos'    => (int)$unico("SELECT COUNT(*) AS v FROM Prestamo WHERE estado IN ($activos)"),
-        'multas_pendientes'    => (int)$unico("SELECT COUNT(*) AS v FROM Multa WHERE estado_pago = 'Pendiente'"),
-        'multas_monto_pend'    => (float)$unico("SELECT COALESCE(SUM(monto),0) AS v FROM Multa WHERE estado_pago = 'Pendiente'"),
-        'multas_cobradas'      => (float)$unico("SELECT COALESCE(SUM(monto),0) AS v FROM Multa WHERE estado_pago = 'Pagado'"),
-        'usuarios_bloqueados'  => (int)$unico("SELECT COUNT(*) AS v FROM Usuario WHERE estado IN ('Bloqueado','Suspendido')"),
+        'prestamos_hoy'        => (int)$unico("SELECT COUNT(*) AS v FROM prestamo WHERE DATE(fecha_salida) = :h", [':h' => $hoy]),
+        'devoluciones_hoy'     => (int)$unico("SELECT COUNT(*) AS v FROM prestamo WHERE DATE(fecha_devolucion_real) = :h", [':h' => $hoy]),
+        'prestamos_activos'    => (int)$unico("SELECT COUNT(*) AS v FROM prestamo WHERE estado IN ($activos)"),
+        'multas_pendientes'    => (int)$unico("SELECT COUNT(*) AS v FROM multa WHERE estado_pago = 'Pendiente'"),
+        'multas_monto_pend'    => (float)$unico("SELECT COALESCE(SUM(monto),0) AS v FROM multa WHERE estado_pago = 'Pendiente'"),
+        'multas_cobradas'      => (float)$unico("SELECT COALESCE(SUM(monto),0) AS v FROM multa WHERE estado_pago = 'Pagado'"),
+        'usuarios_bloqueados'  => (int)$unico("SELECT COUNT(*) AS v FROM usuario WHERE estado IN ('Bloqueado','Suspendido')"),
     ];
 
     $exprAutores = semsad_expr_autores($conexion, 'm');
     $masSolicitados = semsad_leer($conexion,
         "SELECT m.titulo, $exprAutores AS autores, COUNT(*) AS veces
-           FROM Detalle_Prestamo dp
-     INNER JOIN Ejemplar e ON e.id_ejemplar = dp.id_ejemplar
-     INNER JOIN MaterialBibliografico m ON m.id_material = e.id_material
+           FROM detalle_prestamo dp
+     INNER JOIN ejemplar e ON e.id_ejemplar = dp.id_ejemplar
+     INNER JOIN materialbibliografico m ON m.id_material = e.id_material
        GROUP BY m.id_material, m.titulo
        ORDER BY veces DESC, m.titulo ASC LIMIT 10");
 
     $morosos = [];
     $filas = semsad_leer($conexion,
         "SELECT p.id_prestamo, p.fecha_limite, u.nombres, u.apellidos, u.correo, m.titulo
-           FROM Prestamo p
-      LEFT JOIN Usuario u ON u.id_usuario = p.id_usuario
-      LEFT JOIN Detalle_Prestamo dp ON dp.id_prestamo = p.id_prestamo
-      LEFT JOIN Ejemplar e ON e.id_ejemplar = dp.id_ejemplar
-      LEFT JOIN MaterialBibliografico m ON m.id_material = e.id_material
+           FROM prestamo p
+      LEFT JOIN usuario u ON u.id_usuario = p.id_usuario
+      LEFT JOIN detalle_prestamo dp ON dp.id_prestamo = p.id_prestamo
+      LEFT JOIN ejemplar e ON e.id_ejemplar = dp.id_ejemplar
+      LEFT JOIN materialbibliografico m ON m.id_material = e.id_material
           WHERE p.estado IN ($activos) AND p.fecha_limite < NOW()
        ORDER BY p.fecha_limite ASC");
     foreach ($filas as $f) {
@@ -72,22 +72,22 @@ try {
         "SELECT m.titulo,
                 SUM(CASE WHEN " . semsad_sql_ejemplar_libre('e') . " THEN 1 ELSE 0 END) AS disponibles,
                 COUNT(e.id_ejemplar) AS total
-           FROM MaterialBibliografico m
-      LEFT JOIN Ejemplar e ON e.id_material = m.id_material
+           FROM materialbibliografico m
+      LEFT JOIN ejemplar e ON e.id_material = m.id_material
        GROUP BY m.id_material, m.titulo
          HAVING COALESCE(SUM(CASE WHEN " . semsad_sql_ejemplar_libre('e') . " THEN 1 ELSE 0 END), 0) <= 1
        ORDER BY disponibles ASC, m.titulo ASC");
 
     $reservas = semsad_leer($conexion,
         "SELECT r.prioridad AS turno, m.titulo, u.nombres, u.apellidos, u.correo
-           FROM Reserva r
-      LEFT JOIN MaterialBibliografico m ON m.id_material = r.id_material
-      LEFT JOIN Usuario u ON u.id_usuario = r.id_usuario
+           FROM reserva r
+      LEFT JOIN materialbibliografico m ON m.id_material = r.id_material
+      LEFT JOIN usuario u ON u.id_usuario = r.id_usuario
           WHERE r.estado = 'Pendiente'
        ORDER BY m.titulo ASC, r.prioridad ASC");
 
     $inventario = ['Disponible' => 0, 'Prestado' => 0, 'Reservado' => 0, 'En Mantenimiento' => 0, 'Baja' => 0];
-    foreach (semsad_leer($conexion, "SELECT estado_ejemplar AS estado, COUNT(*) AS n FROM Ejemplar GROUP BY estado_ejemplar") as $f) {
+    foreach (semsad_leer($conexion, "SELECT estado_ejemplar AS estado, COUNT(*) AS n FROM ejemplar GROUP BY estado_ejemplar") as $f) {
         $inventario[$f['estado']] = (int)$f['n'];
     }
 

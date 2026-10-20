@@ -24,7 +24,7 @@ try {
     // El dueño real de la multa sale de la base, no de lo que mande la página
     $q = $conexion->prepare(
         'SELECT m.estado_pago, p.id_usuario
-           FROM Multa m LEFT JOIN Prestamo p ON p.id_prestamo = m.id_prestamo
+           FROM multa m LEFT JOIN prestamo p ON p.id_prestamo = m.id_prestamo
           WHERE m.id_multa = :m FOR UPDATE'
     );
     $q->execute([':m' => $idMulta]);
@@ -39,10 +39,10 @@ try {
     }
     $duenio = (int)($multa['id_usuario'] ?: $idUsuario);
 
-    $conexion->prepare("UPDATE Multa SET estado_pago = 'Pagado' WHERE id_multa = :m")->execute([':m' => $idMulta]);
+    $conexion->prepare("UPDATE multa SET estado_pago = 'Pagado' WHERE id_multa = :m")->execute([':m' => $idMulta]);
 
     $q = $conexion->prepare(
-        "SELECT COUNT(*) FROM Multa m INNER JOIN Prestamo p ON p.id_prestamo = m.id_prestamo
+        "SELECT COUNT(*) FROM multa m INNER JOIN prestamo p ON p.id_prestamo = m.id_prestamo
           WHERE p.id_usuario = :u AND m.estado_pago = 'Pendiente'"
     );
     $q->execute([':u' => $duenio]);
@@ -51,7 +51,7 @@ try {
     $reactivado = false;
     if ($pendientes === 0 && $duenio > 0) {
         // Solo se reactivan cuentas bloqueadas/suspendidas por mora, no las desactivadas a mano
-        $u = $conexion->prepare("UPDATE Usuario SET estado = 'Activo' WHERE id_usuario = :u AND estado IN ('Bloqueado', 'Suspendido')");
+        $u = $conexion->prepare("UPDATE usuario SET estado = 'Activo' WHERE id_usuario = :u AND estado IN ('Bloqueado', 'Suspendido')");
         $u->execute([':u' => $duenio]);
         $reactivado = $u->rowCount() > 0;
     }

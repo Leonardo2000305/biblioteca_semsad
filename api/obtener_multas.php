@@ -13,7 +13,7 @@ semsad_requerir_rol(['Administrador', 'Bibliotecario']);
 try {
     semsad_marcar_vencidos($conexion);
 
-    $columnas = array_map('strtolower', $conexion->query('SHOW COLUMNS FROM Multa')->fetchAll(PDO::FETCH_COLUMN, 0));
+    $columnas = array_map('strtolower', $conexion->query('SHOW COLUMNS FROM multa')->fetchAll(PDO::FETCH_COLUMN, 0));
     foreach (['id_prestamo', 'monto', 'estado_pago'] as $obligatoria) {
         if (!in_array($obligatoria, $columnas, true)) {
             semsad_responder(['status' => 'error', 'mensaje' => "La tabla Multa no tiene la columna '$obligatoria'."], 500);
@@ -26,19 +26,19 @@ try {
     $estadosActivos = "'" . implode("','", SEMSAD_ESTADOS_ACTIVOS) . "'";
     $vencidos = $conexion->query(
         "SELECT p.id_prestamo, p.id_usuario, p.fecha_limite,
-                (SELECT MIN(dp.id_detalle) FROM Detalle_Prestamo dp WHERE dp.id_prestamo = p.id_prestamo) AS id_detalle
-           FROM Prestamo p
+                (SELECT MIN(dp.id_detalle) FROM detalle_prestamo dp WHERE dp.id_prestamo = p.id_prestamo) AS id_detalle
+           FROM prestamo p
           WHERE p.estado IN ($estadosActivos) AND p.fecha_limite < NOW()"
     )->fetchAll(PDO::FETCH_ASSOC);
 
-    $estadoBloqueo = semsad_valor_enum($conexion, 'Usuario', 'estado', ['Bloqueado', 'Suspendido']);
+    $estadoBloqueo = semsad_valor_enum($conexion, 'usuario', 'estado', ['Bloqueado', 'Suspendido']);
 
     foreach ($vencidos as $v) {
         $mora = semsad_calcular_mora($v['fecha_limite']);
         if ($mora['dias'] < 1) {
             continue;
         }
-        $q = $conexion->prepare('SELECT id_multa, estado_pago FROM Multa WHERE id_prestamo = :p ORDER BY id_multa DESC LIMIT 1');
+        $q = $conexion->prepare('SELECT id_multa, estado_pago FROM multa WHERE id_prestamo = :p ORDER BY id_multa DESC LIMIT 1');
         $q->execute([':p' => $v['id_prestamo']]);
         $existente = $q->fetch(PDO::FETCH_ASSOC);
 
@@ -47,11 +47,11 @@ try {
             $valores = [':id_prestamo' => $v['id_prestamo'], ':monto' => $mora['monto'], ':estado_pago' => 'Pendiente'];
             if ($tieneDetalle && $v['id_detalle']) { $campos[] = 'id_detalle'; $valores[':id_detalle'] = $v['id_detalle']; }
             if ($tieneTipo)                        { $campos[] = 'tipo_multa'; $valores[':tipo_multa'] = 'Por Mora'; }
-            $sql = 'INSERT INTO Multa (' . implode(',', $campos) . ') VALUES (' . implode(',', array_keys($valores)) . ')';
+            $sql = 'INSERT INTO multa (' . implode(',', $campos) . ') VALUES (' . implode(',', array_keys($valores)) . ')';
             $conexion->prepare($sql)->execute($valores);
             $pendiente = true;
         } elseif ($existente['estado_pago'] === 'Pendiente') {
-            $conexion->prepare('UPDATE Multa SET monto = :m WHERE id_multa = :id')
+            $conexion->prepare('UPDATE multa SET monto = :m WHERE id_multa = :id')
                      ->execute([':m' => $mora['monto'], ':id' => $existente['id_multa']]);
             $pendiente = true;
         } else {
@@ -60,7 +60,7 @@ try {
 
         // RF13: más de SEMSAD_DIAS_BLOQUEO días de retraso => cuenta bloqueada
         if ($pendiente && $mora['dias'] > SEMSAD_DIAS_BLOQUEO && $estadoBloqueo !== null) {
-            $conexion->prepare("UPDATE Usuario SET estado = :e WHERE id_usuario = :u AND estado = 'Activo'")
+            $conexion->prepare("UPDATE usuario SET estado = :e WHERE id_usuario = :u AND estado = 'Activo'")
                      ->execute([':e' => $estadoBloqueo, ':u' => $v['id_usuario']]);
         }
     }
@@ -71,9 +71,9 @@ try {
         "SELECT m.id_multa, m.monto, m.estado_pago, $tipoSql AS tipo_multa,
                 p.id_usuario, p.fecha_limite, p.estado AS estado_prestamo, p.fecha_devolucion_real,
                 u.nombres, u.apellidos, u.correo, u.codigo_empleado, u.estado AS estado_usuario
-           FROM Multa m
-      LEFT JOIN Prestamo p ON p.id_prestamo = m.id_prestamo
-      LEFT JOIN Usuario u ON u.id_usuario = p.id_usuario
+           FROM multa m
+      LEFT JOIN prestamo p ON p.id_prestamo = m.id_prestamo
+      LEFT JOIN usuario u ON u.id_usuario = p.id_usuario
           WHERE m.estado_pago = 'Pendiente'
        ORDER BY m.id_multa DESC"
     )->fetchAll(PDO::FETCH_ASSOC);

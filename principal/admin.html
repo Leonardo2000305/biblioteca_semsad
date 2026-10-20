@@ -25,6 +25,10 @@
         @media (max-width: 991.98px) {
             .sidebar { width: 100%; min-height: auto; position: relative; }
             .main-content { margin-left: 0; padding: 15px; }
+            /* Celular: nada se sale de la pantalla; las tablas se desplazan dentro de su recuadro */
+            .main-content { min-width: 0; max-width: 100vw; box-sizing: border-box; }
+            .main-content .card, .main-content .table-responsive { max-width: 100%; min-width: 0; }
+            .main-content > .d-flex { flex-wrap: wrap; gap: .5rem; }
         }
     </style>
 </head>
@@ -394,7 +398,7 @@
                         <div class="row">
                             <div class="col-6 mb-3">
                                 <label class="form-label fw-bold">Contraseña</label>
-                                <input type="password" class="form-control" id="usr_password" placeholder="Opcional">
+                                <div class="input-group"><input type="password" class="form-control" id="usr_password" placeholder="Mínimo 6 caracteres (vacío al editar)" autocomplete="new-password"><button class="btn btn-outline-secondary" type="button" id="usr_verClave" onclick="alternarClaveUsuario()" title="Mostrar u ocultar contraseña" aria-label="Mostrar u ocultar contraseña"><i class="fa-solid fa-eye" id="usr_verClaveIcono"></i></button></div>
                             </div>
                             <div class="col-6 mb-3">
                                 <label class="form-label fw-bold">CI / Registro</label>
@@ -415,7 +419,8 @@
                                 </select>
                             </div>
                         </div>
-                        <button type="submit" class="btn btn-success w-100 fw-bold">Guardar Usuario</button>
+                        <div id="usr_bloqueOtp" class="mb-3 d-none"><label class="form-label fw-bold">Código de verificación</label><input type="text" class="form-control" id="usr_otp" inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="6 dígitos enviados al correo del usuario"><div class="form-text">Se envió un código al correo del nuevo usuario para confirmar que es suyo.</div></div>
+                        <button type="submit" class="btn btn-success w-100 fw-bold" id="usr_btnGuardar">Guardar Usuario</button>
                     </form>
                 </div>
             </div>
@@ -633,7 +638,7 @@
                                 <td><div class="fw-bold">${SEMSAD.esc(p.userName)}</div><small class="text-muted">${SEMSAD.esc(p.userCorreo)}</small></td>
                                 <td><span class="badge bg-light text-dark border">${SEMSAD.esc(p.userCi)}</span></td>
                                 <td>${SEMSAD.esc(p.userTelefono || 'Sin teléfono')}</td>
-                                <td class="fw-bold text-primary">${SEMSAD.esc(p.bookTitle)}</td>
+                                <td class="fw-bold text-primary">${SEMSAD.esc(p.bookTitle)}<br><small class="text-muted fw-normal">Código: ${SEMSAD.esc(p.bookCodigo || '')} · Prestado: ${SEMSAD.esc(p.fechaSalida || '')}</small></td>
                                 <td class="text-muted">${SEMSAD.esc(p.dueDate)}</td>
                                 <td>${badge}</td>
                                 <td class="text-center no-print">
@@ -811,7 +816,23 @@
             document.getElementById('modalUsuarioTitulo').innerText = 'Registrar Nuevo Usuario';
             document.getElementById('usr_id').value = 0;
             document.getElementById('formUsuario').reset();
+            reiniciarPasoCodigoUsuario();
             modalUsuarioBS.show();
+        }
+
+        function reiniciarPasoCodigoUsuario() {
+            document.getElementById('usr_bloqueOtp').classList.add('d-none');
+            document.getElementById('usr_otp').value = '';
+            document.getElementById('usr_btnGuardar').innerText = 'Enviar código y continuar';
+            document.getElementById('usr_password').type = 'password';
+            document.getElementById('usr_verClaveIcono').className = 'fa-solid fa-eye';
+        }
+
+        function alternarClaveUsuario() {
+            const campo = document.getElementById('usr_password');
+            const ver = campo.type === 'password';
+            campo.type = ver ? 'text' : 'password';
+            document.getElementById('usr_verClaveIcono').className = ver ? 'fa-solid fa-eye-slash' : 'fa-solid fa-eye';
         }
 
         function editarUsuario(id, nombres, apellidos, correo, telefono, codigo, idRol) {
@@ -823,12 +844,41 @@
             document.getElementById('usr_telefono').value = telefono;
             document.getElementById('usr_codigo').value = codigo;
             document.getElementById('usr_rol').value = idRol;
+            reiniciarPasoCodigoUsuario();
+            document.getElementById('usr_btnGuardar').innerText = 'Guardar Usuario';
             modalUsuarioBS.show();
         }
 
         async function guardarUsuarioSubmit(e) {
             e.preventDefault();
+            const esNuevo = parseInt(document.getElementById('usr_id').value) === 0;
+            const bloqueOtp = document.getElementById('usr_bloqueOtp');
+
+            // Usuario nuevo, paso 1: enviar el código al correo del usuario (mismas reglas que el registro público)
+            if (esNuevo && bloqueOtp.classList.contains('d-none')) {
+                try {
+                    const r = await fetch(window.SEMSAD_API + '/enviar_codigo.php', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        credentials: 'include',
+                        body: JSON.stringify({
+                            correo: document.getElementById('usr_correo').value,
+                            codigo_empleado: document.getElementById('usr_codigo').value,
+                            telefono: document.getElementById('usr_telefono').value
+                        })
+                    });
+                    const res = await r.json();
+                    if (res.status !== 'success') { alert(res.mensaje); return; }
+                    bloqueOtp.classList.remove('d-none');
+                    document.getElementById('usr_btnGuardar').innerText = 'Verificar y guardar usuario';
+                    document.getElementById('usr_otp').focus();
+                    SEMSAD.toast(res.mensaje, 'info');
+                } catch (ex) { alert('No se pudo enviar el código.'); }
+                return;
+            }
+
             const data = {
+                codigo_otp: document.getElementById('usr_otp').value.trim(),
                 id_usuario: parseInt(document.getElementById('usr_id').value) || 0,
                 nombres: document.getElementById('usr_nombres').value,
                 apellidos: document.getElementById('usr_apellidos').value,

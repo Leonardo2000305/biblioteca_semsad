@@ -76,6 +76,15 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && stripos($_SERVER['CONTENT_T
     semsad_responder(['status' => 'error', 'mensaje' => 'Solicitud no válida.'], 415);
 }
 
+/* ── Disponibilidad: fuente de verdad = préstamos activos. El texto de estado del ejemplar puede quedar desfasado. ── */
+function semsad_sql_ejemplar_libre(string $a = 'e'): string
+{
+    return "$a.estado_ejemplar NOT IN ('En Mantenimiento', 'Baja') AND NOT EXISTS (
+                SELECT 1 FROM Detalle_Prestamo dpx
+                INNER JOIN Prestamo px ON px.id_prestamo = dpx.id_prestamo
+                WHERE dpx.id_ejemplar = $a.id_ejemplar AND px.estado IN ('Activo', 'Vencido', 'Con Mora'))";
+}
+
 /* ── Esquema: la base puede tener o no ciertas columnas; el código se adapta en vez de fallar ── */
 function semsad_tiene_columna(PDO $c, string $tabla, string $columna): bool
 {

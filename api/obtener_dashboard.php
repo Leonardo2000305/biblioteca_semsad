@@ -8,7 +8,7 @@ try {
     $total_libros = (int)$stmt1->fetchColumn();
 
     // 2. Libros (Títulos Únicos) con al menos un Ejemplar Disponible
-    $stmt2 = $conexion->query("SELECT COUNT(DISTINCT e.id_material) FROM Ejemplar e INNER JOIN MaterialBibliografico m ON m.id_material = e.id_material WHERE e.estado_ejemplar = 'Disponible'");
+    $stmt2 = $conexion->query("SELECT COUNT(DISTINCT e.id_material) FROM Ejemplar e INNER JOIN MaterialBibliografico m ON m.id_material = e.id_material WHERE " . semsad_sql_ejemplar_libre('e') . "");
     $disponibles = (int)$stmt2->fetchColumn();
 
     // 3. Préstamos y Reservas Activas en Ventanilla

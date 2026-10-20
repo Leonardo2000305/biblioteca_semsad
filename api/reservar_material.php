@@ -52,7 +52,7 @@ try {
         semsad_responder(['status' => 'error', 'mensaje' => 'Ya tienes este libro en tu poder.']);
     }
 
-    $q = $conexion->prepare("SELECT COUNT(*) FROM Ejemplar WHERE id_material = :m AND estado_ejemplar = 'Disponible'");
+    $q = $conexion->prepare("SELECT COUNT(*) FROM Ejemplar e WHERE e.id_material = :m AND " . semsad_sql_ejemplar_libre('e'));
     $q->execute([':m' => $idMaterial]);
     if ((int)$q->fetchColumn() > 0) {
         semsad_responder(['status' => 'error', 'mensaje' => 'Este libro tiene copias disponibles: solicítalo directamente como préstamo.']);

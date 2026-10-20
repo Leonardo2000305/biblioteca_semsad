@@ -117,7 +117,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $conexion->beginTransaction();
 
         // Buscar ejemplar disponible con bloqueo de fila
-        $stmtCheck = $conexion->prepare("SELECT id_ejemplar FROM Ejemplar WHERE id_material = :m AND estado_ejemplar = 'Disponible' LIMIT 1 FOR UPDATE");
+        $stmtCheck = $conexion->prepare("SELECT e.id_ejemplar FROM Ejemplar e WHERE e.id_material = :m AND " . semsad_sql_ejemplar_libre('e') . " LIMIT 1 FOR UPDATE");
         $stmtCheck->execute([':m' => $id_material]);
         $ejemplar = $stmtCheck->fetch(PDO::FETCH_ASSOC);
 

@@ -67,7 +67,7 @@ function semsad_marcar_vencidos(PDO $c): void
 function semsad_turno_permite(PDO $c, int $idUsuario, int $idMaterial): ?string
 {
     try {
-        $q = $c->prepare("SELECT COUNT(*) FROM Ejemplar WHERE id_material = :m AND estado_ejemplar = 'Disponible'");
+        $q = $c->prepare("SELECT COUNT(*) FROM Ejemplar e WHERE e.id_material = :m AND " . semsad_sql_ejemplar_libre('e'));
         $q->execute([':m' => $idMaterial]);
         $disponibles = (int)$q->fetchColumn();
 

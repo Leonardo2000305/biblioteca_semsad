@@ -70,12 +70,12 @@ try {
 
     $stockCritico = semsad_leer($conexion,
         "SELECT m.titulo,
-                SUM(e.estado_ejemplar = 'Disponible') AS disponibles,
+                SUM(CASE WHEN " . semsad_sql_ejemplar_libre('e') . " THEN 1 ELSE 0 END) AS disponibles,
                 COUNT(e.id_ejemplar) AS total
            FROM MaterialBibliografico m
       LEFT JOIN Ejemplar e ON e.id_material = m.id_material
        GROUP BY m.id_material, m.titulo
-         HAVING COALESCE(SUM(e.estado_ejemplar = 'Disponible'), 0) <= 1
+         HAVING COALESCE(SUM(CASE WHEN " . semsad_sql_ejemplar_libre('e') . " THEN 1 ELSE 0 END), 0) <= 1
        ORDER BY disponibles ASC, m.titulo ASC");
 
     $reservas = semsad_leer($conexion,

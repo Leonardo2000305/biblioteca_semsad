@@ -23,7 +23,7 @@ try {
                 COALESCE(c.nombre, 'General') AS categoryLabel,
                 COALESCE(e.nombre, 'Sin Editorial') AS editorial,
                 (SELECT COUNT(*) FROM Ejemplar ej WHERE ej.id_material = mb.id_material AND ej.estado_ejemplar != 'Baja') AS total,
-                (SELECT COUNT(*) FROM Ejemplar ej WHERE ej.id_material = mb.id_material AND ej.estado_ejemplar = 'Disponible') AS stock,
+                (SELECT COUNT(*) FROM Ejemplar ej WHERE ej.id_material = mb.id_material AND " . semsad_sql_ejemplar_libre('ej') . ") AS stock,
                 COALESCE(
                     (SELECT GROUP_CONCAT(CONCAT(a.nombres, ' ', a.apellidos) SEPARATOR ', ')
                      FROM Material_Autor ma JOIN Autor a ON ma.id_autor = a.id_autor

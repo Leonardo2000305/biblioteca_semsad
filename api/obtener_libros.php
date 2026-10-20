@@ -33,7 +33,9 @@ try {
     $materiales = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     // 3. Obtener ejemplares y agrupar disponibilidades en PHP
-    $sqlEjemplares = "SELECT id_ejemplar, id_material, estado_ejemplar FROM Ejemplar";
+    $sqlEjemplares = "SELECT e.id_ejemplar, e.id_material, e.estado_ejemplar,
+                             CASE WHEN " . semsad_sql_ejemplar_libre('e') . " THEN 1 ELSE 0 END AS libre
+                      FROM Ejemplar e";
     $stmtE = $conexion->query($sqlEjemplares);
     $ejemplares = $stmtE->fetchAll(PDO::FETCH_ASSOC);
 
@@ -44,7 +46,7 @@ try {
             $ejemplaresPorMaterial[$mId] = ['total' => 0, 'disponibles' => 0];
         }
         $ejemplaresPorMaterial[$mId]['total']++;
-        if (strtolower(trim($ej['estado_ejemplar'])) === 'disponible') {
+        if ((int)$ej['libre'] === 1) {
             $ejemplaresPorMaterial[$mId]['disponibles']++;
         }
     }

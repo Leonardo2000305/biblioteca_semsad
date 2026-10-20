@@ -66,7 +66,7 @@ try {
     }
 
     $conexion->beginTransaction();
-    $q = $conexion->prepare("SELECT e.id_ejemplar, m.titulo FROM Ejemplar e INNER JOIN MaterialBibliografico m ON m.id_material = e.id_material WHERE e.id_material = :m AND e.estado_ejemplar = 'Disponible' LIMIT 1 FOR UPDATE");
+    $q = $conexion->prepare("SELECT e.id_ejemplar, m.titulo FROM Ejemplar e INNER JOIN MaterialBibliografico m ON m.id_material = e.id_material WHERE e.id_material = :m AND " . semsad_sql_ejemplar_libre('e') . " LIMIT 1 FOR UPDATE");
     $q->execute([':m' => $idMaterial]);
     $ejemplar = $q->fetch(PDO::FETCH_ASSOC);
     if (!$ejemplar) {

@@ -203,12 +203,21 @@ function renderCirculationView() {
 window.processReturn = async function(loanId) {
     if (!confirm("¿Confirmar recepción y devolución del libro?")) return;
 
+    // El bibliotecario registra el estado físico real del libro
+    const respuesta = prompt("Estado físico del libro al recibirlo: escriba Bueno, Regular o Malo", "Bueno");
+    if (respuesta === null) return; // canceló
+    const condicion = respuesta.trim();
+    if (!["Bueno", "Regular", "Malo"].includes(condicion)) {
+        showToast("Estado no válido. Escriba Bueno, Regular o Malo.", "danger");
+        return;
+    }
+
     try {
         const res = await fetch(`${API_BASE}/registrar_devolucion.php`, {
             method: "POST",
             credentials: "include",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ id_prestamo: loanId, condicion_devolucion: "Bueno" })
+            body: JSON.stringify({ id_prestamo: loanId, condicion_devolucion: condicion })
         });
         const data = await res.json();
 

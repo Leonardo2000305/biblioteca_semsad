@@ -23,6 +23,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $id_prestamo = isset($_POST['id_prestamo']) ? $_POST['id_prestamo'] : (isset($input['id_prestamo']) ? $input['id_prestamo'] : '');
     $condicion_devolucion = isset($_POST['condicion_devolucion']) ? trim($_POST['condicion_devolucion']) : (isset($input['condicion_devolucion']) ? trim($input['condicion_devolucion']) : 'Bueno');
 
+    // Estado físico real que registra el bibliotecario (solo valores permitidos)
+    $condiciones_validas = ['Bueno', 'Regular', 'Malo'];
+    if (!in_array($condicion_devolucion, $condiciones_validas, true)) {
+        echo json_encode(['status' => 'error', 'mensaje' => 'Estado físico no válido. Use Bueno, Regular o Malo.']);
+        exit;
+    }
+
     if (empty($id_prestamo)) {
         echo json_encode(['status' => 'error', 'mensaje' => 'Debe indicar el ID del préstamo.']);
         exit;
@@ -64,10 +71,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ':id_prestamo' => $id_prestamo
         ]);
 
-        // 4. Liberar el ejemplar
-        $sqlUpEjemplar = "UPDATE ejemplar SET estado_ejemplar = 'Disponible' WHERE id_ejemplar = :id_ejemplar";
+        // 4. Liberar el ejemplar y guardar su estado físico real
+        $sqlUpEjemplar = "UPDATE ejemplar SET estado_ejemplar = 'Disponible', condicion_fisica = :condicion WHERE id_ejemplar = :id_ejemplar";
         $stmtUpE = $conexion->prepare($sqlUpEjemplar);
-        $stmtUpE->execute([':id_ejemplar' => $prestamo['id_ejemplar']]);
+        $stmtUpE->execute([
+            ':condicion' => $condicion_devolucion,
+            ':id_ejemplar' => $prestamo['id_ejemplar']
+        ]);
 
         $conexion->commit();
 

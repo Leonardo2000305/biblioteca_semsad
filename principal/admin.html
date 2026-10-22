@@ -533,6 +533,7 @@
                                 <td>${badge}</td>
                                 <td class="text-center no-print">
                                     <button class="btn btn-warning btn-sm fw-bold me-1" onclick="editarLibro(${libro.id_material}, ${SEMSAD.jsArg(libro.titulo)}, ${SEMSAD.jsArg(libro.autores)}, ${SEMSAD.jsArg(libro.isbn)}, ${libro.agno_publicacion}, ${libro.total_ejemplares || 1})"><i class="fa-solid fa-pen-to-square"></i></button>
+                                    <button class="btn btn-outline-secondary btn-sm fw-bold me-1" onclick="verEjemplares(${libro.id_material}, ${SEMSAD.jsArg(libro.titulo)})" title="Ver y gestionar ejemplares"><i class="fa-solid fa-copy"></i></button>
                                     <button class="btn btn-danger btn-sm fw-bold" onclick="eliminarLibro(${libro.id_material}, ${SEMSAD.jsArg(libro.titulo)})"><i class="fa-solid fa-trash"></i></button>
                                 </td>
                             </tr>`;
@@ -1015,6 +1016,91 @@
             a.href = URL.createObjectURL(blob);
             a.download = 'reporte_biblioteca_semsad_' + new Date().toISOString().slice(0, 10) + '.csv';
             document.body.appendChild(a); a.click(); a.remove();
+        }
+
+    </script>
+
+    <!-- Gestión de ejemplares: mantenimiento, baja y reactivación -->
+    <div class="modal fade" id="modalEjemplares" tabindex="-1" aria-labelledby="modalEjemplaresTitulo" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title fw-bold" id="modalEjemplaresTitulo">Ejemplares</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle">
+                            <thead><tr><th>Código</th><th>Estado</th><th>Condición física</th><th class="text-center">Acciones</th></tr></thead>
+                            <tbody id="tbodyEjemplares"><tr><td colspan="4" class="text-center text-muted py-3">Cargando...</td></tr></tbody>
+                        </table>
+                    </div>
+                    <p class="small text-muted mb-0">Un ejemplar prestado o reservado no se puede dar de baja ni enviar a mantenimiento. Una baja es definitiva.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+        const ESTADOS_EJEMPLAR_BADGE = {
+            'Disponible': 'bg-success', 'Prestado': 'bg-primary', 'Reservado': 'bg-info text-dark',
+            'En Mantenimiento': 'bg-warning text-dark', 'Baja': 'bg-dark'
+        };
+
+        async function verEjemplares(idMaterial, titulo) {
+            document.getElementById('modalEjemplaresTitulo').textContent = 'Ejemplares de: ' + titulo;
+            const tbody = document.getElementById('tbodyEjemplares');
+            tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-3">Cargando...</td></tr>';
+            bootstrap.Modal.getOrCreateInstance(document.getElementById('modalEjemplares')).show();
+            await cargarEjemplares(idMaterial);
+        }
+
+        async function cargarEjemplares(idMaterial) {
+            const tbody = document.getElementById('tbodyEjemplares');
+            try {
+                const resp = await fetch(window.SEMSAD_API + '/listar_ejemplares.php?id_material=' + encodeURIComponent(idMaterial), { credentials: 'include' });
+                const res = await resp.json();
+                if (res.status !== 'success') { tbody.innerHTML = '<tr><td colspan="4" class="text-danger text-center py-3">' + SEMSAD.esc(res.mensaje) + '</td></tr>'; return; }
+                if (!res.ejemplares.length) { tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-3">Este libro no tiene ejemplares.</td></tr>'; return; }
+
+                tbody.innerHTML = res.ejemplares.map(ej => {
+                    const estado = ej.prestado ? 'Prestado' : ej.estado_ejemplar;
+                    const badge = ESTADOS_EJEMPLAR_BADGE[estado] || 'bg-secondary';
+                    const bloqueado = estado === 'Prestado' || estado === 'Reservado' || estado === 'Baja';
+                    const acciones = estado === 'Baja' ? '<span class="text-muted small">Dado de baja</span>' : `
+                        ${estado !== 'En Mantenimiento' && estado === 'Disponible' ? `<button class="btn btn-outline-warning btn-sm fw-bold me-1" ${bloqueado ? 'disabled' : ''} onclick="cambiarEstadoEjemplar(${ej.id_ejemplar}, 'En Mantenimiento', ${idMaterial})">Mantenimiento</button>` : ''}
+                        ${estado === 'En Mantenimiento' ? `<button class="btn btn-outline-success btn-sm fw-bold me-1" onclick="cambiarEstadoEjemplar(${ej.id_ejemplar}, 'Disponible', ${idMaterial})">Reactivar</button>` : ''}
+                        ${!bloqueado ? `<button class="btn btn-outline-danger btn-sm fw-bold" onclick="cambiarEstadoEjemplar(${ej.id_ejemplar}, 'Baja', ${idMaterial})">Dar de baja</button>` : ''}`;
+                    return `<tr>
+                        <td class="fw-bold">#${SEMSAD.esc(ej.id_ejemplar)}</td>
+                        <td><span class="badge ${badge} py-2 px-3">${SEMSAD.esc(estado)}</span></td>
+                        <td>${SEMSAD.esc(ej.condicion_fisica)}</td>
+                        <td class="text-center">${acciones}</td>
+                    </tr>`;
+                }).join('');
+            } catch (e) {
+                tbody.innerHTML = '<tr><td colspan="4" class="text-danger text-center py-3">Error de conexión.</td></tr>';
+            }
+        }
+
+        async function cambiarEstadoEjemplar(idEjemplar, estado, idMaterial) {
+            const texto = estado === 'Baja' ? '¿Dar de baja este ejemplar? Esta acción no se puede deshacer.' : '¿Cambiar el estado de este ejemplar a "' + estado + '"?';
+            if (!confirm(texto)) return;
+            try {
+                const resp = await fetch(window.SEMSAD_API + '/cambiar_estado_ejemplar.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ id_ejemplar: idEjemplar, estado: estado })
+                });
+                const res = await resp.json();
+                SEMSAD.toast(res.mensaje, res.status === 'success' ? 'success' : 'error');
+                if (res.status === 'success') {
+                    await cargarEjemplares(idMaterial);
+                    if (typeof cargarInventario === 'function') cargarInventario();
+                }
+            } catch (e) {
+                SEMSAD.toast('Error de conexión con el servidor.', 'error');
+            }
         }
     </script>
 </body>

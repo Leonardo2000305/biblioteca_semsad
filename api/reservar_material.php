@@ -21,6 +21,8 @@ if ($idMaterial <= 0) {
     semsad_responder(['status' => 'error', 'mensaje' => 'Libro no válido.']);
 }
 
+semsad_caducar_reservas($conexion);   // aplica la hora de corte antes de asignar turnos
+
 try {
     if (($entrada['accion'] ?? '') === 'cancelar') {
         $q = $conexion->prepare("UPDATE reserva SET estado = 'Cancelada' WHERE id_usuario = :u AND id_material = :m AND estado = 'Pendiente'");

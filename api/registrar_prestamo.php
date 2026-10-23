@@ -84,6 +84,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } catch (PDOException $ignorar) { /* sin tabla Multa: no se aplica la regla */ }
 
         // Lista de espera: las copias libres son para los primeros turnos
+        semsad_caducar_reservas($conexion);
         $motivoTurno = semsad_turno_permite($conexion, $id_usuario, $id_material);
         if ($motivoTurno !== null) {
             semsad_responder(['status' => 'error', 'mensaje' => $motivoTurno]);

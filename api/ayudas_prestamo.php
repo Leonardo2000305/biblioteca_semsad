@@ -97,3 +97,66 @@ function semsad_atender_reserva(PDO $c, int $idUsuario, int $idMaterial): void
           ->execute([':u' => $idUsuario, ':m' => $idMaterial]);
     } catch (Throwable $e) { /* sin tabla Reserva */ }
 }
+
+
+/* ── CADUCIDAD DE RESERVAS (hora de corte) ───────────────────────────────
+ * Cuando hay copias libres para la lista de espera, los primeros turnos reciben
+ * aviso y tienen plazo hasta las 10:00 del día siguiente para retirar el libro.
+ * Si no lo retiran, su reserva pasa a "Vencida" y el siguiente turno pasa a ser el primero.
+ * Requiere las columnas fecha_aviso y fecha_limite_retiro (db/caducidad_reservas.sql).
+ * Si la migración no se ha ejecutado, no hace nada.
+ */
+
+/** Hora límite para retirar: 10:00 del día siguiente al aviso (zona horaria de La Paz). */
+function semsad_hora_corte_siguiente(DateTimeImmutable $ahora): DateTimeImmutable
+{
+    return $ahora->modify('+1 day')->setTime(10, 0, 0);
+}
+
+function semsad_caducar_reservas(PDO $c): void
+{
+    try {
+        if (!semsad_tiene_columna($c, 'reserva', 'fecha_limite_retiro')) {
+            return;
+        }
+        $ahora    = new DateTimeImmutable('now', new DateTimeZone('America/La_Paz'));
+        $ahoraSql = $ahora->format('Y-m-d H:i:s');
+
+        // 1. Las reservas avisadas cuyo plazo ya venció pasan a Vencida
+        $c->prepare("UPDATE reserva SET estado = 'Vencida'
+                     WHERE estado = 'Pendiente' AND fecha_limite_retiro IS NOT NULL AND fecha_limite_retiro < :ahora")
+          ->execute([':ahora' => $ahoraSql]);
+
+        // 2. Por cada libro con cola: avisar a los primeros turnos hasta igualar las copias libres
+        $materiales = $c->query("SELECT DISTINCT id_material FROM reserva WHERE estado = 'Pendiente'")->fetchAll(PDO::FETCH_COLUMN);
+        $limiteSql  = semsad_hora_corte_siguiente($ahora)->format('Y-m-d H:i:s');
+
+        foreach ($materiales as $idMaterial) {
+            $idMaterial = (int)$idMaterial;
+
+            $q = $c->prepare("SELECT COUNT(*) FROM ejemplar e WHERE e.id_material = :m AND " . semsad_sql_ejemplar_libre('e'));
+            $q->execute([':m' => $idMaterial]);
+            $libres = (int)$q->fetchColumn();
+
+            $q = $c->prepare("SELECT COUNT(*) FROM reserva WHERE id_material = :m AND estado = 'Pendiente' AND fecha_limite_retiro IS NOT NULL");
+            $q->execute([':m' => $idMaterial]);
+            $yaAvisados = (int)$q->fetchColumn();
+
+            $faltan = $libres - $yaAvisados;
+            if ($faltan <= 0) {
+                continue;
+            }
+
+            $q = $c->prepare("SELECT id_reserva FROM reserva
+                              WHERE id_material = :m AND estado = 'Pendiente' AND fecha_limite_retiro IS NULL
+                              ORDER BY prioridad ASC, id_reserva ASC LIMIT " . (int)$faltan);
+            $q->execute([':m' => $idMaterial]);
+            $up = $c->prepare("UPDATE reserva SET fecha_aviso = :a, fecha_limite_retiro = :l WHERE id_reserva = :r");
+            foreach ($q->fetchAll(PDO::FETCH_COLUMN) as $idReserva) {
+                $up->execute([':a' => $ahoraSql, ':l' => $limiteSql, ':r' => (int)$idReserva]);
+            }
+        }
+    } catch (Throwable $e) {
+        error_log('[SEMSAD] semsad_caducar_reservas: ' . $e->getMessage());
+    }
+}

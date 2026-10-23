@@ -1,6 +1,7 @@
 <?php
 require_once 'conexion.php';
 require_once __DIR__ . '/usuario_actual.php';
+require_once __DIR__ . '/ayudas_prestamo.php';
 semsad_iniciar_sesion();
 
 header('Content-Type: application/json; charset=utf-8');
@@ -74,6 +75,7 @@ try {
     } catch (Throwable $ignorar) {}
     $colaPorMaterial = [];
     $miTurno = [];
+    semsad_caducar_reservas($conexion);   // hora de corte de las reservas avisadas
     try {
         foreach ($conexion->query("SELECT id_material, COUNT(*) AS n FROM reserva WHERE estado = 'Pendiente' GROUP BY id_material")->fetchAll(PDO::FETCH_ASSOC) as $f) {
             $colaPorMaterial[(int)$f['id_material']] = (int)$f['n'];

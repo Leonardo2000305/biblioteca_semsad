@@ -48,6 +48,7 @@ try {
 
     $activos = "'" . implode("','", SEMSAD_ESTADOS_ACTIVOS) . "'";
 
+    semsad_caducar_reservas($conexion);
     $motivoTurno = semsad_turno_permite($conexion, $idUsuario, $idMaterial);
     if ($motivoTurno !== null) {
         semsad_responder(['status' => 'error', 'mensaje' => $motivoTurno]);

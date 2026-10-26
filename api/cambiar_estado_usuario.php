@@ -15,6 +15,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     try {
+        // Un bibliotecario no puede suspender ni reactivar cuentas de Administrador
+        if (($_SESSION['rol'] ?? '') !== 'Administrador') {
+            $rolDestino = $conexion->prepare('SELECT id_rol FROM usuario WHERE id_usuario = :id');
+            $rolDestino->execute([':id' => $id_usuario]);
+            if ((int)$rolDestino->fetchColumn() === 1) {
+                semsad_responder(['status' => 'error', 'mensaje' => 'Solo un Administrador puede cambiar el estado de una cuenta de Administrador.'], 403);
+            }
+        }
+
         // La columna estado puede ser ENUM('Activo','Suspendido','Bloqueado'): se usa el valor que exista de verdad.
         $valor = $nuevo_estado === 'Activo'
             ? 'Activo'
@@ -30,7 +39,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'mensaje' => "Estado del usuario actualizado a $nuevo_estado correctamente."
         ]);
     } catch (Exception $e) {
-        semsad_responder(['status' => 'error', 'mensaje' => 'Error al cambiar estado: ' . $e->getMessage()], 500);
+        semsad_responder(['status' => 'error', 'mensaje' => 'Error al cambiar estado.' . semsad_detalle_error($e)], 500);
     }
 } else {
     semsad_responder(['status' => 'error', 'mensaje' => 'Método no permitido.'], 405);

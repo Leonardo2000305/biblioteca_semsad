@@ -24,9 +24,14 @@
             text-align: center; 
             box-sizing: border-box;
         }
-        h2 { 
-            color: #333; 
-            margin-bottom: 8px; 
+        /* Celulares: menos margen lateral para que el recuadro quepa en pantallas angostas */
+        @media (max-width: 480px) {
+            body { height: auto; min-height: 100vh; padding: 16px 12px; box-sizing: border-box; }
+            .contenedor { padding: 24px 16px; }
+        }
+        h2 {
+            color: #333;
+            margin-bottom: 8px;
             margin-top: 0;
         }
         p.descripcion {

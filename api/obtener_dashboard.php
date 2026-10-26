@@ -25,7 +25,7 @@ try {
 } catch (PDOException $e) {
     semsad_responder([
         'status'  => 'error',
-        'mensaje' => 'Error al consultar dashboard: ' . $e->getMessage()
+        'mensaje' => 'Error al consultar dashboard.' . semsad_detalle_error($e)
     ], 500);
 }
 ?>

@@ -14,6 +14,18 @@
         .book-card { border: none; border-radius: 12px; transition: transform 0.2s, box-shadow 0.2s; }
         .book-card:hover { transform: translateY(-5px); box-shadow: 0 10px 20px rgba(0,0,0,0.08); }
         .extra-small { font-size: 12px; }
+        /* Celulares y tabletas: la barra superior se ajusta al ancho de la pantalla (los botones bajan de línea, nada se sale) */
+        @media (max-width: 991.98px) {
+            .navbar-custom > .container { flex-wrap: wrap; row-gap: .5rem; column-gap: .5rem; min-width: 0; }
+            .navbar-custom .navbar-brand { min-width: 0; max-width: 100%; white-space: normal; }
+            .nav-acciones { flex-wrap: wrap; justify-content: flex-end; min-width: 0; max-width: 100%; row-gap: .4rem; }
+            #badgeUsuario { white-space: normal; overflow-wrap: anywhere; text-align: left; max-width: 100%; }
+            .cabecera-catalogo { flex-wrap: wrap; gap: .5rem; min-width: 0; }
+        }
+        /* Celulares pequeños (hasta 575 px): marca y título un poco más compactos */
+        @media (max-width: 575.98px) {
+            .navbar-custom .navbar-brand { font-size: 1.05rem; }
+        }
     </style>
 </head>
 <body>
@@ -25,7 +37,7 @@
                 <i class="fa-solid fa-book-open text-primary"></i>
                 <span>BIBLIOTECA SEMSAD</span>
             </a>
-            <div class="d-flex align-items-center gap-2">
+            <div class="d-flex align-items-center gap-2 nav-acciones">
                 <button class="btn btn-outline-info btn-sm fw-bold me-2" data-bs-toggle="modal" data-bs-target="#modalMisPrestamos" onclick="cargarMisPrestamos()">
                     <i class="fa-solid fa-clock-rotate-left me-1"></i>Mis Préstamos
                 </button>
@@ -59,7 +71,7 @@
         </div>
 
         <!-- CATÁLOGO DE LIBROS -->
-        <div class="d-flex justify-content-between align-items-center mb-3">
+        <div class="d-flex justify-content-between align-items-center mb-3 cabecera-catalogo">
             <h4 class="fw-bold text-dark mb-0"><i class="fa-solid fa-books text-primary me-2"></i>Libros Disponibles</h4>
             <button class="btn btn-sm btn-outline-primary fw-semibold" onclick="cargarCatalogo()">
                 <i class="fa-solid fa-rotate me-1"></i>Actualizar
@@ -247,7 +259,7 @@
 
             contenedor.innerHTML = '';
             lista.forEach(libro => {
-                const idMaterial = libro.id_material || libro.id;
+                const idMaterial = parseInt(libro.id_material || libro.id) || 0;
                 const titulo = libro.titulo || libro.nombre || 'Sin título';
                 const isbn = libro.isbn || libro.codigo_isbn_issn || libro.codigo_barras || 'Código S/N';
                 const anio = libro.agno_publicacion || libro.año_publicacion || libro.anio || libro.year || 'N/A';

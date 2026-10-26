@@ -18,9 +18,19 @@ $telefono  = trim((string)($entrada['telefono'] ?? ''));
 if ($correo === '' || $codigoEmp === '' || $telefono === '') {
     semsad_responder(['status' => 'error', 'mensaje' => 'Completa tu correo, CI y teléfono antes de pedir el código.']);
 }
-if (!filter_var($correo, FILTER_VALIDATE_EMAIL)) {
+if (!semsad_correo_valido($correo)) {
     semsad_responder(['status' => 'error', 'mensaje' => 'Ingresa un correo electrónico válido.']);
 }
+if (!preg_match('/^[A-Za-z0-9 .\-\/]{3,20}$/', $codigoEmp)) {
+    semsad_responder(['status' => 'error', 'mensaje' => 'La CI / código de registro no es válido.']);
+}
+
+// Límite de envíos por conexión (anti-spam): 10 códigos por hora desde la misma conexión
+$claveEnvio = 'otpenv:ip:' . semsad_ip();
+if (semsad_limite_espera($conexion, $claveEnvio) > 0) {
+    semsad_responder(['status' => 'error', 'mensaje' => 'Has pedido demasiados códigos. Espera un rato antes de intentarlo de nuevo.'], 429);
+}
+semsad_limite_fallo($conexion, $claveEnvio, 10, 3600, 3600);
 if (!preg_match('/^[0-9]{7,10}$/', $telefono)) {
     semsad_responder(['status' => 'error', 'mensaje' => 'Ingresa un teléfono válido (7 a 10 dígitos).']);
 }

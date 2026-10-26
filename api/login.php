@@ -25,6 +25,23 @@ $clave         = (string)($entrada['clave'] ?? '');
 if ($identificador === '' || $clave === '') {
     semsad_responder(['status' => 'error', 'mensaje' => 'Ingresa tu correo y contraseña.']);
 }
+if (strlen($identificador) > 150 || strlen($clave) > 200) {
+    semsad_responder(['status' => 'error', 'mensaje' => 'El correo o la contraseña son incorrectos.']);
+}
+
+// 2. Límites guardados en la base: por cuenta (5 fallos -> 15 min) y por conexión (50 fallos -> 10 min).
+//    Están en la base y no en la sesión, así que borrar cookies o cambiar de navegador no los salta.
+$claveCuenta = 'login:cuenta:' . $identificador;
+$claveIp     = 'login:ip:' . semsad_ip();
+$esperaBase  = max(semsad_limite_espera($conexion, $claveCuenta), semsad_limite_espera($conexion, $claveIp));
+if ($esperaBase > 0) {
+    semsad_responder([
+        'status'          => 'error',
+        'bloqueado'       => true,
+        'tiempo_restante' => $esperaBase,
+        'mensaje'         => "Demasiados intentos fallidos. Por seguridad, espera {$esperaBase} segundos."
+    ], 429);
+}
 
 try {
     $stmt = $conexion->prepare(
@@ -51,17 +68,23 @@ try {
                 $upd->execute([':hash' => password_hash($clave, PASSWORD_BCRYPT), ':id' => $usuario['id_usuario']]);
             }
         }
+    } else {
+        // Mismo tiempo de respuesta exista o no la cuenta (evita adivinar correos por la velocidad)
+        password_verify($clave, '$2y$10$Ccx99E9TwEimAbb20pscbO.tD.rBNiEXoDM6c/eKzKWjNR9h/QPmO');
     }
 
-    // 2. Control de intentos fallidos (Límite: 3 intentos -> 30 segundos de castigo)
+    // 3. Control de intentos fallidos (sesión: 3 intentos -> 30 s; base de datos: ver arriba)
     if (!$usuario || !$valida) {
+        semsad_limite_fallo($conexion, $claveCuenta, 5, 900, 900);
+        semsad_limite_fallo($conexion, $claveIp, 50, 900, 600);
+
         $_SESSION['intentos_login'] = ($_SESSION['intentos_login'] ?? 0) + 1;
         $intentosHechos = $_SESSION['intentos_login'];
 
         if ($intentosHechos >= 3) {
             $_SESSION['login_bloqueado_hasta'] = time() + 30; // 30 segundos de penalización
             $_SESSION['intentos_login'] = 0;                  // Reiniciar contador
-            
+
             semsad_responder([
                 'status'          => 'error',
                 'bloqueado'       => true,
@@ -69,7 +92,6 @@ try {
                 'mensaje'         => 'Has superado el límite de 3 intentos fallidos. Por seguridad, debes esperar 30 segundos.'
             ], 429);
         } else {
-            $restantes = 3 - $intentosHechos;
             semsad_responder([
                 'status'   => 'error',
                 'intentos' => $intentosHechos,
@@ -78,9 +100,10 @@ try {
         }
     }
 
-    // 3. Credenciales válidas: limpiar contadores de intentos
+    // 4. Credenciales válidas: limpiar contadores de intentos
     unset($_SESSION['intentos_login']);
     unset($_SESSION['login_bloqueado_hasta']);
+    semsad_limite_reset($conexion, $claveCuenta);
 
     if (($usuario['estado'] ?? 'Activo') !== 'Activo') {
         semsad_responder([

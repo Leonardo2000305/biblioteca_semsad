@@ -13,11 +13,8 @@ $nueva   = (string)($entrada['password'] ?? $entrada['clave'] ?? '');
 if ($correo === '' || $token === '' || $nueva === '') {
     semsad_responder(['status' => 'error', 'mensaje' => 'Faltan datos para cambiar la contraseña. Abre de nuevo el enlace de tu correo.']);
 }
-if (strlen($nueva) < 6) {
-    semsad_responder(['status' => 'error', 'mensaje' => 'La nueva contraseña debe tener al menos 6 caracteres.']);
-}
-if (strlen($nueva) > 72) {   // bcrypt ignora lo que pase de 72 bytes
-    semsad_responder(['status' => 'error', 'mensaje' => 'La nueva contraseña no puede superar los 72 caracteres.']);
+if ($errorClave = semsad_clave_error($nueva)) {
+    semsad_responder(['status' => 'error', 'mensaje' => $errorClave]);
 }
 
 try {
@@ -52,6 +49,6 @@ try {
     }
     semsad_responder([
         'status'  => 'error',
-        'mensaje' => !empty($cfg['debug']) ? 'Error: ' . $e->getMessage() : 'Error interno del servidor. Inténtalo de nuevo.',
+        'mensaje' => 'Error interno del servidor. Inténtalo de nuevo.' . semsad_detalle_error($e),
     ], 500);
 }

@@ -47,7 +47,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     } catch (Exception $e) {
         if ($conexion->inTransaction()) $conexion->rollBack();
-        semsad_responder(['status' => 'error', 'mensaje' => 'Error al eliminar libro: ' . $e->getMessage()], 500);
+        semsad_responder(['status' => 'error', 'mensaje' => 'Error al eliminar libro.' . semsad_detalle_error($e)], 500);
     }
 } else {
     semsad_responder(['status' => 'error', 'mensaje' => 'Método no permitido.'], 405);

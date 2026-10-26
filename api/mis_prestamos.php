@@ -6,8 +6,8 @@ semsad_iniciar_sesion();
 header('Content-Type: application/json; charset=utf-8');
 
 try {
-    // La sesión del servidor manda; los datos del navegador solo cuentan si coinciden (ver usuario_actual.php)
-    $usuarioActual = semsad_usuario_actual($conexion, (int)($_GET['id_usuario'] ?? 0), (string)($_GET['correo'] ?? ''));
+    // Solo la sesión del servidor identifica al usuario (ver usuario_actual.php)
+    $usuarioActual = semsad_usuario_actual($conexion);
     $id_usuario = $usuarioActual ? (int)$usuarioActual['id_usuario'] : 0;
 
     if ($id_usuario <= 0) {
@@ -57,5 +57,5 @@ try {
     ]);
 
 } catch (Exception $e) {
-    semsad_responder(['status' => 'error', 'mensaje' => 'Error al obtener tus préstamos: ' . $e->getMessage()], 500);
+    semsad_responder(['status' => 'error', 'mensaje' => 'Error al obtener tus préstamos.' . semsad_detalle_error($e)], 500);
 }

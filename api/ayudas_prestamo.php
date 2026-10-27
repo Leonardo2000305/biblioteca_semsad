@@ -55,6 +55,12 @@ function semsad_marcar_vencidos(PDO $c): void
         }
         $q = $c->prepare("UPDATE prestamo SET estado = :e WHERE estado = 'Activo' AND fecha_limite < NOW()");
         $q->execute([':e' => $estado]);
+        // Corrige marcas erróneas de una hora de servidor distinta: si la fecha límite todavía no pasó, vuelve a Activo
+        $activo = semsad_valor_enum($c, 'prestamo', 'estado', ['Activo']);
+        if ($activo !== null) {
+            $c->prepare("UPDATE prestamo SET estado = :a WHERE estado IN ('Vencido', 'Con Mora') AND fecha_limite >= NOW() AND fecha_devolucion_real IS NULL")
+              ->execute([':a' => $activo]);
+        }
     } catch (Throwable $e) {
         error_log('[SEMSAD] semsad_marcar_vencidos: ' . $e->getMessage());
     }

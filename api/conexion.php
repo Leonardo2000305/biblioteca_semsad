@@ -391,6 +391,9 @@ try {
         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
         PDO::ATTR_TIMEOUT            => 8,
     ]);
+    // NOW() de MySQL debe usar la misma hora que PHP (La Paz, UTC-4). Si el servidor de la base está en UTC,
+    // los préstamos aparecían vencidos hasta 4 horas antes (ver ayudas_prestamo.php y obtener_multas.php).
+    $conexion->exec("SET time_zone = '-04:00'");
 } catch (PDOException $e) {
     error_log('[SEMSAD] Error de conexión a la BD: ' . $e->getMessage());
     semsad_responder([

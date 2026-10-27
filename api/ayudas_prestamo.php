@@ -8,6 +8,7 @@
 const SEMSAD_MULTA_POR_DIA   = 5.00;   // Bs por cada día de retraso
 const SEMSAD_MULTA_TOPE      = 200.00; // Bs, monto máximo de una multa
 const SEMSAD_DIAS_BLOQUEO    = 15;     // más de estos días de retraso => la cuenta se bloquea
+const SEMSAD_DIAS_GRACIA     = 1;      // días extra después de la fecha límite antes de figurar como vencido y empezar la multa
 const SEMSAD_ESTADOS_ACTIVOS = ['Activo', 'Vencido', 'Con Mora']; // préstamos que siguen sin devolverse
 
 /** Devuelve el primer valor de $preferidos que exista en la columna ENUM, o null si ninguno existe. */
@@ -53,12 +54,13 @@ function semsad_marcar_vencidos(PDO $c): void
         if ($estado === null) {
             return;
         }
-        $q = $c->prepare("UPDATE prestamo SET estado = :e WHERE estado = 'Activo' AND fecha_limite < NOW()");
+        $gracia = (int)SEMSAD_DIAS_GRACIA;
+        $q = $c->prepare("UPDATE prestamo SET estado = :e WHERE estado = 'Activo' AND fecha_limite < NOW() - INTERVAL $gracia DAY");
         $q->execute([':e' => $estado]);
-        // Corrige marcas erróneas de una hora de servidor distinta: si la fecha límite todavía no pasó, vuelve a Activo
+        // Corrige marcas erróneas (de otra hora de servidor o antes del margen): si aún no pasa el margen, vuelve a Activo
         $activo = semsad_valor_enum($c, 'prestamo', 'estado', ['Activo']);
         if ($activo !== null) {
-            $c->prepare("UPDATE prestamo SET estado = :a WHERE estado IN ('Vencido', 'Con Mora') AND fecha_limite >= NOW() AND fecha_devolucion_real IS NULL")
+            $c->prepare("UPDATE prestamo SET estado = :a WHERE estado IN ('Vencido', 'Con Mora') AND fecha_limite >= NOW() - INTERVAL $gracia DAY AND fecha_devolucion_real IS NULL")
               ->execute([':a' => $activo]);
         }
     } catch (Throwable $e) {

@@ -54,7 +54,7 @@ try {
       LEFT JOIN detalle_prestamo dp ON dp.id_prestamo = p.id_prestamo
       LEFT JOIN ejemplar e ON e.id_ejemplar = dp.id_ejemplar
       LEFT JOIN materialbibliografico m ON m.id_material = e.id_material
-          WHERE p.estado IN ($activos) AND p.fecha_limite < NOW()
+          WHERE p.estado IN ($activos) AND p.fecha_limite < NOW() - INTERVAL " . (int)SEMSAD_DIAS_GRACIA . " DAY
        ORDER BY p.fecha_limite ASC");
     foreach ($filas as $f) {
         $mora = semsad_calcular_mora($f['fecha_limite']);

@@ -41,6 +41,23 @@
             /* Tablas: el texto largo se parte en vez de empujar el diseño */
             .main-content td, .main-content th { overflow-wrap: anywhere; }
         }
+        /* Celulares: las tablas del panel se leen como tarjetas (encabezado a la izquierda, dato a la derecha), sin arrastrar */
+        @media (max-width: 767.98px) {
+            .tabla-tarjetas thead { display: none; }
+            .tabla-tarjetas, .tabla-tarjetas tbody, .tabla-tarjetas tr, .tabla-tarjetas td { display: block; width: 100%; }
+            .tabla-tarjetas tr { padding: 12px 14px; border-bottom: 1px solid #e5e7eb; }
+            .tabla-tarjetas tr:last-child { border-bottom: 0; }
+            .tabla-tarjetas td { border: 0; padding: 3px 0; display: flex; justify-content: space-between; align-items: center; gap: 12px; text-align: right; overflow-wrap: anywhere; }
+            .tabla-tarjetas td::before { content: attr(data-label); color: #6b7280; font-size: .8rem; font-weight: 600; text-align: left; flex-shrink: 0; }
+            .tabla-tarjetas td:last-child { flex-wrap: wrap; justify-content: flex-start; padding-top: 8px; }
+            .tabla-tarjetas td:last-child::before { content: none; }
+            .tabla-tarjetas td:last-child .btn { flex: 1 1 auto; }
+            .tabla-tarjetas td[colspan] { display: block; text-align: center; justify-content: center; }
+            .tabla-tarjetas td[colspan]::before { content: none; }
+            .tabla-tarjetas td:first-child:has(> div) { display: block; text-align: left; padding-bottom: 6px; }
+            .tabla-tarjetas td:first-child:has(> div)::before { content: none; }
+            .tabla-tarjetas td.no-print:empty { display: none; }
+        }
     </style>
 </head>
 <body>
@@ -90,6 +107,26 @@
             menu.addEventListener('click', function (e) {
                 if (soloMovil.matches && e.target.closest('.nav-link')) fijarMenu(false);
             });
+        })();
+    </script>
+
+    <script>
+        // Etiqueta cada celda de las tablas "tabla-tarjetas" con su encabezado (para la vista de tarjetas en celular).
+        // Se vuelve a aplicar cada vez que el panel carga o cambia filas.
+        (function () {
+            function etiquetar() {
+                document.querySelectorAll('table.tabla-tarjetas').forEach(function (t) {
+                    var encabezados = Array.from(t.querySelectorAll('thead th')).map(function (th) { return th.textContent.trim(); });
+                    t.querySelectorAll('tbody tr').forEach(function (tr) {
+                        Array.from(tr.children).forEach(function (td, i) {
+                            if (td.hasAttribute('colspan') || !encabezados[i]) return;
+                            if (td.getAttribute('data-label') !== encabezados[i]) td.setAttribute('data-label', encabezados[i]);
+                        });
+                    });
+                });
+            }
+            new MutationObserver(etiquetar).observe(document.body, { childList: true, subtree: true });
+            etiquetar();
         })();
     </script>
 
@@ -170,7 +207,7 @@
                 </div>
                 <div class="card-body p-0">
                     <div class="table-responsive">
-                        <table class="table table-hover align-middle mb-0">
+                        <table class="table table-hover align-middle mb-0 tabla-tarjetas">
                             <thead class="table-light">
                                 <tr>
                                     <th># ID</th>
@@ -227,7 +264,7 @@
                 </div>
                 <div class="card-body p-0">
                     <div class="table-responsive">
-                        <table class="table table-hover align-middle mb-0">
+                        <table class="table table-hover align-middle mb-0 tabla-tarjetas">
                             <thead class="table-light">
                                 <tr>
                                     <th>Estudiante / Usuario</th>
@@ -257,7 +294,7 @@
                 </div>
                 <div class="card-body p-0">
                     <div class="table-responsive">
-                        <table class="table table-hover align-middle mb-0">
+                        <table class="table table-hover align-middle mb-0 tabla-tarjetas">
                             <thead class="table-light">
                                 <tr>
                                     <th>Estudiante / Usuario</th>
@@ -299,7 +336,7 @@
                 </div></div>
                 <div class="col-12"><div class="card table-card shadow-sm bg-white">
                     <div class="card-header bg-white fw-bold"><i class="fa-solid fa-user-clock text-danger me-2"></i>Usuarios morosos</div>
-                    <div class="card-body p-0"><div class="table-responsive"><table class="table table-sm mb-0">
+                    <div class="card-body p-0"><div class="table-responsive"><table class="table table-sm mb-0 tabla-tarjetas">
                         <thead class="table-light"><tr><th>Usuario</th><th>Libro</th><th>Fecha límite</th><th>Días</th><th>Multa (Bs)</th></tr></thead>
                         <tbody id="repMorosos"></tbody></table></div></div>
                 </div></div>
@@ -323,7 +360,7 @@
                 </div>
                 <div class="card-body p-0">
                     <div class="table-responsive">
-                        <table class="table table-hover align-middle mb-0">
+                        <table class="table table-hover align-middle mb-0 tabla-tarjetas">
                             <thead class="table-light">
                                 <tr>
                                     <th>Usuario</th>
@@ -352,7 +389,7 @@
                 </div>
                 <div class="card-body p-0">
                     <div class="table-responsive">
-                        <table class="table table-hover align-middle mb-0">
+                        <table class="table table-hover align-middle mb-0 tabla-tarjetas">
                             <thead class="table-light">
                                 <tr>
                                     <th>Nombre Completo</th>
@@ -1073,7 +1110,7 @@
                 </div>
                 <div class="modal-body">
                     <div class="table-responsive">
-                        <table class="table table-hover align-middle">
+                        <table class="table table-hover align-middle tabla-tarjetas">
                             <thead><tr><th>Código</th><th>Estado</th><th>Condición física</th><th class="text-center">Acciones</th></tr></thead>
                             <tbody id="tbodyEjemplares"><tr><td colspan="4" class="text-center text-muted py-3">Cargando...</td></tr></tbody>
                         </table>

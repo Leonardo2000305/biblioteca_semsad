@@ -28,7 +28,7 @@ try {
         "SELECT p.id_prestamo, p.id_usuario, p.fecha_limite,
                 (SELECT MIN(dp.id_detalle) FROM detalle_prestamo dp WHERE dp.id_prestamo = p.id_prestamo) AS id_detalle
            FROM prestamo p
-          WHERE p.estado IN ($estadosActivos) AND p.fecha_limite < NOW()"
+          WHERE p.estado IN ($estadosActivos) AND p.fecha_limite < NOW() - INTERVAL " . (int)SEMSAD_DIAS_GRACIA . " DAY"
     )->fetchAll(PDO::FETCH_ASSOC);
 
     $estadoBloqueo = semsad_valor_enum($conexion, 'usuario', 'estado', ['Bloqueado', 'Suspendido']);

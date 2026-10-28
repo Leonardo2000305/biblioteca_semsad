@@ -21,28 +21,34 @@ if ($nombres === '' || $apellidos === '' || $correo === '' || $codigoEmpleado ==
     semsad_responder(['status' => 'error', 'mensaje' => 'Todos los datos requeridos deben ser completados.']);
 }
 
-if (!filter_var($correo, FILTER_VALIDATE_EMAIL)) {
+if (!semsad_correo_valido($correo)) {
     if (ob_get_length()) ob_clean();
     semsad_responder(['status' => 'error', 'mensaje' => 'El correo electrónico no tiene un formato válido.']);
 }
 
-if (strlen($clave) < 6) {
+if (!semsad_nombre_valido($nombres) || !semsad_nombre_valido($apellidos)) {
     if (ob_get_length()) ob_clean();
-    semsad_responder(['status' => 'error', 'mensaje' => 'La contraseña debe tener al menos 6 caracteres.']);
+    semsad_responder(['status' => 'error', 'mensaje' => 'El nombre y los apellidos solo pueden tener letras, espacios, guiones y apóstrofes (máximo 60 caracteres).']);
+}
+
+if (!preg_match('/^[A-Za-z0-9 .\-\/]{3,20}$/', $codigoEmpleado)) {
+    if (ob_get_length()) ob_clean();
+    semsad_responder(['status' => 'error', 'mensaje' => 'La CI / código de registro no es válido (letras, números, espacios, punto, guion o barra; 3 a 20 caracteres).']);
+}
+
+if ($error = semsad_clave_error($clave)) {
+    if (ob_get_length()) ob_clean();
+    semsad_responder(['status' => 'error', 'mensaje' => $error]);
 }
 
 try {
-    // 1. Validar el código OTP
-    $q = $conexion->prepare('SELECT codigo, expiracion FROM codigo_verificacion WHERE LOWER(correo) = :c');
-    $q->execute([':c' => $correo]);
-    $otpValido = false;
-    foreach ($q->fetchAll() as $fila) {
-        if (hash_equals((string)$fila['codigo'], $codigoOtp) && strtotime($fila['expiracion']) >= time()) {
-            $otpValido = true;
-            break;
-        }
+    // 1. Validar el código OTP (5 intentos como máximo; luego el código se invalida)
+    $resultadoOtp = semsad_verificar_otp($conexion, $correo, $codigoOtp);
+    if ($resultadoOtp === 'bloqueado') {
+        if (ob_get_length()) ob_clean();
+        semsad_responder(['status' => 'error', 'mensaje' => 'Demasiados intentos con este código. Pide un código nuevo y espera unos minutos.']);
     }
-    if (!$otpValido) {
+    if ($resultadoOtp !== 'ok') {
         if (ob_get_length()) ob_clean();
         semsad_responder(['status' => 'error', 'mensaje' => 'El código de verificación es incorrecto o ha expirado.']);
     }

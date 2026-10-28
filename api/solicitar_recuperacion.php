@@ -8,35 +8,40 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
 $entrada = semsad_leer_json();
 $correo  = strtolower(trim((string)($entrada['correo'] ?? '')));
 
-if ($correo === '' || !filter_var($correo, FILTER_VALIDATE_EMAIL)) {
+if ($correo === '' || !semsad_correo_valido($correo)) {
     semsad_responder(['status' => 'error', 'mensaje' => 'Ingresa un correo electrónico válido.']);
 }
+
+// Respuesta única: no revela si el correo existe, si la cuenta está suspendida o si el envío salió bien.
+$mensajeGenerico = 'Si el correo está registrado y activo, te enviamos un enlace para crear una nueva contraseña. Revisa tu bandeja de entrada o SPAM (caduca en 15 minutos).';
+
+// Límite por conexión: 5 solicitudes cada 15 minutos
+$claveIp = 'recup:ip:' . semsad_ip();
+if (semsad_limite_espera($conexion, $claveIp) > 0) {
+    semsad_responder(['status' => 'error', 'mensaje' => 'Demasiadas solicitudes desde tu conexión. Espera unos minutos e inténtalo de nuevo.'], 429);
+}
+semsad_limite_fallo($conexion, $claveIp, 5, 900, 900);
 
 try {
     $q = $conexion->prepare('SELECT id_usuario, contrasena, estado FROM usuario WHERE LOWER(correo) = :c LIMIT 1');
     $q->execute([':c' => $correo]);
     $usuario = $q->fetch();
 
-    // 1. La cuenta no existe: queda registrado para el administrador
+    // 1. La cuenta no existe: queda registrado para el administrador, pero el visitante no lo sabe
     if (!$usuario) {
         semsad_auditar($conexion, $correo, null, 'Correo No Encontrado');
-        semsad_responder(['status' => 'error', 'mensaje' => 'No existe ninguna cuenta registrada con este correo.']);
+        semsad_responder(['status' => 'success', 'mensaje' => $mensajeGenerico]);
     }
 
     // 2. Cuenta suspendida o bloqueada
     if (($usuario['estado'] ?? 'Activo') !== 'Activo') {
         semsad_auditar($conexion, $correo, (int)$usuario['id_usuario'], 'Cuenta no activa');
-        semsad_responder(['status' => 'error', 'mensaje' => 'Tu cuenta no está activa. Contacta a la biblioteca.']);
+        semsad_responder(['status' => 'success', 'mensaje' => $mensajeGenerico]);
     }
 
-    // 3. Evita el abuso: un enlace por minuto
-    $espera = semsad_espera_recuperacion($conexion, $correo);
-    if ($espera > 0) {
-        semsad_responder([
-            'status'  => 'error',
-            'mensaje' => "Ya te enviamos un enlace hace poco. Espera $espera segundos para pedir otro.",
-            'espera'  => $espera,
-        ]);
+    // 3. Evita el abuso: un enlace por minuto para cada correo
+    if (semsad_espera_recuperacion($conexion, $correo) > 0) {
+        semsad_responder(['status' => 'success', 'mensaje' => $mensajeGenerico]);
     }
 
     // 4. Enlace firmado de un solo uso (15 minutos)
@@ -67,20 +72,17 @@ try {
     if (!$enviado && empty($cfg['otp_demo'])) {
         error_log('[SEMSAD] mail() no pudo enviar el enlace de recuperación a ' . $correo);
         semsad_auditar($conexion, $correo, (int)$usuario['id_usuario'], 'Correo no enviado');
-        semsad_responder(['status' => 'error', 'mensaje' => 'No se pudo enviar el correo en este momento. Inténtalo de nuevo en unos minutos.'], 500);
+        semsad_responder(['status' => 'success', 'mensaje' => $mensajeGenerico]);
     }
 
     semsad_auditar($conexion, $correo, (int)$usuario['id_usuario'], 'Solicitud enviada');
 
-    $respuesta = ['status' => 'success', 'mensaje' => 'Te enviamos un enlace a tu correo. Revisa tu bandeja de entrada o SPAM (caduca en 15 minutos).'];
+    $respuesta = ['status' => 'success', 'mensaje' => $mensajeGenerico];
     if (!empty($cfg['otp_demo'])) {
-        $respuesta['enlace_demo'] = $link;   // solo en modo prueba
+        $respuesta['enlace_demo'] = $link;   // solo en modo prueba (otp_demo = true en config.php)
     }
     semsad_responder($respuesta);
 } catch (Throwable $e) {
     error_log('[SEMSAD] solicitar_recuperacion: ' . $e->getMessage());
-    semsad_responder([
-        'status'  => 'error',
-        'mensaje' => !empty($cfg['debug']) ? 'Error: ' . $e->getMessage() : 'Error interno del servidor.',
-    ], 500);
+    semsad_responder(['status' => 'error', 'mensaje' => 'Error interno del servidor. Inténtalo de nuevo en unos minutos.' . semsad_detalle_error($e)], 500);
 }

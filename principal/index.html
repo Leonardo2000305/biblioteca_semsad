@@ -14,6 +14,34 @@
         .book-card { border: none; border-radius: 12px; transition: transform 0.2s, box-shadow 0.2s; }
         .book-card:hover { transform: translateY(-5px); box-shadow: 0 10px 20px rgba(0,0,0,0.08); }
         .extra-small { font-size: 12px; }
+        /* Celulares y tabletas: la barra superior se ajusta al ancho de la pantalla (los botones bajan de línea, nada se sale) */
+        @media (max-width: 991.98px) {
+            .navbar-custom > .container { flex-wrap: wrap; row-gap: .5rem; column-gap: .5rem; min-width: 0; }
+            .navbar-custom .navbar-brand { min-width: 0; max-width: 100%; white-space: normal; }
+            .nav-acciones { flex-wrap: wrap; justify-content: flex-end; min-width: 0; max-width: 100%; row-gap: .4rem; }
+            #badgeUsuario { white-space: normal; overflow-wrap: anywhere; text-align: left; max-width: 100%; }
+            .cabecera-catalogo { flex-wrap: wrap; gap: .5rem; min-width: 0; }
+        }
+        /* Celulares pequeños (hasta 575 px): marca y título un poco más compactos */
+        @media (max-width: 575.98px) {
+            .navbar-custom .navbar-brand { font-size: 1.05rem; }
+            /* Historial de préstamos en celular: cada préstamo es una tarjeta (sin columnas cortadas ni scroll lateral) */
+            .modal-dialog { margin: .5rem; }
+            .tabla-prestamos thead { display: none; }
+            .tabla-prestamos, .tabla-prestamos tbody, .tabla-prestamos tr, .tabla-prestamos td { display: block; width: 100%; }
+            .tabla-prestamos tr { padding: 12px 16px; border-bottom: 1px solid #e5e7eb; }
+            .tabla-prestamos tr:last-child { border-bottom: 0; }
+            .tabla-prestamos > tbody > tr:hover > * { --bs-table-accent-bg: transparent; }
+            .tabla-prestamos td { border: 0; padding: 3px 0; display: flex; justify-content: space-between; align-items: center; gap: 12px; text-align: right; overflow-wrap: anywhere; }
+            .tabla-prestamos td::before { content: attr(data-label); color: #6b7280; font-size: .8rem; font-weight: 600; text-align: left; }
+            .tabla-prestamos td.celda-titulo { display: block; text-align: left; font-size: 1rem; padding-bottom: 6px; }
+            .tabla-prestamos td.celda-titulo::before { content: none; }
+            .tabla-prestamos td.celda-accion { display: block; text-align: left; padding-top: 8px; }
+            .tabla-prestamos td.celda-accion:empty { display: none; }
+            .tabla-prestamos td.celda-accion .btn { width: 100%; }
+            .tabla-prestamos td[colspan] { display: block; text-align: center; justify-content: center; }
+            .tabla-prestamos td[colspan]::before { content: none; }
+        }
     </style>
 </head>
 <body>
@@ -25,7 +53,7 @@
                 <i class="fa-solid fa-book-open text-primary"></i>
                 <span>BIBLIOTECA SEMSAD</span>
             </a>
-            <div class="d-flex align-items-center gap-2">
+            <div class="d-flex align-items-center gap-2 nav-acciones">
                 <button class="btn btn-outline-info btn-sm fw-bold me-2" data-bs-toggle="modal" data-bs-target="#modalMisPrestamos" onclick="cargarMisPrestamos()">
                     <i class="fa-solid fa-clock-rotate-left me-1"></i>Mis Préstamos
                 </button>
@@ -59,7 +87,7 @@
         </div>
 
         <!-- CATÁLOGO DE LIBROS -->
-        <div class="d-flex justify-content-between align-items-center mb-3">
+        <div class="d-flex justify-content-between align-items-center mb-3 cabecera-catalogo">
             <h4 class="fw-bold text-dark mb-0"><i class="fa-solid fa-books text-primary me-2"></i>Libros Disponibles</h4>
             <button class="btn btn-sm btn-outline-primary fw-semibold" onclick="cargarCatalogo()">
                 <i class="fa-solid fa-rotate me-1"></i>Actualizar
@@ -79,7 +107,7 @@
                 </div>
                 <div class="modal-body p-0">
                     <div class="table-responsive">
-                        <table class="table table-hover align-middle mb-0">
+                        <table class="table table-hover align-middle mb-0 tabla-prestamos">
                             <thead class="table-light">
                                 <tr>
                                     <th>Libro</th>
@@ -247,7 +275,7 @@
 
             contenedor.innerHTML = '';
             lista.forEach(libro => {
-                const idMaterial = libro.id_material || libro.id;
+                const idMaterial = parseInt(libro.id_material || libro.id) || 0;
                 const titulo = libro.titulo || libro.nombre || 'Sin título';
                 const isbn = libro.isbn || libro.codigo_isbn_issn || libro.codigo_barras || 'Código S/N';
                 const anio = libro.agno_publicacion || libro.año_publicacion || libro.anio || libro.year || 'N/A';
@@ -380,11 +408,11 @@
 
                         tbody.innerHTML += `
                             <tr>
-                                <td class="fw-bold text-dark">${SEMSAD.esc(p.titulo)}</td>
-                                <td class="text-muted small">${SEMSAD.esc(p.fecha_salida)}</td>
-                                <td class="fw-bold text-primary">${SEMSAD.esc(p.fecha_limite)}</td>
-                                <td>${badge}</td>
-                                <td>${p.estado === 'Activo' ? `<button class="btn btn-outline-primary btn-sm fw-bold" onclick="renovarPrestamo(${parseInt(p.id_prestamo)})"><i class="fa-solid fa-rotate me-1"></i>Renovar</button>` : ''}</td>
+                                <td class="fw-bold text-dark celda-titulo">${SEMSAD.esc(p.titulo)}</td>
+                                <td class="text-muted small" data-label="Fecha solicitud">${SEMSAD.esc(p.fecha_salida)}</td>
+                                <td class="fw-bold text-primary" data-label="Fecha límite">${SEMSAD.esc(p.fecha_limite)}</td>
+                                <td data-label="Estado">${badge}</td>
+                                <td class="celda-accion">${p.estado === 'Activo' ? `<button class="btn btn-outline-primary btn-sm fw-bold" onclick="renovarPrestamo(${parseInt(p.id_prestamo)})"><i class="fa-solid fa-rotate me-1"></i>Renovar</button>` : ''}</td>
                             </tr>`;
                     });
                 } else {

@@ -324,8 +324,8 @@ async function enviarCodigoOTP(esReenvio = false) {
         mostrarAlerta('Por favor, completa todos los campos del formulario.', 'error');
         return;
     }
-    if (clave.length < 6) {
-        mostrarAlerta('La contraseña debe tener al menos 6 caracteres.', 'error');
+    if (clave.length < 8) {
+        mostrarAlerta('La contraseña debe tener al menos 8 caracteres.', 'error');
         return;
     }
     if (clave !== confirmar_clave) {

@@ -86,5 +86,5 @@ try {
     ]);
 
 } catch (Exception $e) {
-    semsad_responder(['status' => 'error', 'mensaje' => 'Error al listar préstamos: ' . $e->getMessage()], 500);
+    semsad_responder(['status' => 'error', 'mensaje' => 'Error al listar préstamos.' . semsad_detalle_error($e)], 500);
 }

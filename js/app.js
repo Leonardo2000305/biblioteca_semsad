@@ -5,6 +5,14 @@
 
 const API_BASE = "../api";
 
+// Escapa texto antes de meterlo en innerHTML. Mismo comportamiento que SEMSAD.esc (js/config.js);
+// este archivo no carga config.js, por eso la función va aquí.
+function escHtml(valor) {
+    return String(valor == null ? "" : valor).replace(/[&<>"']/g, c => (
+        { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]
+    ));
+}
+
 const state = {
     currentUser: { id: null, ci: null, name: null, role: null, active: false },
     activeCategory: "all",
@@ -117,8 +125,8 @@ function renderUserStatus() {
         userBadge.innerHTML = `
             <div class="d-flex align-items-center gap-2">
                 <div class="text-end">
-                    <span class="fw-bold d-block text-white" style="font-size:0.9rem;">${state.currentUser.name}</span>
-                    <small class="text-white-50" style="font-size:0.72rem;">CI: ${state.currentUser.ci} &bull; ${state.currentUser.role}</small>
+                    <span class="fw-bold d-block text-white" style="font-size:0.9rem;">${escHtml(state.currentUser.name)}</span>
+                    <small class="text-white-50" style="font-size:0.72rem;">CI: ${escHtml(state.currentUser.ci)} &bull; ${escHtml(state.currentUser.role)}</small>
                 </div>
                 <button class="btn btn-danger btn-sm px-3 py-1" id="btnLogout">
                     <i class="fa-solid fa-right-from-bracket me-1"></i>Salir
@@ -186,26 +194,26 @@ function renderCatalog() {
             <div class="col-lg-3 col-md-4 col-sm-6">
                 <div class="book-card-flat">
                     <div class="book-cover-container">
-                        <img src="${book.coverImg}" alt="${book.title}"
-                             onerror="this.src='https://placehold.co/300x400/1e293b/ffffff?text=${encodeURIComponent(book.title)}'">
+                        <img src="${escHtml(book.coverImg)}" alt="${escHtml(book.title)}"
+                             onerror="this.src='https://placehold.co/300x400/1e293b/ffffff?text=${encodeURIComponent(book.title).replace(/'/g, "%27")}'">
                     </div>
                     <div class="book-info-body">
                         <div class="mb-1">
-                            <small class="text-muted">${book.classification || '000.0'}</small>
-                            <span class="badge ${badge} float-end" style="font-size:0.68rem;">${book.categoryLabel || 'General'}</span>
+                            <small class="text-muted">${escHtml(book.classification || '000.0')}</small>
+                            <span class="badge ${badge} float-end" style="font-size:0.68rem;">${escHtml(book.categoryLabel || 'General')}</span>
                         </div>
-                        <h6 class="book-title-flat">${book.title}</h6>
-                        <p class="book-author-flat"><i class="fa-solid fa-pen-nib me-1"></i>${book.author}</p>
+                        <h6 class="book-title-flat">${escHtml(book.title)}</h6>
+                        <p class="book-author-flat"><i class="fa-solid fa-pen-nib me-1"></i>${escHtml(book.author)}</p>
                         <div class="mt-auto">
                             <div class="d-flex justify-content-between align-items-center mb-2">
                                 <span class="${avail ? 'stock-indicator stock-available' : 'stock-indicator stock-out'}">
                                     <i class="fa-solid ${avail ? 'fa-check' : 'fa-xmark'}"></i>
-                                    ${avail ? `Disp: ${book.stock}/${book.total}` : 'Sin stock'}
+                                    ${avail ? `Disp: ${escHtml(book.stock)}/${escHtml(book.total)}` : 'Sin stock'}
                                 </span>
-                                <small class="text-muted" style="font-size:0.72rem;">${book.shelf}</small>
+                                <small class="text-muted" style="font-size:0.72rem;">${escHtml(book.shelf)}</small>
                             </div>
                             <button class="btn ${avail ? 'btn-flat-blue' : 'btn-flat-neutral'} btn-sm w-100"
-                                onclick="openReserveModal(${book.id})" ${!avail ? 'disabled' : ''}>
+                                onclick="openReserveModal(${Number(book.id)})" ${!avail ? 'disabled' : ''}>
                                 <i class="fa-solid ${avail ? 'fa-bookmark' : 'fa-clock'} me-1"></i>
                                 ${avail ? 'Reservar' : 'Agotado'}
                             </button>
@@ -232,12 +240,12 @@ function renderMyLoansList() {
         <div class="card mb-2 p-3 border-start border-4 border-${loan.status === 'Vencido' ? 'danger' : 'primary'}">
             <div class="d-flex justify-content-between">
                 <div>
-                    <span class="badge bg-secondary mb-1">${loan.code}</span>
-                    <h6 class="fw-bold mb-1">${loan.bookTitle}</h6>
-                    <small class="text-muted">Solicitado: ${loan.issueDate} &bull; Vence: <strong>${loan.dueDate}</strong></small>
+                    <span class="badge bg-secondary mb-1">${escHtml(loan.code)}</span>
+                    <h6 class="fw-bold mb-1">${escHtml(loan.bookTitle)}</h6>
+                    <small class="text-muted">Solicitado: ${escHtml(loan.issueDate)} &bull; Vence: <strong>${escHtml(loan.dueDate)}</strong></small>
                 </div>
                 <span class="badge bg-${loan.status === 'Vencido' ? 'danger' : 'success'} align-self-center">
-                    ${loan.status === 'Vencido' ? `${loan.overdueDays}d mora` : `${loan.daysLeft}d restantes`}
+                    ${loan.status === 'Vencido' ? `${escHtml(loan.overdueDays)}d mora` : `${escHtml(loan.daysLeft)}d restantes`}
                 </span>
             </div>
         </div>`).join("");
@@ -293,16 +301,16 @@ window.openReserveModal = function (bookId) {
     modalBody.innerHTML = `
         <div class="row g-3">
             <div class="col-4 text-center">
-                <img src="${book.coverImg}" class="img-fluid rounded border" alt="${book.title}"
-                     onerror="this.src='https://placehold.co/200x280/1e293b/fff?text=${encodeURIComponent(book.title)}'">
+                <img src="${escHtml(book.coverImg)}" class="img-fluid rounded border" alt="${escHtml(book.title)}"
+                     onerror="this.src='https://placehold.co/200x280/1e293b/fff?text=${encodeURIComponent(book.title).replace(/'/g, "%27")}'">
             </div>
             <div class="col-8">
-                <h6 class="fw-bold">${book.title}</h6>
-                <p class="text-muted small mb-3">Por: ${book.author}</p>
+                <h6 class="fw-bold">${escHtml(book.title)}</h6>
+                <p class="text-muted small mb-3">Por: ${escHtml(book.author)}</p>
                 <table class="table table-sm table-bordered small">
-                    <tr><th>Categoría</th><td>${book.categoryLabel}</td></tr>
-                    <tr><th>Ubicación</th><td>${book.shelf}</td></tr>
-                    <tr><th>Disponibles</th><td>${book.stock} de ${book.total} copias</td></tr>
+                    <tr><th>Categoría</th><td>${escHtml(book.categoryLabel)}</td></tr>
+                    <tr><th>Ubicación</th><td>${escHtml(book.shelf)}</td></tr>
+                    <tr><th>Disponibles</th><td>${escHtml(book.stock)} de ${escHtml(book.total)} copias</td></tr>
                     <tr><th>Plazo</th><td>7 días calendario</td></tr>
                 </table>
             </div>

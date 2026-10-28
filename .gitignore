@@ -1,0 +1,6 @@
+api/config.php
+api/.secreto
+.secreto
+*.zip
+*.log
+.env

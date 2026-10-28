@@ -60,7 +60,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($conexion->inTransaction()) {
             $conexion->rollBack();
         }
-        semsad_responder(['status' => 'error', 'mensaje' => 'Error al procesar devolución: ' . $e->getMessage()], 500);
+        semsad_responder(['status' => 'error', 'mensaje' => 'Error al procesar devolución.' . semsad_detalle_error($e)], 500);
     }
 } else {
     semsad_responder(['status' => 'error', 'mensaje' => 'Método no permitido.'], 405);

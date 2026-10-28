@@ -2,7 +2,6 @@
 require_once __DIR__ . '/conexion.php';
 semsad_iniciar_sesion();
 
-header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type");
 header('Content-Type: application/json; charset=utf-8');
@@ -102,6 +101,6 @@ try {
     error_log('[SEMSAD] buscar_libros: ' . $e->getMessage());
     semsad_responder([
         'status'  => 'error',
-        'mensaje' => 'Error al consultar libros: ' . $e->getMessage()
+        'mensaje' => 'Error al consultar libros.' . semsad_detalle_error($e)
     ], 500);
 }

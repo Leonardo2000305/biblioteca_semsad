@@ -142,5 +142,5 @@ try {
     if (strpos($e->getMessage(), '1062') !== false && strpos($e->getMessage(), 'codigo_isbn_issn') !== false) {
         semsad_responder(['status' => 'error', 'mensaje' => 'Ya existe otro libro registrado con ese ISBN/código.'], 409);
     }
-    semsad_responder(['status' => 'error', 'mensaje' => 'Error al guardar libro: ' . $e->getMessage()], 500);
+    semsad_responder(['status' => 'error', 'mensaje' => 'Error al guardar libro.' . semsad_detalle_error($e)], 500);
 }

@@ -35,8 +35,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     try {
-        // Quién pide el libro: la sesión del servidor manda; nunca se adivina (ver usuario_actual.php)
-        $usuario = semsad_usuario_actual($conexion, $req_id_user, $req_email);
+        // Quién pide el libro: solo la sesión del servidor (ver usuario_actual.php). Un id/correo enviados
+        // por el navegador ya no sirven para pedir libros a nombre de otra persona.
+        $usuario = semsad_usuario_actual($conexion);
 
         if (!$usuario) {
             semsad_responder([
@@ -59,10 +60,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (empty($nombreCompleto)) {
             $nombreCompleto = $usuario['correo'];
         }
-
-        // Sincronizar la sesión PHP
-        $_SESSION['id_usuario'] = $id_usuario;
-        $_SESSION['correo']     = $usuario['correo'];
 
         if (($usuario['estado'] ?? 'Activo') !== 'Activo') {
             semsad_responder([
@@ -167,7 +164,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($conexion->inTransaction()) {
             $conexion->rollBack();
         }
-        semsad_responder(['status' => 'error', 'mensaje' => 'Error en base de datos: ' . $e->getMessage()], 500);
+        semsad_responder(['status' => 'error', 'mensaje' => 'Error en base de datos.' . semsad_detalle_error($e)], 500);
     }
 } else {
     semsad_responder(['status' => 'error', 'mensaje' => 'Método no permitido. Use POST.'], 405);

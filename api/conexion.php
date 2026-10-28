@@ -39,7 +39,7 @@ function semsad_cors(array $cfg): void
     if ($origin !== '') {
         // Solo la web oficial (o localhost y orígenes listados). Antes cualquier *.vercel.app podía leer respuestas autenticadas.
         $permitido = $origin === rtrim((string)$cfg['frontend_url'], '/')
-            || preg_match('#^https?://(localhost|127\.0\.0\.1)(:\d+)?$#i', $origin)
+            || (!empty($cfg['debug']) && preg_match('#^https?://(localhost|127\.0\.0\.1)(:\d+)?$#i', $origin))
             || in_array($origin, (array)$cfg['allowed_origins'], true);
 
         if ($permitido) {
@@ -158,6 +158,9 @@ function semsad_iniciar_sesion(): void
 
     // Configurar tiempo de vida de la sesión en el servidor a 24 horas (86,400 segundos)
     ini_set('session.gc_maxlifetime', 86400);
+    // Seguridad: solo se aceptan identificadores de sesión creados por el servidor (evita fijar sesiones ajenas)
+    ini_set('session.use_strict_mode', '1');
+    ini_set('session.use_only_cookies', '1');
 
     $https = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
         || (($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https');
@@ -237,7 +240,9 @@ function semsad_validar_token(array $cfg, string $token, string $correo, string 
 /* ── Auditoría de recuperación de contraseña (la ve el administrador) ───────── */
 function semsad_ip(): string
 {
-    $ip = trim(explode(',', $_SERVER['HTTP_X_FORWARDED_FOR'] ?? '')[0]);
+    // El primer valor de X-Forwarded-For lo puede inventar cualquiera; el último lo añade el proxy (Vercel).
+    $partes = array_map('trim', explode(',', $_SERVER['HTTP_X_FORWARDED_FOR'] ?? ''));
+    $ip = (string)end($partes);
     return filter_var($ip, FILTER_VALIDATE_IP) ? $ip : ($_SERVER['REMOTE_ADDR'] ?? 'Desconocida');
 }
 
@@ -269,6 +274,115 @@ function semsad_espera_recuperacion(PDO $conexion, string $correo, int $ventana 
     }
 }
 
+/* ── Seguridad: límites de intentos guardados en la base (tabla intentos_seguridad) ──
+ * Son independientes de la sesión: borrar cookies o cambiar de navegador no los salta.
+ * Si la tabla no existe todavía (db/seguridad_v5.sql), no bloquea nada y la app sigue funcionando. */
+function semsad_limite_espera(PDO $c, string $clave): int
+{
+    try {
+        $q = $c->prepare('SELECT bloqueado_hasta FROM intentos_seguridad WHERE clave = :k LIMIT 1');
+        $q->execute([':k' => $clave]);
+        $hasta = $q->fetchColumn();
+        return $hasta ? max(0, strtotime((string)$hasta) - time()) : 0;
+    } catch (Throwable $e) {
+        return 0;
+    }
+}
+
+/** Anota un fallo. Al llegar a $max fallos dentro de $ventanaSeg, bloquea la clave $bloqueoSeg segundos. */
+function semsad_limite_fallo(PDO $c, string $clave, int $max, int $ventanaSeg, int $bloqueoSeg): void
+{
+    try {
+        $ahora = time();
+        $q = $c->prepare('SELECT fallos, primer_fallo FROM intentos_seguridad WHERE clave = :k LIMIT 1');
+        $q->execute([':k' => $clave]);
+        $fila    = $q->fetch();
+        $dentro  = $fila && ($ahora - strtotime((string)$fila['primer_fallo'])) <= $ventanaSeg;
+        $fallos  = $dentro ? (int)$fila['fallos'] + 1 : 1;
+        $primer  = $dentro ? strtotime((string)$fila['primer_fallo']) : $ahora;
+        $bloqueo = null;
+        if ($fallos >= $max) {
+            $bloqueo = date('Y-m-d H:i:s', $ahora + $bloqueoSeg);
+            $fallos  = 0;
+            $primer  = $ahora;
+        }
+        $c->prepare(
+            'INSERT INTO intentos_seguridad (clave, fallos, primer_fallo, bloqueado_hasta) VALUES (:k, :f1, :p1, :b1)
+             ON DUPLICATE KEY UPDATE fallos = :f2, primer_fallo = :p2, bloqueado_hasta = :b2'
+        )->execute([
+            ':k' => $clave, ':f1' => $fallos, ':p1' => date('Y-m-d H:i:s', $primer), ':b1' => $bloqueo,
+            ':f2' => $fallos, ':p2' => date('Y-m-d H:i:s', $primer), ':b2' => $bloqueo,
+        ]);
+    } catch (Throwable $e) {
+        error_log('[SEMSAD] límite de intentos: ' . $e->getMessage());
+    }
+}
+
+function semsad_limite_reset(PDO $c, string $clave): void
+{
+    try {
+        $c->prepare('DELETE FROM intentos_seguridad WHERE clave = :k')->execute([':k' => $clave]);
+    } catch (Throwable $e) {
+        // sin tabla: nada que limpiar
+    }
+}
+
+/** Comprueba el código de 6 dígitos del registro. Devuelve 'ok', 'incorrecto' o 'bloqueado'.
+ *  Tras 5 fallos el código se invalida: hay que pedir uno nuevo y esperar 15 minutos. */
+function semsad_verificar_otp(PDO $c, string $correo, string $codigoIngresado): string
+{
+    $clave = 'otp:' . $correo;
+    if (semsad_limite_espera($c, $clave) > 0) {
+        return 'bloqueado';
+    }
+    $q = $c->prepare('SELECT codigo, expiracion FROM codigo_verificacion WHERE LOWER(correo) = :c');
+    $q->execute([':c' => $correo]);
+    foreach ($q->fetchAll() as $fila) {
+        if (hash_equals((string)$fila['codigo'], $codigoIngresado) && strtotime((string)$fila['expiracion']) >= time()) {
+            semsad_limite_reset($c, $clave);
+            return 'ok';
+        }
+    }
+    semsad_limite_fallo($c, $clave, 5, 900, 900);
+    if (semsad_limite_espera($c, $clave) > 0) {
+        $c->prepare('DELETE FROM codigo_verificacion WHERE LOWER(correo) = :c')->execute([':c' => $correo]);
+        return 'bloqueado';
+    }
+    return 'incorrecto';
+}
+
+/* ── Validaciones de datos personales (también evitan guardar <script> en nombres) ── */
+function semsad_nombre_valido(string $texto): bool
+{
+    return (bool)preg_match('/^[\p{L}\p{M}][\p{L}\p{M} \'.\-]{0,59}$/u', $texto);
+}
+
+function semsad_correo_valido(string $correo): bool
+{
+    return strlen($correo) <= 120
+        && filter_var($correo, FILTER_VALIDATE_EMAIL) !== false
+        && !preg_match('/[<>"\'\\\\\s]/', $correo);
+}
+
+/** Devuelve el motivo si la contraseña no cumple la norma, o null si está bien. */
+function semsad_clave_error(string $clave): ?string
+{
+    if (strlen($clave) < 8) {
+        return 'La contraseña debe tener al menos 8 caracteres.';
+    }
+    if (strlen($clave) > 72) {   // bcrypt solo usa los primeros 72 bytes
+        return 'La contraseña no puede superar los 72 caracteres.';
+    }
+    return null;
+}
+
+/** Detalle técnico del error: solo se muestra cuando 'debug' está activado en config.php (pruebas). */
+function semsad_detalle_error(Throwable $e): string
+{
+    global $cfg;
+    return !empty($cfg['debug']) ? ' (' . $e->getMessage() . ')' : '';
+}
+
 /* ── Conexión ─────────────────────────────────────────────────────────────── */
 try {
     $dsn = $cfg['dsn'] ?: "mysql:host={$cfg['host']};port={$cfg['port']};dbname={$cfg['name']};charset=utf8mb4";
@@ -277,12 +391,15 @@ try {
         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
         PDO::ATTR_TIMEOUT            => 8,
     ]);
+    // NOW() de MySQL debe usar la misma hora que PHP (La Paz, UTC-4). Si el servidor de la base está en UTC,
+    // los préstamos aparecían vencidos hasta 4 horas antes (ver ayudas_prestamo.php y obtener_multas.php).
+    $conexion->exec("SET time_zone = '-04:00'");
 } catch (PDOException $e) {
     error_log('[SEMSAD] Error de conexión a la BD: ' . $e->getMessage());
     semsad_responder([
         'status'  => 'error',
         'mensaje' => $cfg['debug']
-            ? 'Error de conexión a la base de datos: ' . $e->getMessage()
+            ? 'Error de conexión a la base de datos.' . semsad_detalle_error($e)
             : 'No se pudo conectar a la base de datos.',
     ], 500);
 }

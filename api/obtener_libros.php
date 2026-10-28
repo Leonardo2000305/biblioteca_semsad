@@ -22,8 +22,8 @@ try {
         ");
     } catch (Exception $ex) {}
 
-    // La sesión del servidor manda; los datos del navegador solo cuentan si coinciden (ver usuario_actual.php)
-    $usuarioActual = semsad_usuario_actual($conexion, (int)($_GET['id_usuario'] ?? 0), (string)($_GET['correo'] ?? ''));
+    // Solo la sesión del servidor identifica al usuario (ver usuario_actual.php)
+    $usuarioActual = semsad_usuario_actual($conexion);
     $id_usuario = $usuarioActual ? (int)$usuarioActual['id_usuario'] : 0;
 
     // 2. Obtener libros base
@@ -134,6 +134,6 @@ try {
 } catch (Exception $e) {
     semsad_responder([
         'status'  => 'error',
-        'mensaje' => 'Error al obtener los libros: ' . $e->getMessage()
+        'mensaje' => 'Error al obtener los libros.' . semsad_detalle_error($e)
     ], 500);
 }

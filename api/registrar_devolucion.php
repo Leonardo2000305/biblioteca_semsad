@@ -88,7 +88,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     } catch (PDOException $e) {
         $conexion->rollBack();
-        echo json_encode(['status' => 'error', 'mensaje' => 'Error al registrar devolución: ' . $e->getMessage()]);
+        echo json_encode(['status' => 'error', 'mensaje' => 'Error al registrar devolución.' . semsad_detalle_error($e)]);
     }
 } else {
     echo json_encode(['status' => 'error', 'mensaje' => 'Método no permitido. Use POST.']);

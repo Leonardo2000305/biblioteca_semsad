@@ -5,6 +5,14 @@
 
 const API_BASE = "../api";
 
+// Escapa texto antes de meterlo en innerHTML. Mismo comportamiento que SEMSAD.esc (js/config.js);
+// este archivo no carga config.js, por eso la función va aquí.
+function escHtml(valor) {
+    return String(valor == null ? "" : valor).replace(/[&<>"']/g, c => (
+        { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]
+    ));
+}
+
 const state = {
     books: [],
     loans: []
@@ -64,14 +72,14 @@ async function loadAuditLogs() {
                 
                 return `
                     <tr>
-                        <td><strong>${item.correo_ingresado}</strong></td>
-                        <td><i class="fa-regular fa-clock text-muted me-1"></i>${item.fecha_formateada}</td>
+                        <td><strong>${escHtml(item.correo_ingresado)}</strong></td>
+                        <td><i class="fa-regular fa-clock text-muted me-1"></i>${escHtml(item.fecha_formateada)}</td>
                         <td>
                             <span class="badge ${badgeClass} p-2">
-                                <i class="fa-solid ${icono} me-1"></i>${item.estado}
+                                <i class="fa-solid ${icono} me-1"></i>${escHtml(item.estado)}
                             </span>
                         </td>
-                        <td><code>${item.ip_origen || 'Desconocida'}</code></td>
+                        <td><code>${escHtml(item.ip_origen || 'Desconocida')}</code></td>
                     </tr>
                 `;
             }).join('');
@@ -137,19 +145,19 @@ function renderBooksTable() {
     tbody.innerHTML = state.books.map(b => `
         <tr>
             <td>
-                <span class="fw-bold text-primary">${b.classification || "000.0"}</span>
-                <small class="d-block text-muted">ISBN: ${b.isbn || "S/C"}</small>
+                <span class="fw-bold text-primary">${escHtml(b.classification || "000.0")}</span>
+                <small class="d-block text-muted">ISBN: ${escHtml(b.isbn || "S/C")}</small>
             </td>
             <td>
-                <strong>${b.title}</strong>
-                <small class="d-block text-muted">${b.author}</small>
+                <strong>${escHtml(b.title)}</strong>
+                <small class="d-block text-muted">${escHtml(b.author)}</small>
             </td>
-            <td><span class="badge bg-secondary">${b.categoryLabel || "General"}</span></td>
+            <td><span class="badge bg-secondary">${escHtml(b.categoryLabel || "General")}</span></td>
             <td>
-                <span class="fw-bold ${b.stock > 0 ? "text-success" : "text-danger"}">${b.stock}</span>
-                <span class="text-muted"> / ${b.total}</span>
+                <span class="fw-bold ${b.stock > 0 ? "text-success" : "text-danger"}">${escHtml(b.stock)}</span>
+                <span class="text-muted"> / ${escHtml(b.total)}</span>
             </td>
-            <td><small class="text-muted">${b.shelf || "Sala Central"}</small></td>
+            <td><small class="text-muted">${escHtml(b.shelf || "Sala Central")}</small></td>
             <td class="text-end">
                 <button class="btn btn-sm btn-outline-secondary" title="Editar (próximamente)">
                     <i class="fa-solid fa-pen"></i>
@@ -175,22 +183,22 @@ function renderCirculationView() {
     tbody.innerHTML = activos.map(l => `
         <tr>
             <td>
-                <strong>${l.userName}</strong>
-                <small class="d-block text-muted">CI: ${l.userCi}</small>
+                <strong>${escHtml(l.userName)}</strong>
+                <small class="d-block text-muted">CI: ${escHtml(l.userCi)}</small>
             </td>
-            <td><strong>${l.bookTitle}</strong></td>
-            <td>${l.issueDate}</td>
+            <td><strong>${escHtml(l.bookTitle)}</strong></td>
+            <td>${escHtml(l.issueDate)}</td>
             <td>
-                <span class="badge ${l.status === "Vencido" ? "bg-danger" : "bg-success"}">${l.dueDate}</span>
+                <span class="badge ${l.status === "Vencido" ? "bg-danger" : "bg-success"}">${escHtml(l.dueDate)}</span>
             </td>
             <td>
                 ${l.overdueDays > 0
-                    ? `<span class="badge bg-danger">${l.overdueDays} días demora</span>`
+                    ? `<span class="badge bg-danger">${escHtml(l.overdueDays)} días demora</span>`
                     : `<span class="badge bg-secondary">A tiempo</span>`
                 }
             </td>
             <td class="text-end">
-                <button class="btn btn-success btn-sm" onclick="processReturn(${l.id})">
+                <button class="btn btn-success btn-sm" onclick="processReturn(${Number(l.id)})">
                     <i class="fa-solid fa-rotate-left me-1"></i> Recibir
                 </button>
             </td>

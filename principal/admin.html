@@ -23,7 +23,19 @@
         .stat-card:hover { transform: translateY(-3px); }
         .icon-box { width: 50px; height: 50px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; }
         .table-card { border-radius: 12px; border: none; overflow: hidden; }
-        @media print { .sidebar, .btn, .no-print { display: none !important; } .main-content { margin-left: 0; padding: 0; } }
+        /* Impresión / PDF: imprime el módulo que se ve completo, sin recortes y con los colores de los indicadores */
+        @page { size: A4; margin: 12mm; }
+        @media print {
+            .sidebar, .btn, .no-print { display: none !important; }
+            .main-content { margin-left: 0; padding: 0; width: 100%; max-width: 100%; }
+            body, .main-content, .table-card, .card { overflow: visible !important; height: auto !important; min-height: 0 !important; }
+            * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+            .card, .stat-card, .table-card, .col-12 > .card, .row > [class*="col-"] > .card { break-inside: avoid; page-break-inside: avoid; }
+            tr, td, th { break-inside: avoid; page-break-inside: avoid; }
+            thead { display: table-header-group; }
+            .table-responsive { overflow: visible !important; }
+            h3, h5 { break-after: avoid; page-break-after: avoid; }
+        }
         /* Celulares y tabletas: el menú se apila arriba y el contenido ocupa todo el ancho (restaurado) */
         @media (max-width: 991.98px) {
             .sidebar { width: 100%; min-height: auto; position: relative; }

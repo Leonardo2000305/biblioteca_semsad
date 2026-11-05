@@ -586,7 +586,7 @@
 
         async function cargarDashboard() {
             try {
-                const resp = await fetch(window.SEMSAD_API + '/obtener_dashboard.php', { credentials: 'include' });
+                const resp = await fetch(window.SEMSAD_API + '/obtener_dashboard_sirve_para_indicadores_del_dia.php', { credentials: 'include' });
                 const res = await resp.json();
                 if (res.status === 'success') {
                     document.getElementById('statTotalLibros').innerText = res.total_libros;
@@ -601,7 +601,7 @@
             tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4">Cargando inventario...</td></tr>';
 
             try {
-                const resp = await fetch(window.SEMSAD_API + '/obtener_libros.php', { credentials: 'include' });
+                const resp = await fetch(window.SEMSAD_API + '/obtener_libros_sirve_para_mostrar_catalogo.php', { credentials: 'include' });
                 const res = await resp.json();
                 const lista = res.libros || [];
 
@@ -666,7 +666,7 @@
             };
 
             try {
-                const resp = await fetch(window.SEMSAD_API + '/guardar_libro.php', {
+                const resp = await fetch(window.SEMSAD_API + '/guardar_libro_sirve_para_crear_o_editar_material.php', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     credentials: 'include',
@@ -689,7 +689,7 @@
             if (!confirm(`¿Estás seguro de eliminar el libro "${titulo}" y sus copias?`)) return;
 
             try {
-                const resp = await fetch(window.SEMSAD_API + '/eliminar_libro.php', {
+                const resp = await fetch(window.SEMSAD_API + '/eliminar_libro_sirve_para_quitar_material.php', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     credentials: 'include',
@@ -712,7 +712,7 @@
             if (silencioso !== true) tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4">Cargando ventanilla...</td></tr>';
 
             try {
-                const resp = await fetch(window.SEMSAD_API + '/listar_prestamos.php', { credentials: 'include' });
+                const resp = await fetch(window.SEMSAD_API + '/listar_prestamos_sirve_para_panel_admin.php', { credentials: 'include' });
                 const res = await resp.json();
                 const lista = res.prestamos || [];
 
@@ -749,7 +749,7 @@
             if (!confirm(`¿Confirmas la devolución del libro "${titulo}"?`)) return;
 
             try {
-                const resp = await fetch(window.SEMSAD_API + '/devolver_libro.php', {
+                const resp = await fetch(window.SEMSAD_API + '/devolver_libro_sirve_para_devolucion_desde_ventanilla.php', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     credentials: 'include',
@@ -770,7 +770,7 @@
             tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4"><i class="fa-solid fa-spinner fa-spin text-danger me-2"></i>Cargando datos de multas...</td></tr>';
 
             try {
-                const resp = await fetch(window.SEMSAD_API + '/obtener_multas.php', { credentials: 'include' });
+                const resp = await fetch(window.SEMSAD_API + '/obtener_multas_sirve_para_cobrar_y_ver_mora.php', { credentials: 'include' });
                 const text = await resp.text();
                 
                 let res;
@@ -825,7 +825,7 @@
             if (!confirm('¿Confirmar que el usuario canceló la multa y autorizar el desbloqueo de su cuenta?')) return;
 
             try {
-                const resp = await fetch(window.SEMSAD_API + '/registrar_pago_multa.php', {
+                const resp = await fetch(window.SEMSAD_API + '/registrar_pago_multa_sirve_para_cobrar_multa.php', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     credentials: 'include',
@@ -852,7 +852,7 @@
             const tbody = document.getElementById('tablaAuditoriaBody');
             tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4">Cargando auditoría...</td></tr>';
             try {
-                const resp = await fetch(window.SEMSAD_API + '/obtener_auditoria.php', { credentials: 'include' });
+                const resp = await fetch(window.SEMSAD_API + '/obtener_auditoria_sirve_para_ver_intentos_de_acceso.php', { credentials: 'include' });
                 const res = await resp.json();
                 if (res.status === 'success' && res.data.length > 0) {
                     tbody.innerHTML = '';
@@ -874,7 +874,7 @@
             const tbody = document.getElementById('tablaUsuariosBody');
             tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4">Cargando usuarios...</td></tr>';
             try {
-                const resp = await fetch(window.SEMSAD_API + '/obtener_usuarios.php', { credentials: 'include' });
+                const resp = await fetch(window.SEMSAD_API + '/obtener_usuarios_sirve_para_padron_de_usuarios.php', { credentials: 'include' });
                 const res = await resp.json();
                 if (res.status === 'success' && res.data.length > 0) {
                     tbody.innerHTML = '';
@@ -948,7 +948,7 @@
             // Usuario nuevo, paso 1: enviar el código al correo del usuario (mismas reglas que el registro público)
             if (esNuevo && bloqueOtp.classList.contains('d-none')) {
                 try {
-                    const r = await fetch(window.SEMSAD_API + '/enviar_codigo.php', {
+                    const r = await fetch(window.SEMSAD_API + '/enviar_codigo_sirve_para_registro_de_usuario.php', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         credentials: 'include',
@@ -981,7 +981,7 @@
             };
 
             try {
-                const resp = await fetch(window.SEMSAD_API + '/guardar_usuario.php', {
+                const resp = await fetch(window.SEMSAD_API + '/guardar_usuario_sirve_para_crear_o_editar_cuenta.php', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     credentials: 'include',
@@ -999,7 +999,7 @@
         async function cambiarEstadoUsuario(id, nuevoEstado) {
             if (!confirm(`¿Cambiar estado del usuario a ${nuevoEstado}?`)) return;
             try {
-                const resp = await fetch(window.SEMSAD_API + '/cambiar_estado_usuario.php', {
+                const resp = await fetch(window.SEMSAD_API + '/cambiar_estado_usuario_sirve_para_suspender_o_reactivar.php', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     credentials: 'include',
@@ -1020,8 +1020,8 @@
             const uPrev = selU.value, lPrev = selL.value;
             try {
                 const [ru, rl] = await Promise.all([
-                    fetch(window.SEMSAD_API + '/obtener_usuarios.php', { credentials: 'include' }).then(r => r.json()),
-                    fetch(window.SEMSAD_API + '/obtener_libros.php', { credentials: 'include' }).then(r => r.json())
+                    fetch(window.SEMSAD_API + '/obtener_usuarios_sirve_para_padron_de_usuarios.php', { credentials: 'include' }).then(r => r.json()),
+                    fetch(window.SEMSAD_API + '/obtener_libros_sirve_para_mostrar_catalogo.php', { credentials: 'include' }).then(r => r.json())
                 ]);
                 const usuarios = (ru.data || []).filter(u => (u.estado || 'Activo') === 'Activo' && u.rol !== 'Administrador' && u.rol !== 'Bibliotecario');
                 selU.innerHTML = '<option value="">-- Seleccionar usuario --</option>' + usuarios.map(u =>
@@ -1035,7 +1035,7 @@
         document.getElementById('formPrestamoVentanilla').addEventListener('submit', async (ev) => {
             ev.preventDefault();
             try {
-                const resp = await fetch(window.SEMSAD_API + '/registrar_prestamo_ventanilla.php', {
+                const resp = await fetch(window.SEMSAD_API + '/registrar_prestamo_ventanilla_sirve_para_prestamo_en_mostrador.php', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     credentials: 'include',
@@ -1063,7 +1063,7 @@
 
         async function cargarReportes() {
             try {
-                const resp = await fetch(window.SEMSAD_API + '/obtener_reportes.php', { credentials: 'include' });
+                const resp = await fetch(window.SEMSAD_API + '/obtener_reportes_sirve_para_reportes_e_indicadores.php', { credentials: 'include' });
                 const r = await resp.json();
                 if (r.status !== 'success') { SEMSAD.toast(r.mensaje || 'No se pudieron generar los reportes.', 'error'); return; }
                 ultimoReporte = r;
@@ -1149,7 +1149,7 @@
         async function cargarEjemplares(idMaterial) {
             const tbody = document.getElementById('tbodyEjemplares');
             try {
-                const resp = await fetch(window.SEMSAD_API + '/listar_ejemplares.php?id_material=' + encodeURIComponent(idMaterial), { credentials: 'include' });
+                const resp = await fetch(window.SEMSAD_API + '/listar_ejemplares_sirve_para_copias_de_un_libro.php?id_material=' + encodeURIComponent(idMaterial), { credentials: 'include' });
                 const res = await resp.json();
                 if (res.status !== 'success') { tbody.innerHTML = '<tr><td colspan="4" class="text-danger text-center py-3">' + SEMSAD.esc(res.mensaje) + '</td></tr>'; return; }
                 if (!res.ejemplares.length) { tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-3">Este libro no tiene ejemplares.</td></tr>'; return; }
@@ -1178,7 +1178,7 @@
             const texto = estado === 'Baja' ? '¿Dar de baja este ejemplar? Esta acción no se puede deshacer.' : '¿Cambiar el estado de este ejemplar a "' + estado + '"?';
             if (!confirm(texto)) return;
             try {
-                const resp = await fetch(window.SEMSAD_API + '/cambiar_estado_ejemplar.php', {
+                const resp = await fetch(window.SEMSAD_API + '/cambiar_estado_ejemplar_sirve_para_mantenimiento_o_baja.php', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     credentials: 'include',

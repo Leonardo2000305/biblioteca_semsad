@@ -1,7 +1,7 @@
 <?php
-require_once 'conexion.php';
-require_once __DIR__ . '/usuario_actual.php';
-require_once __DIR__ . '/ayudas_prestamo.php';
+require_once 'conexion_sirve_para_conectar_base_datos.php';
+require_once __DIR__ . '/usuario_actual_sirve_para_identificar_quien_pide.php';
+require_once __DIR__ . '/reglas_prestamos_sirve_para_multas_y_plazos.php';
 semsad_iniciar_sesion();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -35,7 +35,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     try {
-        // Quién pide el libro: solo la sesión del servidor (ver usuario_actual.php). Un id/correo enviados
+        // Quién pide el libro: solo la sesión del servidor (ver usuario_actual_sirve_para_identificar_quien_pide.php). Un id/correo enviados
         // por el navegador ya no sirven para pedir libros a nombre de otra persona.
         $usuario = semsad_usuario_actual($conexion);
 

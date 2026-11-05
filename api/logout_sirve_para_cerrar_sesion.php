@@ -1,5 +1,5 @@
 <?php
-require_once __DIR__ . '/conexion.php';   // CORS restringido y cabeceras JSON comunes
+require_once __DIR__ . '/conexion_sirve_para_conectar_base_datos.php';   // CORS restringido y cabeceras JSON comunes
 semsad_iniciar_sesion();
 
 $_SESSION = [];

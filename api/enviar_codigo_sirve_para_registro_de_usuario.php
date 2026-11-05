@@ -1,10 +1,10 @@
 <?php
 /**
  * REGISTRO DE USUARIOS NUEVOS: envía el código de verificación de 6 dígitos al correo.
- * (La recuperación de contraseña es otro flujo: solicitar_recuperacion.php)
+ * (La recuperación de contraseña es otro flujo: solicitar_recuperacion_sirve_para_enviar_enlace_de_clave.php)
  * El correo NO debe existir todavía: este archivo es solo para crear cuentas.
  */
-require_once __DIR__ . '/conexion.php';
+require_once __DIR__ . '/conexion_sirve_para_conectar_base_datos.php';
 
 if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
     semsad_responder(['status' => 'error', 'mensaje' => 'Método no permitido.'], 405);

@@ -3,8 +3,8 @@
  * REPORTES E INDICADORES (solo personal): resumen del día, libros más solicitados,
  * morosos, stock crítico e inventario por estado. Solo lee, no modifica nada.
  */
-require_once __DIR__ . '/conexion.php';
-require_once __DIR__ . '/ayudas_prestamo.php';
+require_once __DIR__ . '/conexion_sirve_para_conectar_base_datos.php';
+require_once __DIR__ . '/reglas_prestamos_sirve_para_multas_y_plazos.php';
 semsad_requerir_rol(['Administrador', 'Bibliotecario']);
 
 /** Ejecuta una consulta de lectura; si falla (tabla o columna que no existe) devuelve $porDefecto. */

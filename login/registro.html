@@ -341,7 +341,7 @@ async function enviarCodigoOTP(esReenvio = false) {
     if (!esReenvio) btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i> Enviando código al correo...';
 
     try {
-        const data = await llamarApi('enviar_codigo.php', { correo, codigo_empleado, telefono });
+        const data = await llamarApi('enviar_codigo_sirve_para_registro_de_usuario.php', { correo, codigo_empleado, telefono });
         if (data.status === 'success') {
             mostrarAlerta(esReenvio ? 'Te enviamos un código nuevo. El anterior ya no sirve.' : (data.mensaje || 'Código de verificación enviado.'), 'success');
             document.getElementById('seccion_otp').classList.remove('d-none');
@@ -387,7 +387,7 @@ async function completarRegistro() {
     btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i> Verificando código y creando cuenta...';
 
     try {
-        const data = await llamarApi('registrar_usuario.php', payload);
+        const data = await llamarApi('registrar_usuario_sirve_para_crear_cuenta_al_registrarse.php', payload);
         if (data.status === 'success') {
             mostrarAlerta('¡Cuenta creada con éxito! Redirigiendo al inicio de sesión...', 'success');
             setTimeout(() => { window.location.href = 'index.html'; }, 1800);

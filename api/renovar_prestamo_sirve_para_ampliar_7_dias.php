@@ -5,8 +5,8 @@
  * y como máximo 2 renovaciones por préstamo.
  * Entrada JSON: { id_prestamo }
  */
-require_once __DIR__ . '/conexion.php';
-require_once __DIR__ . '/ayudas_prestamo.php';
+require_once __DIR__ . '/conexion_sirve_para_conectar_base_datos.php';
+require_once __DIR__ . '/reglas_prestamos_sirve_para_multas_y_plazos.php';
 semsad_iniciar_sesion();
 
 const SEMSAD_MAX_RENOVACIONES = 2;

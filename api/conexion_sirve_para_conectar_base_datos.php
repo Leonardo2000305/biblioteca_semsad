@@ -3,7 +3,7 @@
  * Conexión central a la base de datos (PDO) + cabeceras CORS + utilidades de sesión.
  *
  * IMPORTANTE: aquí NO van contraseñas. Crea el archivo api/config.php en el servidor
- * (AlwaysData) copiando api/config.ejemplo.php. Ese archivo está en .gitignore y no se sube a GitHub.
+ * (AlwaysData) copiando api/plantilla_config_sirve_para_copiar_y_poner_claves.php. Ese archivo está en .gitignore y no se sube a GitHub.
  * Alternativa: definir las variables de entorno DB_HOST, DB_PORT, DB_NAME, DB_USER y DB_PASS.
  */
 date_default_timezone_set('America/La_Paz');
@@ -392,7 +392,7 @@ try {
         PDO::ATTR_TIMEOUT            => 8,
     ]);
     // NOW() de MySQL debe usar la misma hora que PHP (La Paz, UTC-4). Si el servidor de la base está en UTC,
-    // los préstamos aparecían vencidos hasta 4 horas antes (ver ayudas_prestamo.php y obtener_multas.php).
+    // los préstamos aparecían vencidos hasta 4 horas antes (ver reglas_prestamos_sirve_para_multas_y_plazos.php y obtener_multas_sirve_para_cobrar_y_ver_mora.php).
     $conexion->exec("SET time_zone = '-04:00'");
 } catch (PDOException $e) {
     error_log('[SEMSAD] Error de conexión a la BD: ' . $e->getMessage());

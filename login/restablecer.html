@@ -158,7 +158,7 @@
                 btn.textContent = 'Guardando...';
 
                 try {
-                    const resp = await fetch(`${window.SEMSAD_API}/restablecer_contrasena.php`, {
+                    const resp = await fetch(`${window.SEMSAD_API}/restablecer_contrasena_sirve_para_cambiar_clave_con_enlace.php`, {
                         method: 'POST',
                         credentials: 'include',
                         headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },

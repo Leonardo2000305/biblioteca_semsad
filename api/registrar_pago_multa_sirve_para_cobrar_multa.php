@@ -3,7 +3,7 @@
  * Registra el cobro de una multa (solo personal) y reactiva la cuenta si ya no debe nada.
  * Entrada JSON: { id_multa, id_usuario }
  */
-require_once __DIR__ . '/conexion.php';
+require_once __DIR__ . '/conexion_sirve_para_conectar_base_datos.php';
 semsad_requerir_rol(['Administrador', 'Bibliotecario']);
 
 if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {

@@ -85,7 +85,7 @@ window.SEMSAD = {
     async cerrarSesion(evento) {
         if (evento) evento.preventDefault();
         localStorage.removeItem('semsad_user');
-        try { await fetch(window.SEMSAD_API + '/logout.php', { credentials: 'include' }); } catch (e) { /* sin red: igual salimos */ }
+        try { await fetch(window.SEMSAD_API + '/logout_sirve_para_cerrar_sesion.php', { credentials: 'include' }); } catch (e) { /* sin red: igual salimos */ }
         window.location.href = '/login/index.html';
     }
 };

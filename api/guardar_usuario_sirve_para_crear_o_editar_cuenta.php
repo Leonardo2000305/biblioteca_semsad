@@ -1,5 +1,5 @@
 <?php
-require_once 'conexion.php';
+require_once 'conexion_sirve_para_conectar_base_datos.php';
 // Solo personal de la biblioteca (Administrador / Bibliotecario)
 semsad_requerir_rol(['Administrador', 'Bibliotecario']);
 header('Content-Type: application/json; charset=utf-8');
@@ -76,7 +76,7 @@ try {
         $msg = "Usuario \"$nombres $apellidos\" actualizado correctamente.";
         $id_usuario_final = $id_usuario;
     } else {
-        // ── NUEVO: mismas reglas que el registro público (registrar_usuario.php) ──
+        // ── NUEVO: mismas reglas que el registro público (registrar_usuario_sirve_para_crear_cuenta_al_registrarse.php) ──
         $correo = strtolower($correo);
         if (!semsad_correo_valido($correo)) {
             semsad_responder(['status' => 'error', 'mensaje' => 'El correo electrónico no tiene un formato válido.']);

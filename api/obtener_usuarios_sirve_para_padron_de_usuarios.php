@@ -1,5 +1,5 @@
 <?php
-require_once __DIR__ . '/conexion.php';
+require_once __DIR__ . '/conexion_sirve_para_conectar_base_datos.php';
 
 // Solo el personal de la biblioteca puede ver el padrón de usuarios.
 semsad_requerir_rol(['Administrador', 'Bibliotecario']);

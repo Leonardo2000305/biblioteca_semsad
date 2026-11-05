@@ -1,6 +1,6 @@
 <?php
-require_once 'conexion.php';
-require_once __DIR__ . '/ayudas_prestamo.php';
+require_once 'conexion_sirve_para_conectar_base_datos.php';
+require_once __DIR__ . '/reglas_prestamos_sirve_para_multas_y_plazos.php';
 // Solo personal de la biblioteca (Administrador / Bibliotecario)
 semsad_requerir_rol(['Administrador', 'Bibliotecario']);
 header('Content-Type: application/json; charset=utf-8');

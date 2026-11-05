@@ -2,12 +2,12 @@
 /**
  * MULTAS Y SANCIONES (solo personal).
  * - Calcula la mora de cada préstamo vencido y guarda/actualiza su multa en la tabla Multa
- *   (regla en ayudas_prestamo.php: SEMSAD_MULTA_POR_DIA, SEMSAD_MULTA_TOPE, SEMSAD_DIAS_BLOQUEO).
+ *   (regla en reglas_prestamos_sirve_para_multas_y_plazos.php: SEMSAD_MULTA_POR_DIA, SEMSAD_MULTA_TOPE, SEMSAD_DIAS_BLOQUEO).
  * - Bloquea la cuenta del usuario que pasa de SEMSAD_DIAS_BLOQUEO días de retraso.
  * - Devuelve las multas pendientes con los datos del usuario.
  */
-require_once __DIR__ . '/conexion.php';
-require_once __DIR__ . '/ayudas_prestamo.php';
+require_once __DIR__ . '/conexion_sirve_para_conectar_base_datos.php';
+require_once __DIR__ . '/reglas_prestamos_sirve_para_multas_y_plazos.php';
 semsad_requerir_rol(['Administrador', 'Bibliotecario']);
 
 try {

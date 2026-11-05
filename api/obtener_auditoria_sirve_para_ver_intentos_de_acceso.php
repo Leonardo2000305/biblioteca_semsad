@@ -1,5 +1,5 @@
 <?php
-require_once __DIR__ . '/conexion.php';
+require_once __DIR__ . '/conexion_sirve_para_conectar_base_datos.php';
 
 // La auditoría de seguridad es solo para el personal de la biblioteca.
 semsad_requerir_rol(['Administrador', 'Bibliotecario']);

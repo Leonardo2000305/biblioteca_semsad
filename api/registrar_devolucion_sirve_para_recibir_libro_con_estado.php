@@ -9,7 +9,7 @@ header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
 header('Content-Type: application/json; charset=utf-8');
 
-require_once 'conexion.php';
+require_once 'conexion_sirve_para_conectar_base_datos.php';
 semsad_requerir_rol(['Administrador', 'Bibliotecario']);
 
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {

@@ -1,5 +1,5 @@
 <?php
-require_once 'conexion.php';
+require_once 'conexion_sirve_para_conectar_base_datos.php';
 semsad_requerir_rol(['Administrador', 'Bibliotecario']);
 
 try {

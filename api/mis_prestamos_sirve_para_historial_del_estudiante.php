@@ -1,12 +1,12 @@
 <?php
-require_once 'conexion.php';
-require_once __DIR__ . '/usuario_actual.php';
-require_once __DIR__ . '/ayudas_prestamo.php';
+require_once 'conexion_sirve_para_conectar_base_datos.php';
+require_once __DIR__ . '/usuario_actual_sirve_para_identificar_quien_pide.php';
+require_once __DIR__ . '/reglas_prestamos_sirve_para_multas_y_plazos.php';
 semsad_iniciar_sesion();
 header('Content-Type: application/json; charset=utf-8');
 
 try {
-    // Solo la sesión del servidor identifica al usuario (ver usuario_actual.php)
+    // Solo la sesión del servidor identifica al usuario (ver usuario_actual_sirve_para_identificar_quien_pide.php)
     $usuarioActual = semsad_usuario_actual($conexion);
     $id_usuario = $usuarioActual ? (int)$usuarioActual['id_usuario'] : 0;
 

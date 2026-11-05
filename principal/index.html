@@ -236,7 +236,7 @@
                 </div>`;
 
             try {
-                const url = window.SEMSAD_API + '/obtener_libros.php?id_usuario=' + idUsuario + '&correo=' + encodeURIComponent(correoUsuario);
+                const url = window.SEMSAD_API + '/obtener_libros_sirve_para_mostrar_catalogo.php?id_usuario=' + idUsuario + '&correo=' + encodeURIComponent(correoUsuario);
                 const resp = await fetch(url, { credentials: 'include' });
                 const res = await resp.json();
 
@@ -348,7 +348,7 @@
             }
 
             try {
-                const resp = await fetch(window.SEMSAD_API + '/registrar_prestamo.php', {
+                const resp = await fetch(window.SEMSAD_API + '/registrar_prestamo_sirve_para_pedir_libro_estudiante.php', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     credentials: 'include',
@@ -395,7 +395,7 @@
             if (!userObj) return;
 
             try {
-                const url = window.SEMSAD_API + '/mis_prestamos.php?id_usuario=' + userObj.id_usuario + '&correo=' + encodeURIComponent(userObj.correo);
+                const url = window.SEMSAD_API + '/mis_prestamos_sirve_para_historial_del_estudiante.php?id_usuario=' + userObj.id_usuario + '&correo=' + encodeURIComponent(userObj.correo);
                 const resp = await fetch(url, { credentials: 'include' });
                 const res = await resp.json();
 
@@ -453,7 +453,7 @@
         // Lista de espera para libros agotados (RF11)
         async function reservarMaterial(idMaterial, titulo, accion) {
             try {
-                const resp = await fetch(window.SEMSAD_API + '/reservar_material.php', {
+                const resp = await fetch(window.SEMSAD_API + '/reservar_material_sirve_para_lista_de_espera.php', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     credentials: 'include',
@@ -472,7 +472,7 @@
         async function renovarPrestamo(idPrestamo) {
             if (!confirm('¿Quieres renovar este préstamo por 7 días más?')) return;
             try {
-                const resp = await fetch(window.SEMSAD_API + '/renovar_prestamo.php', {
+                const resp = await fetch(window.SEMSAD_API + '/renovar_prestamo_sirve_para_ampliar_7_dias.php', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     credentials: 'include',

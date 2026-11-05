@@ -1,5 +1,5 @@
 <?php
-require_once __DIR__ . '/conexion.php';
+require_once __DIR__ . '/conexion_sirve_para_conectar_base_datos.php';
 semsad_iniciar_sesion();
 
 header("Access-Control-Allow-Methods: GET, POST, OPTIONS");

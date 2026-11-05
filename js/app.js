@@ -65,7 +65,7 @@ function loadUserFromStorage() {
 // Verificar en segundo plano la sesión PHP sin tumbar el estado de localStorage
 async function verifySessionInBackground() {
     try {
-        const response = await fetch(`${API_BASE}/verificar_sesion.php`, { credentials: "include" });
+        const response = await fetch(`${API_BASE}/verificar_sesion_sirve_para_saber_si_hay_login.php`, { credentials: "include" });
         const data = await response.json();
 
         if (data.status === "success" && data.sesion_activa && data.usuario) {
@@ -93,7 +93,7 @@ async function verifySessionInBackground() {
 
 async function loadBooks() {
     try {
-        const response = await fetch(`${API_BASE}/buscar_libros.php`, { credentials: "include" });
+        const response = await fetch(`${API_BASE}/buscar_libros_sirve_para_buscador_catalogo.php`, { credentials: "include" });
         const data = await response.json();
         if (data.status === "success") {
             state.books = data.datos;
@@ -105,7 +105,7 @@ async function loadBooks() {
 
 async function loadMyLoans() {
     try {
-        const response = await fetch(`${API_BASE}/listar_prestamos.php?usuario=${state.currentUser.id}`, { credentials: "include" });
+        const response = await fetch(`${API_BASE}/listar_prestamos_sirve_para_panel_admin.php?usuario=${state.currentUser.id}`, { credentials: "include" });
         const data = await response.json();
         if (data.status === "success") {
             state.myLoans = data.datos;
@@ -322,7 +322,7 @@ window.openReserveModal = function (bookId) {
 
 async function confirmReservation(book) {
     try {
-        const response = await fetch(`${API_BASE}/registrar_prestamo.php`, {
+        const response = await fetch(`${API_BASE}/registrar_prestamo_sirve_para_pedir_libro_estudiante.php`, {
             method: "POST",
             credentials: "include",
             headers: { "Content-Type": "application/json" },
@@ -351,7 +351,7 @@ async function confirmReservation(book) {
 async function handleLogout() {
     if (!confirm("¿Deseas cerrar tu sesión?")) return;
     localStorage.removeItem("semsad_user");
-    try { await fetch(`${API_BASE}/logout.php`, { credentials: "include" }); } catch (e) {}
+    try { await fetch(`${API_BASE}/logout_sirve_para_cerrar_sesion.php`, { credentials: "include" }); } catch (e) {}
     window.location.href = "../login/index.html";
 }
 

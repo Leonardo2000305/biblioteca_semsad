@@ -1,5 +1,5 @@
 <?php
-require_once __DIR__ . '/conexion.php';
+require_once __DIR__ . '/conexion_sirve_para_conectar_base_datos.php';
 
 if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
     semsad_responder(['status' => 'error', 'mensaje' => 'Método no permitido.'], 405);

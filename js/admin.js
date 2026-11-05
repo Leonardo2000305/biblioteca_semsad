@@ -36,7 +36,7 @@ async function initAdminApp() {
 
 async function loadBooks() {
     try {
-        const res = await fetch(`${API_BASE}/buscar_libros.php`, { credentials: "include" });
+        const res = await fetch(`${API_BASE}/buscar_libros_sirve_para_buscador_catalogo.php`, { credentials: "include" });
         const data = await res.json();
         if (data.status === "success") state.books = data.datos;
     } catch (e) {
@@ -46,7 +46,7 @@ async function loadBooks() {
 
 async function loadLoans() {
     try {
-        const res = await fetch(`${API_BASE}/listar_prestamos.php`, { credentials: "include" });
+        const res = await fetch(`${API_BASE}/listar_prestamos_sirve_para_panel_admin.php`, { credentials: "include" });
         const data = await res.json();
         if (data.status === "success") state.loans = data.datos;
     } catch (e) {
@@ -61,7 +61,7 @@ async function loadAuditLogs() {
     if (!tbody) return;
 
     try {
-        const res = await fetch(`${API_BASE}/obtener_auditoria.php`, { credentials: "include" });
+        const res = await fetch(`${API_BASE}/obtener_auditoria_sirve_para_ver_intentos_de_acceso.php`, { credentials: "include" });
         const data = await res.json();
 
         if (data.status === "success" && data.datos && data.datos.length > 0) {
@@ -221,7 +221,7 @@ window.processReturn = async function(loanId) {
     }
 
     try {
-        const res = await fetch(`${API_BASE}/registrar_devolucion.php`, {
+        const res = await fetch(`${API_BASE}/registrar_devolucion_sirve_para_recibir_libro_con_estado.php`, {
             method: "POST",
             credentials: "include",
             headers: { "Content-Type": "application/json" },

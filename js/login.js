@@ -11,7 +11,7 @@ document.addEventListener("DOMContentLoaded", () => {
             errorDiv.style.display = "none";
 
             try {
-                const response = await fetch("../api/login.php", {
+                const response = await fetch("../api/login_sirve_para_iniciar_sesion.php", {
                     method: "POST",
                     credentials: "include",
                     headers: { "Content-Type": "application/json" },

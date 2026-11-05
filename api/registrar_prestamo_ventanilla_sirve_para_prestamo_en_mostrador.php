@@ -5,8 +5,8 @@
  *  - Domicilio: 7 días.  - Sala: debe devolverse el mismo día.
  * Reglas: usuario activo, sin multas pendientes, máximo 5 préstamos, sin repetir el mismo libro, con copia disponible.
  */
-require_once __DIR__ . '/conexion.php';
-require_once __DIR__ . '/ayudas_prestamo.php';
+require_once __DIR__ . '/conexion_sirve_para_conectar_base_datos.php';
+require_once __DIR__ . '/reglas_prestamos_sirve_para_multas_y_plazos.php';
 semsad_requerir_rol(['Administrador', 'Bibliotecario']);
 
 if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {

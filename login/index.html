@@ -234,7 +234,7 @@ async function realizarLogin(event) {
     btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i> Verificando...';
 
     try {
-        const resp = await fetch(`${window.SEMSAD_API}/login.php`, {
+        const resp = await fetch(`${window.SEMSAD_API}/login_sirve_para_iniciar_sesion.php`, {
             method: 'POST',
             credentials: 'include',
             headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
@@ -246,7 +246,7 @@ async function realizarLogin(event) {
         try {
             data = JSON.parse(texto);
         } catch (e) {
-            console.error('Respuesta no válida de /login.php', resp.status, texto.slice(0, 300));
+            console.error('Respuesta no válida de /login_sirve_para_iniciar_sesion.php', resp.status, texto.slice(0, 300));
             mostrarAlerta(`El servidor respondió algo inesperado (código ${resp.status}). Revisa la API en Alwaysdata.`, 'error');
             restaurarBoton(btn);
             return;

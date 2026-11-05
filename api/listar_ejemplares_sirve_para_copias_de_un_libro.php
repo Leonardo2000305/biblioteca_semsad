@@ -4,7 +4,7 @@
  * GET ?id_material=N  →  { status, ejemplares: [{id_ejemplar, estado_ejemplar, condicion_fisica, prestado}] }
  * Solo personal de la biblioteca.
  */
-require_once 'conexion.php';
+require_once 'conexion_sirve_para_conectar_base_datos.php';
 semsad_requerir_rol(['Administrador', 'Bibliotecario']);
 header('Content-Type: application/json; charset=utf-8');
 

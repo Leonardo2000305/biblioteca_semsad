@@ -1,6 +1,6 @@
 <?php
 /**
- * Identifica QUIÉN está haciendo la petición, SOLO con la sesión del servidor (la que crea login.php).
+ * Identifica QUIÉN está haciendo la petición, SOLO con la sesión del servidor (la que crea login_sirve_para_iniciar_sesion.php).
  *
  * Antes también se aceptaba un id + correo enviados por el navegador. Con eso, cualquiera que conociera
  * el id y el correo de un estudiante podía leer su historial de préstamos y pedir libros a su nombre

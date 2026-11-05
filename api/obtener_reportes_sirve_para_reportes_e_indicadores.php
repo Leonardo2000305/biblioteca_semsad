@@ -1,4 +1,10 @@
 <?php
+// ARCHIVO: obtener_reportes_sirve_para_reportes_e_indicadores.php
+// CAPA: BACKEND (API del servidor)
+// SIRVE PARA: dar al personal los números del día, los libros más pedidos, los morosos, el stock bajo y el inventario.
+// QUÉ HACE: Lee datos de la base y responde con todos los reportes en JSON.
+//   Si una consulta falla, usa un valor por defecto en lugar de cortar toda la respuesta.
+// CONECTA CON: principal/admin.html (pantalla de reportes); usa reglas_prestamos_sirve_para_multas_y_plazos.php y conexion_sirve_para_conectar_base_datos.php
 /**
  * REPORTES E INDICADORES (solo personal): resumen del día, libros más solicitados,
  * morosos, stock crítico e inventario por estado. Solo lee, no modifica nada.
@@ -21,12 +27,16 @@ function semsad_leer(PDO $c, string $sql, array $params = [], $porDefecto = [])
 }
 
 try {
+    // revisar: el encabezado dice que solo lee, pero esta función sí actualiza el estado de los préstamos vencidos.
     semsad_marcar_vencidos($conexion);
+    // Fecha de hoy (año-mes-día) para contar los préstamos y devoluciones de hoy.
     $hoy = date('Y-m-d');
     $activos = "'" . implode("','", SEMSAD_ESTADOS_ACTIVOS) . "'";
 
+    // Función auxiliar: devuelve un solo valor (por ejemplo, un conteo) o un valor por defecto si la consulta falla.
     $unico = fn(string $sql, array $p = [], $def = 0) => (semsad_leer($conexion, $sql, $p, null)[0] ?? ['v' => $def])['v'] ?? $def;
 
+    // Resumen del día y del total: préstamos, devoluciones, multas y usuarios bloqueados.
     $resumen = [
         'prestamos_hoy'        => (int)$unico("SELECT COUNT(*) AS v FROM prestamo WHERE DATE(fecha_salida) = :h", [':h' => $hoy]),
         'devoluciones_hoy'     => (int)$unico("SELECT COUNT(*) AS v FROM prestamo WHERE DATE(fecha_devolucion_real) = :h", [':h' => $hoy]),
@@ -37,6 +47,7 @@ try {
         'usuarios_bloqueados'  => (int)$unico("SELECT COUNT(*) AS v FROM usuario WHERE estado IN ('Bloqueado','Suspendido')"),
     ];
 
+    // Libros más solicitados: cuenta cuántas veces salió cada libro y muestra los 10 primeros.
     $exprAutores = semsad_expr_autores($conexion, 'm');
     $masSolicitados = semsad_leer($conexion,
         "SELECT m.titulo, $exprAutores AS autores, COUNT(*) AS veces
@@ -46,6 +57,7 @@ try {
        GROUP BY m.id_material, m.titulo
        ORDER BY veces DESC, m.titulo ASC LIMIT 10");
 
+    // Morosos: préstamos sin devolver que ya pasaron el plazo de gracia; se calculan días y monto de multa.
     $morosos = [];
     $filas = semsad_leer($conexion,
         "SELECT p.id_prestamo, p.fecha_limite, u.nombres, u.apellidos, u.correo, m.titulo
@@ -68,6 +80,7 @@ try {
         ];
     }
 
+    // Stock crítico: libros con una copia libre o ninguna.
     $stockCritico = semsad_leer($conexion,
         "SELECT m.titulo,
                 SUM(CASE WHEN " . semsad_sql_ejemplar_libre('e') . " THEN 1 ELSE 0 END) AS disponibles,
@@ -78,6 +91,7 @@ try {
          HAVING COALESCE(SUM(CASE WHEN " . semsad_sql_ejemplar_libre('e') . " THEN 1 ELSE 0 END), 0) <= 1
        ORDER BY disponibles ASC, m.titulo ASC");
 
+    // Reservas pendientes (lista de espera), ordenadas por libro y turno.
     $reservas = semsad_leer($conexion,
         "SELECT r.prioridad AS turno, m.titulo, u.nombres, u.apellidos, u.correo
            FROM reserva r
@@ -86,11 +100,13 @@ try {
           WHERE r.estado = 'Pendiente'
        ORDER BY m.titulo ASC, r.prioridad ASC");
 
+    // Inventario: se empieza con los 5 estados conocidos en 0 y luego se llena con los conteos reales.
     $inventario = ['Disponible' => 0, 'Prestado' => 0, 'Reservado' => 0, 'En Mantenimiento' => 0, 'Baja' => 0];
     foreach (semsad_leer($conexion, "SELECT estado_ejemplar AS estado, COUNT(*) AS n FROM ejemplar GROUP BY estado_ejemplar") as $f) {
         $inventario[$f['estado']] = (int)$f['n'];
     }
 
+    // Respuesta JSON con todos los reportes.
     semsad_responder([
         'status'          => 'success',
         'generado'        => date('Y-m-d H:i'),
@@ -102,6 +118,7 @@ try {
         'reservas'        => $reservas,
     ]);
 } catch (Throwable $e) {
+    // Error general: se guarda en el log del servidor y se responde 500.
     error_log('[SEMSAD] obtener_reportes: ' . $e->getMessage());
     semsad_responder(['status' => 'error', 'mensaje' => 'No se pudieron generar los reportes.'], 500);
 }

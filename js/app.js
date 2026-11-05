@@ -1,8 +1,19 @@
+// ARCHIVO: app.js
+// CAPA: FRONTEND (lo que ve y usa la persona en el navegador)
+// SIRVE PARA: lógica del portal de estudiantes: catálogo, búsqueda, reserva y lista de préstamos del usuario.
+// QUÉ HACE: al abrir la página carga los libros y los préstamos del usuario, dibuja las tarjetas,
+//   filtra por categoría o texto y abre un modal para reservar. Al confirmar, envía la reserva a la API.
+// CONECTA CON: ../api/buscar_libros_sirve_para_buscador_catalogo.php,
+//   listar_prestamos_sirve_para_panel_admin.php, verificar_sesion_sirve_para_saber_si_hay_login.php,
+//   registrar_prestamo_sirve_para_pedir_libro_estudiante.php y logout_sirve_para_cerrar_sesion.php.
+// NOTA: ninguna página HTML carga este archivo; principal/index.html tiene su propio script
+//   (revisar si este archivo se usa o se puede eliminar).
 /* ==========================================================================
    BIBLIOTECA SEMSAD - LÓGICA PORTAL ESTUDIANTES (APP.JS)
    Conectado al Backend PHP y MySQL - Versión estable
    ========================================================================== */
 
+// Ruta base de la API, relativa a la página que carga este archivo.
 const API_BASE = "../api";
 
 // Escapa texto antes de meterlo en innerHTML. Mismo comportamiento que SEMSAD.esc (js/config.js);
@@ -13,6 +24,7 @@ function escHtml(valor) {
     ));
 }
 
+// Estado de la app: usuario actual, categoría elegida, texto buscado, préstamos y libros.
 const state = {
     currentUser: { id: null, ci: null, name: null, role: null, active: false },
     activeCategory: "all",
@@ -22,8 +34,10 @@ const state = {
 };
 
 // ── INICIALIZACIÓN ─────────────────────────────────────────────────────────
+// Cuando la página termina de cargar, se inicia la aplicación.
 document.addEventListener("DOMContentLoaded", () => { initApp(); });
 
+// Orden de arranque: primero lo que se muestra al instante (datos guardados), luego lo que llega del servidor.
 async function initApp() {
     loadUserFromStorage(); // 1. Leer usuario guardado en localStorage (inmediato, sin esperar red)
     renderUserStatus();    // 2. Mostrar badge de usuario de inmediato
@@ -65,6 +79,7 @@ function loadUserFromStorage() {
 // Verificar en segundo plano la sesión PHP sin tumbar el estado de localStorage
 async function verifySessionInBackground() {
     try {
+        // Pregunta al servidor si la sesión PHP sigue activa; si sí, actualiza los datos locales.
         const response = await fetch(`${API_BASE}/verificar_sesion_sirve_para_saber_si_hay_login.php`, { credentials: "include" });
         const data = await response.json();
 
@@ -91,6 +106,7 @@ async function verifySessionInBackground() {
 
 // ── CATÁLOGO ───────────────────────────────────────────────────────────────
 
+// Descarga el catálogo de libros desde la API y lo guarda en state.books.
 async function loadBooks() {
     try {
         const response = await fetch(`${API_BASE}/buscar_libros_sirve_para_buscador_catalogo.php`, { credentials: "include" });
@@ -103,6 +119,7 @@ async function loadBooks() {
     }
 }
 
+// Descarga los préstamos del usuario. Usa el endpoint del panel admin con el parámetro usuario (revisar si es el endpoint correcto).
 async function loadMyLoans() {
     try {
         const response = await fetch(`${API_BASE}/listar_prestamos_sirve_para_panel_admin.php?usuario=${state.currentUser.id}`, { credentials: "include" });
@@ -117,6 +134,7 @@ async function loadMyLoans() {
 
 // ── UI ─────────────────────────────────────────────────────────────────────
 
+// Dibuja en la barra la sesión: nombre, CI, rol y botón Salir. Si no hay sesión, muestra Iniciar sesión.
 function renderUserStatus() {
     const userBadge = document.getElementById("userBadgeContainer");
     if (!userBadge) return;
@@ -133,6 +151,7 @@ function renderUserStatus() {
                 </button>
             </div>
         `;
+        // Conecta el botón Salir. Se conecta aquí porque el botón se crea con JavaScript.
         document.getElementById("btnLogout").addEventListener("click", handleLogout);
     } else {
         userBadge.innerHTML = `
@@ -143,6 +162,7 @@ function renderUserStatus() {
     }
 }
 
+// Suma las copias disponibles de cada categoría (software, telecom y db) y las escribe en las tarjetas.
 function renderCategoryCounts() {
     const counts = {
         software: state.books.filter(b => b.category === "software").reduce((s, b) => s + b.stock, 0),
@@ -155,10 +175,12 @@ function renderCategoryCounts() {
     if (el("countDb"))       el("countDb").textContent       = `${counts.db} copias`;
 }
 
+// Dibuja el catálogo: primero aplica el filtro de categoría y el texto de búsqueda.
 function renderCatalog() {
     const container = document.getElementById("catalogGrid");
     if (!container) return;
 
+    // Un libro pasa el filtro si coincide con la categoría y con el texto (título, autor o ISBN).
     const filtered = state.books.filter(book => {
         const matchCat = state.activeCategory === "all" || book.category === state.activeCategory;
         const q = state.searchQuery.toLowerCase().trim();
@@ -169,12 +191,14 @@ function renderCatalog() {
         return matchCat && matchQ;
     });
 
+    // Sin resultados: muestra un mensaje con el botón Restablecer.
     if (filtered.length === 0) {
         container.innerHTML = `
             <div class="col-12 text-center py-5">
                 <i class="fa-solid fa-book-open-reader fa-2x text-muted mb-2"></i>
                 <p class="text-muted">Sin resultados. <button class="btn btn-link btn-sm" id="btnReset">Restablecer</button></p>
             </div>`;
+        // Restablecer: vuelve a mostrar todo el catálogo y limpia el buscador y el selector.
         document.getElementById("btnReset")?.addEventListener("click", () => {
             state.activeCategory = "all";
             state.searchQuery = "";
@@ -187,6 +211,7 @@ function renderCatalog() {
         return;
     }
 
+    // Crea una tarjeta por libro. Está disponible si tiene stock mayor a 0; si no, muestra Agotado.
     container.innerHTML = filtered.map(book => {
         const avail = book.stock > 0;
         const badge = book.categoryTheme === "green" ? "badge-green" : (book.categoryTheme === "red" ? "badge-red" : "badge-blue");
@@ -224,11 +249,13 @@ function renderCatalog() {
     }).join("");
 }
 
+// Escribe la cantidad de préstamos en el indicador del menú.
 function renderMyLoansCount() {
     const badge = document.getElementById("navLoansBadge");
     if (badge) badge.textContent = state.myLoans.length;
 }
 
+// Dibuja la lista de préstamos dentro del modal: vencidos en rojo y activos en azul.
 function renderMyLoansList() {
     const container = document.getElementById("loansListContainer");
     if (!container) return;
@@ -253,17 +280,21 @@ function renderMyLoansList() {
 
 // ── LISTENERS ──────────────────────────────────────────────────────────────
 
+// Conecta los controles de la página (buscador, categorías y enlace de préstamos) con sus funciones.
 function setupEventListeners() {
+    // Buscador: cada vez que se escribe, guarda el texto y vuelve a dibujar el catálogo.
     document.getElementById("searchInput")?.addEventListener("input", e => {
         state.searchQuery = e.target.value;
         renderCatalog();
     });
 
+    // Selector de categoría: al cambiarlo, vuelve a filtrar el catálogo.
     document.getElementById("categorySelect")?.addEventListener("change", e => {
         state.activeCategory = e.target.value;
         renderCatalog();
     });
 
+    // Tarjetas de categoría: al hacer clic filtran el catálogo; otro clic sobre la misma categoría la quita.
     document.querySelectorAll("[data-category-filter]").forEach(card => {
         card.addEventListener("click", function () {
             const cat = this.dataset.categoryFilter;
@@ -275,6 +306,7 @@ function setupEventListeners() {
         });
     });
 
+    // Enlace Mis préstamos: dibuja la lista y abre el modal de Bootstrap.
     document.getElementById("navLoansLink")?.addEventListener("click", e => {
         e.preventDefault();
         renderMyLoansList();
@@ -285,6 +317,7 @@ function setupEventListeners() {
 
 // ── RESERVA ────────────────────────────────────────────────────────────────
 
+// Abre el modal de reserva con los datos del libro. Si no hay sesión, avisa y manda al login.
 window.openReserveModal = function (bookId) {
     if (!state.currentUser.active) {
         alert("Debes iniciar sesión para reservar libros.");
@@ -293,11 +326,13 @@ window.openReserveModal = function (bookId) {
     }
 
     const book = state.books.find(b => b.id == bookId);
+    // Si el libro no existe o no tiene copias, no hace nada.
     if (!book || book.stock <= 0) return;
 
     const modalBody = document.getElementById("reserveModalBody");
     if (!modalBody) return;
 
+    // Llena el modal con la portada, el autor y una tabla con categoría, ubicación, copias y plazo (7 días).
     modalBody.innerHTML = `
         <div class="row g-3">
             <div class="col-4 text-center">
@@ -316,10 +351,12 @@ window.openReserveModal = function (bookId) {
             </div>
         </div>`;
 
+    // Al hacer clic en Confirmar se reserva este libro.
     document.getElementById("btnConfirmReserve").onclick = () => confirmReservation(book);
     new bootstrap.Modal(document.getElementById("reserveModal")).show();
 };
 
+// Envía la reserva (POST) con el id del usuario, el id del libro y 7 días de préstamo.
 async function confirmReservation(book) {
     try {
         const response = await fetch(`${API_BASE}/registrar_prestamo_sirve_para_pedir_libro_estudiante.php`, {
@@ -330,6 +367,7 @@ async function confirmReservation(book) {
         });
         const data = await response.json();
 
+        // Si se reservó: cierra el modal, avisa y vuelve a cargar libros, préstamos y contadores.
         if (data.status === "success") {
             bootstrap.Modal.getInstance(document.getElementById("reserveModal"))?.hide();
             showToast(`Reserva confirmada: "${book.title}"`, "success");
@@ -348,6 +386,7 @@ async function confirmReservation(book) {
 
 // ── LOGOUT ─────────────────────────────────────────────────────────────────
 
+// Cierra la sesión tras confirmar: borra el usuario del navegador, avisa al servidor y regresa al login.
 async function handleLogout() {
     if (!confirm("¿Deseas cerrar tu sesión?")) return;
     localStorage.removeItem("semsad_user");
@@ -357,6 +396,7 @@ async function handleLogout() {
 
 // ── TOAST ──────────────────────────────────────────────────────────────────
 
+// Muestra un aviso de Bootstrap; el color cambia según el tipo (éxito, error o normal).
 function showToast(message, type = "info") {
     const toastEl = document.getElementById("liveToast");
     const toastBody = document.getElementById("toastMessageBody");

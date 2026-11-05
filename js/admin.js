@@ -1,8 +1,19 @@
+// ARCHIVO: admin.js
+// CAPA: FRONTEND (lo que ve y usa la persona en el navegador)
+// SIRVE PARA: lógica del panel del personal: indicadores, inventario, ventanilla, devoluciones y auditoría.
+// QUÉ HACE: pide libros, préstamos y auditoría a la API y dibuja los indicadores y las tablas.
+//   Permite cambiar de sección desde el menú y registrar devoluciones indicando el estado del libro.
+// CONECTA CON: ../api/buscar_libros_sirve_para_buscador_catalogo.php,
+//   listar_prestamos_sirve_para_panel_admin.php, obtener_auditoria_sirve_para_ver_intentos_de_acceso.php
+//   y registrar_devolucion_sirve_para_recibir_libro_con_estado.php.
+// NOTA: ninguna página HTML carga este archivo; principal/admin.html tiene su propio código
+//   (revisar si este archivo se usa o se puede eliminar).
 /* ==========================================================================
    BIBLIOTECA SEMSAD - PANEL DE ADMINISTRACIÓN (ADMIN.JS)
    Conectado al Backend PHP y MySQL - Versión limpia y estable
    ========================================================================== */
 
+// Ruta base de la API, relativa a la página que carga este archivo.
 const API_BASE = "../api";
 
 // Escapa texto antes de meterlo en innerHTML. Mismo comportamiento que SEMSAD.esc (js/config.js);
@@ -13,15 +24,18 @@ function escHtml(valor) {
     ));
 }
 
+// Datos del panel: lista de libros y lista de préstamos, que llegan de la API.
 const state = {
     books: [],
     loans: []
 };
 
+// Cuando la página carga, inicia el panel.
 document.addEventListener("DOMContentLoaded", () => {
     initAdminApp();
 });
 
+// Orden de arranque: primero el menú, después los datos y por último se dibuja cada sección.
 async function initAdminApp() {
     setupNavigation();
     await loadBooks();
@@ -34,6 +48,7 @@ async function initAdminApp() {
 
 // ── CARGA DE DATOS ─────────────────────────────────────────────────────────
 
+// Descarga el catálogo y lo guarda en state.books.
 async function loadBooks() {
     try {
         const res = await fetch(`${API_BASE}/buscar_libros_sirve_para_buscador_catalogo.php`, { credentials: "include" });
@@ -44,6 +59,7 @@ async function loadBooks() {
     }
 }
 
+// Descarga los préstamos y los guarda en state.loans.
 async function loadLoans() {
     try {
         const res = await fetch(`${API_BASE}/listar_prestamos_sirve_para_panel_admin.php`, { credentials: "include" });
@@ -56,14 +72,17 @@ async function loadLoans() {
 
 // ── AUDITORÍA DE SEGURIDAD ─────────────────────────────────────────────────
 
+// Dibuja la tabla de auditoría (intentos de inicio de sesión).
 async function loadAuditLogs() {
     const tbody = document.getElementById("tablaAuditoriaBody") || document.getElementById("auditoriaAdminBody");
     if (!tbody) return;
 
     try {
+        // Pide la auditoría a la API.
         const res = await fetch(`${API_BASE}/obtener_auditoria_sirve_para_ver_intentos_de_acceso.php`, { credentials: "include" });
         const data = await res.json();
 
+        // Si hay datos, arma una fila por intento: éxito en verde y fallo en rojo.
         if (data.status === "success" && data.datos && data.datos.length > 0) {
             tbody.innerHTML = data.datos.map(item => {
                 const esExito = item.estado === 'Exitoso';
@@ -92,10 +111,12 @@ async function loadAuditLogs() {
     }
 }
 
+// Permite llamar a esta función desde el HTML.
 window.loadAuditLogs = loadAuditLogs;
 
 // ── NAVEGACIÓN ─────────────────────────────────────────────────────────────
 
+// Menú lateral: al hacer clic en una opción se resalta y se muestra su sección; las demás se ocultan.
 function setupNavigation() {
     const navItems = document.querySelectorAll(".nav-item-admin");
     const sections = document.querySelectorAll(".admin-section");
@@ -117,6 +138,7 @@ function setupNavigation() {
 
 // ── DASHBOARD ──────────────────────────────────────────────────────────────
 
+// Calcula los indicadores: total de libros, disponibles (suma de stock) y préstamos activos o vencidos.
 function renderDashboard() {
     const totalBooks   = state.books.reduce((s, b) => s + (b.total || 0), 0);
     const availBooks   = state.books.reduce((s, b) => s + (b.stock || 0), 0);
@@ -133,6 +155,7 @@ function renderDashboard() {
 
 // ── INVENTARIO ─────────────────────────────────────────────────────────────
 
+// Dibuja la tabla de inventario, una fila por libro. El botón Editar todavía no hace nada (próximamente).
 function renderBooksTable() {
     const tbody = document.getElementById("adminBooksTableBody");
     if (!tbody) return;
@@ -169,6 +192,7 @@ function renderBooksTable() {
 
 // ── VENTANILLA ─────────────────────────────────────────────────────────────
 
+// Dibuja la tabla de ventanilla con los préstamos activos o vencidos. Cada fila tiene el botón Recibir.
 function renderCirculationView() {
     const tbody = document.getElementById("circActiveLoansTable");
     if (!tbody) return;
@@ -208,6 +232,7 @@ function renderCirculationView() {
 
 // ── DEVOLUCIÓN ─────────────────────────────────────────────────────────────
 
+// Proceso de devolución: confirmar, pedir el estado físico del libro y enviarlo al servidor.
 window.processReturn = async function(loanId) {
     if (!confirm("¿Confirmar recepción y devolución del libro?")) return;
 
@@ -215,12 +240,14 @@ window.processReturn = async function(loanId) {
     const respuesta = prompt("Estado físico del libro al recibirlo: escriba Bueno, Regular o Malo", "Bueno");
     if (respuesta === null) return; // canceló
     const condicion = respuesta.trim();
+    // Solo acepta Bueno, Regular o Malo; cualquier otra palabra se rechaza.
     if (!["Bueno", "Regular", "Malo"].includes(condicion)) {
         showToast("Estado no válido. Escriba Bueno, Regular o Malo.", "danger");
         return;
     }
 
     try {
+        // Envía el id del préstamo y el estado físico a la API (POST).
         const res = await fetch(`${API_BASE}/registrar_devolucion_sirve_para_recibir_libro_con_estado.php`, {
             method: "POST",
             credentials: "include",
@@ -229,6 +256,7 @@ window.processReturn = async function(loanId) {
         });
         const data = await res.json();
 
+        // Si se registró: muestra el aviso y vuelve a cargar datos, indicadores, ventanilla e inventario.
         if (data.status === "success") {
             showToast("Devolución registrada. El ejemplar vuelve a estar Disponible.", "success");
             await loadLoans();
@@ -246,6 +274,7 @@ window.processReturn = async function(loanId) {
 
 // ── TOAST ──────────────────────────────────────────────────────────────────
 
+// Muestra un aviso de Bootstrap en el contenedor adminToast; el color depende del tipo.
 function showToast(msg, type = "info") {
     const toastEl   = document.getElementById("adminToast");
     const toastBody = document.getElementById("adminToastBody");

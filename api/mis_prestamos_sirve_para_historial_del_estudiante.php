@@ -1,4 +1,10 @@
 <?php
+// ARCHIVO: mis_prestamos_sirve_para_historial_del_estudiante.php
+// CAPA: BACKEND (API del servidor)
+// SIRVE PARA: Mostrar al estudiante el historial de sus propios préstamos.
+// QUÉ HACE: No recibe datos: identifica al usuario con la sesión del servidor (no con lo que mande el navegador). Marca como vencidos los préstamos
+// que ya pasaron su fecha, busca los préstamos de ese usuario con los datos del libro y responde la lista con fechas día/mes/año.
+// CONECTA CON: conexion_sirve_para_conectar_base_datos.php; usuario_actual_sirve_para_identificar_quien_pide.php (dice quién hace la petición); reglas_prestamos_sirve_para_multas_y_plazos.php (contiene semsad_marcar_vencidos); pantalla de historial del estudiante (revisar qué archivo HTML la llama).
 require_once 'conexion_sirve_para_conectar_base_datos.php';
 require_once __DIR__ . '/usuario_actual_sirve_para_identificar_quien_pide.php';
 require_once __DIR__ . '/reglas_prestamos_sirve_para_multas_y_plazos.php';
@@ -10,6 +16,7 @@ try {
     $usuarioActual = semsad_usuario_actual($conexion);
     $id_usuario = $usuarioActual ? (int)$usuarioActual['id_usuario'] : 0;
 
+    // Si no se identificó a nadie, se responde error 400 y no se consulta nada.
     if ($id_usuario <= 0) {
         semsad_responder(['status' => 'error', 'mensaje' => 'Usuario no identificado.'], 400);
     }
@@ -18,6 +25,7 @@ try {
 
     $exprAutores = semsad_expr_autores($conexion, 'm');   // columna autores, o Material_Autor si no existe
     $exprIsbn = semsad_expr_isbn($conexion, 'm');
+    // Consulta del historial: préstamos de este usuario con los datos de cada libro. INNER JOIN deja fuera los préstamos sin libro asociado.
     $sql = "SELECT 
                 p.id_prestamo,
                 m.titulo AS libro_titulo,
@@ -37,6 +45,7 @@ try {
     $stmt->execute([':u' => $id_usuario]);
     $filas = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
+    // Lista de préstamos en el formato que espera la pantalla (fechas en día/mes/año).
     $misPrestamos = [];
     foreach ($filas as $f) {
         $misPrestamos[] = [
@@ -50,12 +59,14 @@ try {
         ];
     }
 
+    // Respuesta de éxito con la lista (en dos nombres: prestamos y data).
     semsad_responder([
         'status' => 'success',
         'prestamos' => $misPrestamos,
         'data' => $misPrestamos
     ]);
 
+// Si algo falla, se responde con error 500.
 } catch (Exception $e) {
     semsad_responder(['status' => 'error', 'mensaje' => 'Error al obtener tus préstamos.' . semsad_detalle_error($e)], 500);
 }

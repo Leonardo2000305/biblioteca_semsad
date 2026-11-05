@@ -1,4 +1,10 @@
 <?php
+// ARCHIVO: listar_prestamos_sirve_para_panel_admin.php
+// CAPA: BACKEND (API del servidor)
+// SIRVE PARA: Mostrar en el panel del administrador la lista de préstamos que todavía no se devolvieron.
+// QUÉ HACE: Solo personal. Busca los préstamos Activos, Vencidos o Con Mora, con los datos del usuario y del libro. Los teléfonos se piden en una consulta aparte.
+// Calcula el estado que se muestra (Vencido si ya pasó la fecha límite) y responde la lista con varios nombres de campo por compatibilidad.
+// CONECTA CON: conexion_sirve_para_conectar_base_datos.php; pantalla del panel de administración de préstamos (revisar qué archivo HTML la llama).
 require_once 'conexion_sirve_para_conectar_base_datos.php';
 // Solo personal de la biblioteca (Administrador / Bibliotecario)
 semsad_requerir_rol(['Administrador', 'Bibliotecario']);
@@ -6,6 +12,7 @@ semsad_requerir_rol(['Administrador', 'Bibliotecario']);
 header('Content-Type: application/json; charset=utf-8');
 
 try {
+    // Consulta principal: préstamos sin devolver. Usa LEFT JOIN para que un dato faltante no haga desaparecer el préstamo de la lista.
     $sql = "SELECT 
                 p.id_prestamo,
                 p.id_usuario,
@@ -37,8 +44,10 @@ try {
         $telefonos = [];
     }
 
+    // Aquí se arma la lista que se envía a la pantalla: una fila por préstamo.
     $prestamos = [];
     foreach ($filas as $f) {
+        // Une nombre y apellidos. Si no hay nombre, se muestra el correo.
         $nombreCompleto = trim(($f['user_nombres'] ?? '') . ' ' . ($f['user_apellidos'] ?? ''));
         if (empty($nombreCompleto)) {
             $nombreCompleto = $f['user_correo'] ?? '';
@@ -56,6 +65,7 @@ try {
         $statusVista = (in_array($f['estado'] ?? '', ['Vencido', 'Con Mora'], true) || ($limiteTs !== false && $limiteTs < time()))
             ? 'Vencido' : 'Activo';
 
+        // Fila para la pantalla. Algunos campos se repiten en español e inglés por compatibilidad con la web.
         $prestamos[] = [
             'id'            => (int)$f['id_prestamo'],
             'id_prestamo'   => (int)$f['id_prestamo'],
@@ -78,6 +88,7 @@ try {
         ];
     }
 
+    // Respuesta de éxito con la lista. Se envía en tres nombres (prestamos, datos y data) por compatibilidad.
     semsad_responder([
         'status'    => 'success',
         'prestamos' => $prestamos,
@@ -85,6 +96,7 @@ try {
         'data'      => $prestamos
     ]);
 
+// Si algo falla, se responde con error 500. El detalle técnico solo aparece en modo depuración.
 } catch (Exception $e) {
     semsad_responder(['status' => 'error', 'mensaje' => 'Error al listar préstamos.' . semsad_detalle_error($e)], 500);
 }

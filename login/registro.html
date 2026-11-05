@@ -1,4 +1,14 @@
 <!DOCTYPE html>
+<!--
+    ARCHIVO: registro.html
+    CAPA: FRONTEND (lo que ve y usa la persona en el navegador)
+    SIRVE PARA: que un estudiante cree su cuenta nueva, confirmando su correo con un código.
+    QUÉ HACE: paso 1: pide los datos y envía un código de verificación al correo.
+              paso 2: la persona escribe el código y confirma; si es correcto, el servidor crea la cuenta.
+              Al terminar, la página vuelve al inicio de sesión.
+    CONECTA CON: enviar_codigo_sirve_para_registro_de_usuario.php,
+                 registrar_usuario_sirve_para_crear_cuenta_al_registrarse.php y js/config.js
+-->
 <html lang="es">
 <head>
     <meta charset="UTF-8">
@@ -10,10 +20,12 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
 
     <style>
+        /* Regla general: el relleno y el borde se cuentan dentro del tamaño de cada elemento */
         * {
             box-sizing: border-box;
         }
 
+        /* body: fondo azul oscuro, ocupa toda la pantalla y centra la tarjeta */
         body {
             background-color: #0f172a;
             font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
@@ -25,6 +37,7 @@
             margin: 0;
         }
 
+        /* Tarjeta blanca del formulario de registro (ancho máximo de 520 px) */
         .card-registro {
             background: #ffffff;
             border-radius: 20px;
@@ -40,6 +53,7 @@
             }
         }
 
+        /* Círculo azul con el ícono arriba del título */
         .icon-header {
             width: 64px;
             height: 64px;
@@ -54,6 +68,7 @@
             box-shadow: 0 8px 15px -3px rgba(37, 99, 235, 0.3);
         }
 
+        /* Texto de las etiquetas que van encima de cada campo */
         .form-label {
             font-weight: 600;
             color: #1e293b;
@@ -61,12 +76,14 @@
             margin-bottom: 5px;
         }
 
+        /* Cajita gris de la izquierda de cada campo, donde va el ícono (sobre, candado, llave) */
         .input-group-text {
             background-color: #f8fafc;
             border-color: #cbd5e1;
             color: #64748b;
         }
 
+        /* Campos de texto: borde gris y esquinas redondeadas */
         .form-control {
             border-color: #cbd5e1;
             padding: 11px 12px;
@@ -74,11 +91,13 @@
             border-radius: 8px;
         }
 
+        /* Cuando el campo está seleccionado, el borde se vuelve azul */
         .form-control:focus {
             border-color: #2563eb;
             box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
         }
 
+        /* Botón del ojo (mostrar contraseña), a la derecha de cada campo de clave */
         .btn-toggle-eye {
             border: 1px solid #cbd5e1;
             background-color: #ffffff;
@@ -94,6 +113,7 @@
             color: #1e293b;
         }
 
+        /* Botón «Enviar Código»: blanco con borde azul; se llena de azul al pasar el mouse */
         .btn-primary-custom {
             background-color: #ffffff;
             color: #2563eb;
@@ -111,6 +131,7 @@
             color: #ffffff;
         }
 
+        /* Botón «Confirmar y Crear Cuenta»: verde */
         .btn-success-custom {
             background-color: #16a34a;
             color: #ffffff;
@@ -127,6 +148,7 @@
             background-color: #15803d;
         }
 
+        /* Enlace «Volver al Inicio de Sesión» */
         .link-login {
             color: #64748b;
             text-decoration: none;
@@ -138,6 +160,7 @@
             color: #2563eb;
         }
 
+        /* Recuadro punteado que aparece después de enviar el código; contiene el campo del código */
         #seccion_otp {
             background-color: #f8fafc;
             border: 2px dashed #2563eb;
@@ -149,17 +172,23 @@
 </head>
 <body>
 
+<!-- Tarjeta central del formulario de registro -->
 <div class="card-registro">
+    <!-- Círculo con el ícono arriba del título -->
     <div class="icon-header">
         <i class="fas fa-user-shield"></i>
     </div>
 
+    <!-- Título de la página -->
     <h3 class="text-center fw-bold text-dark mb-1 fs-4">Crear Cuenta Estudiante</h3>
     <p class="text-center text-muted small mb-4">Biblioteca SEMSAD</p>
 
+    <!-- Caja de mensajes (error o éxito). Empieza oculta; la función mostrarAlerta la muestra -->
     <div id="alerta_mensaje" class="alert d-none" role="alert"></div>
 
+    <!-- Formulario de registro. onsubmit="return false;" evita el envío normal; los botones llaman a funciones de JavaScript -->
     <form id="formRegistro" autocomplete="off" onsubmit="return false;">
+        <!-- Fila 1: nombres y apellidos -->
         <div class="row g-2 mb-2">
             <div class="col-12 col-sm-6 mb-2 mb-sm-0">
                 <label class="form-label">Nombres</label>
@@ -171,6 +200,7 @@
             </div>
         </div>
 
+        <!-- Correo electrónico. type="email" hace que el navegador revise que tenga formato de correo -->
         <div class="mb-3">
             <label class="form-label">Correo Electrónico</label>
             <div class="input-group">
@@ -179,6 +209,8 @@
             </div>
         </div>
 
+        <!-- Fila 2: carnet de identidad y teléfono. El id «codigo_empleado» es el nombre técnico del campo del CI;
+             se mantiene porque se envía con ese nombre al servidor -->
         <div class="row g-2 mb-2">
             <div class="col-12 col-sm-6 mb-2 mb-sm-0">
                 <label class="form-label">Carnet de Identidad (CI)</label>
@@ -190,6 +222,7 @@
             </div>
         </div>
 
+        <!-- Fila 3: contraseña y confirmación. Cada una tiene su botón del ojo -->
         <div class="row g-2 mb-4">
             <div class="col-12 col-sm-6 mb-3 mb-sm-0">
                 <label class="form-label">Contraseña Secreta</label>
@@ -214,24 +247,29 @@
             </div>
         </div>
 
+        <!-- Paso 1: pide al servidor que envíe el código al correo. Llama a enviarCodigoOTP() -->
         <button id="btnEnviarCodigo" type="button" onclick="enviarCodigoOTP()" class="btn btn-primary-custom">
             <i class="fas fa-paper-plane me-2"></i> Enviar Código de Verificación
         </button>
 
+        <!-- Paso 2: aparece después de enviar el código (se le quita la clase d-none). Contiene el campo del código y los dos botones de abajo -->
         <div id="seccion_otp" class="d-none">
             <label class="form-label text-center d-block fw-bold text-primary mb-2">
                 Ingresa el Código de 6 Dígitos recibido en tu Correo:
             </label>
             <input type="text" id="codigo_otp" class="form-control text-center fs-3 fw-bold mb-3" placeholder="000000" maxlength="6" autocomplete="off">
+            <!-- Reenviar código: empieza desactivado y se activa cuando termina la cuenta regresiva de 60 segundos -->
             <button id="btnReenviar" type="button" onclick="enviarCodigoOTP(true)" class="btn btn-link w-100 mb-2 text-decoration-none" disabled>
                 <i class="fas fa-rotate-right me-1"></i> <span id="txtReenviar">Reenviar código</span>
             </button>
+            <!-- Paso 3: verifica el código y crea la cuenta. Llama a completarRegistro() -->
             <button id="btnConfirmarRegistro" type="button" onclick="completarRegistro()" class="btn btn-success-custom">
                 <i class="fas fa-check-circle me-2"></i> Confirmar y Crear Cuenta
             </button>
         </div>
     </form>
 
+    <!-- Enlace para volver a la pantalla de inicio de sesión -->
     <div class="text-center mt-4">
         <a href="index.html" class="link-login">
             <i class="fas fa-arrow-left me-1"></i> Volver al Inicio de Sesión
@@ -239,9 +277,12 @@
     </div>
 </div>
 
+<!-- Carga config.js antes que la lógica de esta página: define window.SEMSAD_API y el objeto SEMSAD -->
 <script src="../js/config.js"></script>
 
+<!-- Lógica del registro: mostrar u ocultar la clave, enviar el código, reenviarlo y crear la cuenta -->
 <script>
+// Muestra u oculta la contraseña: si el campo está oculto (password) lo pasa a visible (text) y cambia el icono del ojo
 function toggleVisibilidad(idInput, boton) {
     const input = document.getElementById(idInput);
     const icono = boton.querySelector('i');
@@ -257,12 +298,14 @@ function toggleVisibilidad(idInput, boton) {
     }
 }
 
+// Muestra el mensaje dentro de la tarjeta (verde o rojo) y además lanza un aviso flotante de 6 segundos
 function mostrarAlerta(mensaje, tipo) {
     const alerta = document.getElementById('alerta_mensaje');
     alerta.className = `alert alert-${tipo === 'success' ? 'success' : 'danger'} alert-dismissible fade show small`;
     // textContent (no innerHTML): el mensaje viene del servidor y no debe interpretarse como HTML
     alerta.textContent = mensaje;
     alerta.classList.remove('d-none');
+    // Aviso flotante en la esquina; la función toast está definida en js/config.js
     SEMSAD.toast(mensaje, tipo === 'success' ? 'success' : 'error', 6000);
 }
 
@@ -270,17 +313,21 @@ function mostrarAlerta(mensaje, tipo) {
 async function llamarApi(archivo, datos) {
     let resp;
     try {
+        // LLAMADA AL SERVIDOR: POST con los datos en JSON al archivo indicado en el parámetro «archivo»
         resp = await fetch(`${window.SEMSAD_API}/${archivo}`, {
             method: 'POST',
             credentials: 'include',
             headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
             body: JSON.stringify(datos)
         });
+    // Si no hay conexión, el fetch falla: se registra el error y se lanza un mensaje claro para la persona
     } catch (e) {
         console.error('Sin conexión con la API:', e);
         throw new Error('No se pudo conectar con el servidor. Revisa tu conexión e inténtalo de nuevo.');
     }
+    // Lee la respuesta como texto para poder mostrarla en la consola si no es JSON
     const texto = await resp.text();
+    // Convierte el texto en objeto JSON; si falla, el servidor respondió algo que no es JSON
     try {
         return JSON.parse(texto);
     } catch (e) {
@@ -292,6 +339,7 @@ async function llamarApi(archivo, datos) {
 // ── Reenvío del código: cuenta regresiva de 60 s ────────────────────────────
 let temporizadorReenvio = null;
 
+// Desactiva el botón Reenviar y cuenta hacia atrás los segundos indicados; al llegar a cero lo vuelve a activar
 function iniciarCuentaRegresiva(segundos) {
     const btn = document.getElementById('btnReenviar');
     const txt = document.getElementById('txtReenviar');
@@ -311,7 +359,10 @@ function iniciarCuentaRegresiva(segundos) {
     }, 1000);
 }
 
+// PASO 1 (y reenvío): revisa los datos, pide al servidor que envíe el código al correo y muestra el paso 2.
+// Si esReenvio es true, solo pide un código nuevo y no cambia la pantalla
 async function enviarCodigoOTP(esReenvio = false) {
+    // Lee los datos del formulario. trim() quita los espacios sobrantes
     const nombres = document.getElementById('nombres').value.trim();
     const apellidos = document.getElementById('apellidos').value.trim();
     const correo = document.getElementById('correo').value.trim();
@@ -320,19 +371,24 @@ async function enviarCodigoOTP(esReenvio = false) {
     const clave = document.getElementById('clave').value;
     const confirmar_clave = document.getElementById('confirmar_clave').value;
 
+    // Validación 1: todos los campos deben tener algo
     if (!nombres || !apellidos || !correo || !codigo_empleado || !telefono || !clave || !confirmar_clave) {
         mostrarAlerta('Por favor, completa todos los campos del formulario.', 'error');
         return;
     }
+    // Validación 2: la contraseña debe tener al menos 8 caracteres
+    // REVISAR: esta regla se comprueba aquí en el navegador; confirmar en el backend que el servidor también la valida
     if (clave.length < 8) {
         mostrarAlerta('La contraseña debe tener al menos 8 caracteres.', 'error');
         return;
     }
+    // Validación 3: las dos contraseñas deben ser iguales
     if (clave !== confirmar_clave) {
         mostrarAlerta('Las contraseñas no coinciden. Por favor verifica.', 'error');
         return;
     }
 
+    // Bloquea los botones mientras se envía el código (al enviar por primera vez, el texto del botón cambia a un mensaje de espera)
     const btn = document.getElementById('btnEnviarCodigo');
     const btnRe = document.getElementById('btnReenviar');
     const textoBtn = '<i class="fas fa-paper-plane me-2"></i> Enviar Código de Verificación';
@@ -341,7 +397,9 @@ async function enviarCodigoOTP(esReenvio = false) {
     if (!esReenvio) btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i> Enviando código al correo...';
 
     try {
+        // LLAMADA AL SERVIDOR: enviar_codigo_sirve_para_registro_de_usuario.php recibe correo, CI y teléfono y envía el código de verificación
         const data = await llamarApi('enviar_codigo_sirve_para_registro_de_usuario.php', { correo, codigo_empleado, telefono });
+        // Si el servidor confirma el envío: muestra el paso 2, oculta el botón de enviar y empieza la cuenta de 60 segundos para reenviar
         if (data.status === 'success') {
             mostrarAlerta(esReenvio ? 'Te enviamos un código nuevo. El anterior ya no sirve.' : (data.mensaje || 'Código de verificación enviado.'), 'success');
             document.getElementById('seccion_otp').classList.remove('d-none');
@@ -349,6 +407,7 @@ async function enviarCodigoOTP(esReenvio = false) {
             document.getElementById('codigo_otp').focus();
             btn.classList.add('d-none');
             iniciarCuentaRegresiva(60);
+        // Si el servidor rechaza el envío, muestra su mensaje. Si indica un tiempo de espera («espera»), activa la cuenta regresiva con ese tiempo
         } else {
             mostrarAlerta(data.mensaje || 'No se pudo enviar el código.', 'error');
             if (data.espera) {
@@ -358,6 +417,7 @@ async function enviarCodigoOTP(esReenvio = false) {
             }
             if (!esReenvio) { btn.disabled = false; btn.innerHTML = textoBtn; }
         }
+    // Error de conexión u otro error: muestra el mensaje y devuelve el botón a su estado normal
     } catch (err) {
         mostrarAlerta(err.message, 'error');
         if (esReenvio) btnRe.disabled = false;
@@ -365,7 +425,9 @@ async function enviarCodigoOTP(esReenvio = false) {
     }
 }
 
+// PASO 3: junta todos los datos y el código, los envía al servidor para crear la cuenta y, si sale bien, lleva al inicio de sesión
 async function completarRegistro() {
+    // Junta los datos del formulario en un solo objeto (payload) que se envía al servidor. El campo codigo_empleado es el CI
     const payload = {
         nombres: document.getElementById('nombres').value.trim(),
         apellidos: document.getElementById('apellidos').value.trim(),
@@ -376,26 +438,32 @@ async function completarRegistro() {
         codigo_otp: document.getElementById('codigo_otp').value.trim()
     };
 
+    // Si no escribió el código, avisa y no llama al servidor
     if (!payload.codigo_otp) {
         mostrarAlerta('Ingresa el código de 6 dígitos enviado a tu correo.', 'error');
         return;
     }
 
+    // Bloquea el botón mientras se verifica el código y se crea la cuenta
     const btn = document.getElementById('btnConfirmarRegistro');
     const textoBtn = '<i class="fas fa-check-circle me-2"></i> Confirmar y Crear Cuenta';
     btn.disabled = true;
     btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i> Verificando código y creando cuenta...';
 
     try {
+        // LLAMADA AL SERVIDOR: registrar_usuario_sirve_para_crear_cuenta_al_registrarse.php verifica el código y crea la cuenta
         const data = await llamarApi('registrar_usuario_sirve_para_crear_cuenta_al_registrarse.php', payload);
+        // Cuenta creada: muestra el aviso y, tras 1,8 segundos, lleva a index.html (inicio de sesión)
         if (data.status === 'success') {
             mostrarAlerta('¡Cuenta creada con éxito! Redirigiendo al inicio de sesión...', 'success');
             setTimeout(() => { window.location.href = 'index.html'; }, 1800);
+        // Si el servidor no pudo crear la cuenta (por ejemplo, código incorrecto), muestra su mensaje y reactiva el botón
         } else {
             mostrarAlerta(data.mensaje || 'No se pudo crear la cuenta.', 'error');
             btn.disabled = false;
             btn.innerHTML = textoBtn;
         }
+    // Error de conexión: avisa a la persona y reactiva el botón
     } catch (err) {
         mostrarAlerta(err.message, 'error');
         btn.disabled = false;

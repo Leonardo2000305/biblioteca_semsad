@@ -1,10 +1,19 @@
 <!DOCTYPE html>
+<!--
+    ARCHIVO: recuperar.html
+    CAPA: FRONTEND (lo que ve y usa la persona en el navegador)
+    SIRVE PARA: que la persona pida un enlace para cambiar su contraseña si la olvidó.
+    QUÉ HACE: muestra un campo para el correo o código y, al enviarlo, pide al servidor que envíe el enlace de recuperación.
+              Muestra el resultado (éxito o error) en una caja y en un aviso flotante; si sale bien, limpia el campo.
+    CONECTA CON: solicitar_recuperacion_sirve_para_enviar_enlace_de_clave.php (API, vía window.SEMSAD_API) y js/config.js
+-->
 <html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Recuperar Contraseña - SEMSAD</title>
     <style>
+        /* body: fondo gris claro y la tarjeta centrada en la pantalla */
         body { 
             font-family: Arial, sans-serif; 
             background-color: #f4f7f6; 
@@ -14,6 +23,7 @@
             height: 100vh; 
             margin: 0; 
         }
+        /* Tarjeta blanca centrada, con sombra suave y bordes redondeados */
         .contenedor { 
             background: white; 
             padding: 40px; 
@@ -29,6 +39,7 @@
             body { height: auto; min-height: 100vh; padding: 16px 12px; box-sizing: border-box; }
             .contenedor { padding: 24px 16px; }
         }
+        /* Título y textos de la tarjeta */
         h2 {
             color: #333;
             margin-bottom: 8px;
@@ -41,6 +52,7 @@
             line-height: 1.4;
         }
 
+        /* Campo de texto del correo o código: ocupa todo el ancho */
         input { 
             width: 100%; 
             padding: 12px; 
@@ -51,6 +63,7 @@
             font-size: 14px;
         }
 
+        /* Botón «Enviar Instrucciones»: azul, con bordes muy redondeados; cambia de color al pasar el mouse */
         button { 
             width: 100%; 
             padding: 12px; 
@@ -69,11 +82,13 @@
             box-shadow: 0 4px 12px rgba(29, 78, 216, 0.25);
         }
 
+        /* Botón desactivado mientras se envía la solicitud (color celeste) */
         button:disabled {
             background-color: #93c5fd;
             cursor: not-allowed;
         }
 
+        /* Contenedor del enlace para volver al inicio de sesión */
         .enlaces { 
             margin-top: 22px; 
             display: flex; 
@@ -82,6 +97,7 @@
             align-items: center; 
         }
 
+        /* Enlace «Volver al Inicio de Sesión» con forma de burbuja */
         .bubble-link { 
             text-decoration: none; 
             color: #1d4ed8; 
@@ -102,6 +118,7 @@
             outline: none;
         }
 
+        /* Caja de mensajes; empieza oculta (display: none) hasta que JavaScript la muestra */
         #recuperar-mensaje {
             margin-top: 15px;
             font-size: 14px;
@@ -110,12 +127,14 @@
             display: none;
         }
 
+        /* Estilo verde para mensajes de éxito */
         .msg-success {
             background-color: #dcfce7;
             color: #15803d;
             border: 1px solid #bbf7d0;
         }
 
+        /* Estilo rojo para mensajes de error */
         .msg-error {
             background-color: #fee2e2;
             color: #b91c1c;
@@ -124,34 +143,49 @@
     </style>
 </head>
 <body>
+    <!-- Contenido principal de la página -->
     <main>
+        <!-- Tarjeta central con el título, el formulario y los enlaces -->
         <div class="contenedor">
+            <!-- Título de la página -->
             <h2>Recuperar Contraseña</h2>
+            <!-- Explicación corta de qué debe escribir la persona -->
             <p class="descripcion">Ingresa tu correo institucional o código para verificar tu cuenta.</p>
 
+            <!-- Formulario con un campo y un botón. El script de abajo lo procesa sin recargar la página -->
             <form id="form-recuperar">
+                <!-- Campo para el correo o código. El atributo required obliga a llenarlo -->
                 <input type="text" placeholder="Correo electrónico o código" id="correo_recuperar" required>
+                <!-- Botón que envía la solicitud. Su texto cambia mientras se procesa -->
                 <button type="submit" id="btn-enviar">Enviar Instrucciones</button>
             </form>
 
+            <!-- Caja donde se muestra el resultado (éxito o error). La llena el script y empieza oculta -->
             <div id="recuperar-mensaje"></div>
 
+            <!-- Enlace para volver a la pantalla de inicio de sesión -->
             <div class="enlaces">
                 <a href="index.html" class="bubble-link">← Volver al Inicio de Sesión</a>
             </div> 
         </div>    
     </main>
 
+    <!-- Carga config.js primero: define window.SEMSAD_API y el objeto SEMSAD -->
     <script src="../js/config.js"></script>
 
+    <!-- Lógica de la página: envía el correo al servidor y muestra la respuesta -->
     <script>
+        // Escucha el evento submit del formulario: cuando la persona pulsa Enviar, se ejecuta esta función
         document.getElementById('form-recuperar').addEventListener('submit', async function(e) {
+            // Evita que el formulario recargue la página
             e.preventDefault();
 
+            // Lee el correo o código y quita los espacios sobrantes con trim()
             const correoInput = document.getElementById('correo_recuperar').value.trim();
             const btn = document.getElementById('btn-enviar');
             const mensajeDiv = document.getElementById('recuperar-mensaje');
 
+            // Función interna: muestra el mensaje en la caja (verde o rojo, según la clase) y lanza un aviso flotante (toast)
             function mostrar(texto, clase) {
                 mensajeDiv.style.display = 'block';
                 mensajeDiv.className = clase;
@@ -159,38 +193,49 @@
                 SEMSAD.toast(texto, clase === 'msg-success' ? 'success' : 'error', 6000);
             }
 
+            // Si la caja está vacía, avisa y no llama al servidor
             if (!correoInput) {
                 mostrar('Por favor, ingresa tu correo o código.', 'msg-error');
                 return;
             }
 
+            // Bloquea el botón y cambia su texto a «Verificando...» mientras espera la respuesta
             btn.disabled = true;
             btn.textContent = 'Verificando...';
             mensajeDiv.style.display = 'none';
 
+            // Si algo falla (por ejemplo, sin conexión), el catch del final avisa a la persona
             try {
+                // LLAMADA AL SERVIDOR: envía el correo en JSON a solicitar_recuperacion_sirve_para_enviar_enlace_de_clave.php.
+                // Según su nombre, ese archivo busca la cuenta y envía el enlace al correo (REVISAR en el backend)
                 const resp = await fetch(`${window.SEMSAD_API}/solicitar_recuperacion_sirve_para_enviar_enlace_de_clave.php`, {
                     method: 'POST',
                     credentials: 'include',
                     headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
                     body: JSON.stringify({ correo: correoInput })
                 });
+                // Lee la respuesta como texto para poder convertirla a JSON y mostrarla si hay un problema
                 const texto = await resp.text();
                 let data;
+                // Convierte el texto en objeto JSON. Si no es JSON válido, lanza un error con el código HTTP y un fragmento de la respuesta
                 try { data = JSON.parse(texto); }
                 catch (e) { throw new Error('Respuesta no válida (' + resp.status + '): ' + texto.slice(0, 200)); }
 
+                // Si el servidor respondió success: muestra su mensaje (o uno por defecto) en verde y borra el formulario
                 if (data.status === 'success') {
                     mostrar(data.mensaje || 'Te enviamos un enlace a tu correo.', 'msg-success');
                     document.getElementById('form-recuperar').reset();
+                // Si no fue exitoso (por ejemplo, la cuenta no existe), muestra el mensaje del servidor en rojo
                 } else {
                     mostrar(data.mensaje || 'No se encontró la cuenta ingresada.', 'msg-error');
                 }
+            // Error de red o de respuesta: se registra en la consola y se muestra un mensaje genérico
             } catch (err) {
                 console.error('Error en la recuperación:', err);
                 mostrar('No se pudo conectar con el servidor. Inténtalo de nuevo en un momento.', 'msg-error');
             }
 
+            // Pase lo que pase, al final se reactiva el botón y se restablece su texto
             btn.disabled = false;
             btn.textContent = 'Enviar Instrucciones';
         });

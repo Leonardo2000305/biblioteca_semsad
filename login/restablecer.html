@@ -1,24 +1,42 @@
 <!DOCTYPE html>
+<!--
+    ARCHIVO: restablecer.html
+    CAPA: FRONTEND (lo que ve y usa la persona en el navegador)
+    SIRVE PARA: que la persona escriba una nueva contraseña desde el enlace que llegó a su correo.
+    QUÉ HACE: lee el correo y el token de la dirección del enlace; si faltan, avisa y oculta el formulario.
+              Si están bien, revisa que las dos contraseñas coincidan y tengan 8 caracteres, y las envía al servidor.
+    CONECTA CON: restablecer_contrasena_sirve_para_cambiar_clave_con_enlace.php (API, vía window.SEMSAD_API) y js/config.js
+-->
 <html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Restablecer Contraseña - Biblioteca SEMSAD</title>
     <style>
+        /* Regla general: quita márgenes y rellenos por defecto y usa la misma tipografía en toda la página */
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        /* body: fondo gris claro y la tarjeta centrada en la pantalla */
         body { background-color: #f3f4f6; display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 20px; }
+        /* Tarjeta blanca central donde está el formulario */
         .card { background: #ffffff; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); width: 100%; max-width: 420px; padding: 32px; text-align: center; }
+        /* Título de la página */
         h1 { color: #1e3a8a; font-size: 22px; margin-bottom: 8px; }
+        /* Texto explicativo en gris */
         p { color: #6b7280; font-size: 14px; margin-bottom: 24px; }
+        /* Recuadro azul claro que muestra el correo tomado del enlace (solo aparece si hay correo) */
         .correo-badge { background-color: #eff6ff; color: #1d4ed8; padding: 6px 12px; border-radius: 20px; font-weight: 600; display: inline-block; margin-bottom: 20px; font-size: 13px; word-break: break-all; }
+        /* Bloque de cada campo: etiqueta y caja */
         .form-group { text-align: left; margin-bottom: 18px; }
+        /* Etiquetas de los campos */
         label { display: block; font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 6px; }
         
+        /* Contenedor del campo, que sirve para colocar el botón del ojo encima del campo */
         .input-wrapper {
             position: relative;
             display: flex;
             align-items: center;
         }
+        /* Campos de contraseña: el relleno derecho de 42 px deja espacio para el botón del ojo */
         .input-wrapper input {
             width: 100%;
             padding: 10px 42px 10px 14px;
@@ -28,10 +46,12 @@
             outline: none;
             transition: border-color 0.2s;
         }
+        /* Borde azul cuando el campo está seleccionado */
         .input-wrapper input:focus {
             border-color: #2563eb;
         }
         
+        /* Botón del ojo, a la derecha del campo */
         .btn-eye {
             position: absolute;
             right: 10px;
@@ -46,32 +66,45 @@
             border-radius: 4px;
             transition: color 0.2s;
         }
+        /* Color azul del ojo al pasar el mouse */
         .btn-eye:hover {
             color: #1d4ed8;
         }
 
+        /* Botón «Guardar Nueva Contraseña»: azul y de ancho completo */
         .btn-submit { width: 100%; background-color: #2563eb; color: white; border: none; padding: 12px; border-radius: 6px; font-size: 15px; font-weight: 600; cursor: pointer; transition: background-color 0.2s; margin-top: 10px; }
         .btn-submit:hover { background-color: #1d4ed8; }
+        /* Botón desactivado mientras se guarda (color celeste) */
         .btn-submit:disabled { background-color: #93c5fd; cursor: not-allowed; }
         
+        /* Caja de mensajes; empieza oculta (display: none) hasta que JavaScript la muestra */
         .msg-alert { padding: 10px; border-radius: 6px; font-size: 13px; margin-top: 15px; display: none; word-break: break-word; }
+        /* Estilo rojo para errores */
         .msg-error { background-color: #fee2e2; color: #991b1b; border: 1px solid #f87171; }
+        /* Estilo verde para éxito */
         .msg-success { background-color: #dcfce7; color: #166534; border: 1px solid #4ade80; }
     </style>
 </head>
 <body>
 
+    <!-- Tarjeta central con todo el contenido de la página -->
     <div class="card">
+        <!-- Título -->
         <h1>Restablecer Contraseña</h1>
+        <!-- Explicación: pide escribir la nueva contraseña -->
         <p>Ingresa tu nueva contraseña para tu cuenta de la Biblioteca SEMSAD.</p>
 
+        <!-- Recuadro con el correo de la cuenta (tomado del enlace). Lo llena JavaScript y solo se muestra si hay correo -->
         <div id="badgeCorreo" class="correo-badge" style="display: none;"></div>
 
+        <!-- Formulario de la nueva contraseña. Al enviarlo lo procesa el script de abajo -->
         <form id="formRestablecer">
+            <!-- Campo 1: nueva contraseña. El atributo minlength=8 hace que el navegador exija al menos 8 caracteres -->
             <div class="form-group">
                 <label for="nuevaPassword">Nueva Contraseña</label>
                 <div class="input-wrapper">
                     <input type="password" id="nuevaPassword" placeholder="Mínimo 8 caracteres" required minlength="8">
+                    <!-- Botón del ojo: muestra u oculta esta contraseña -->
                     <button type="button" class="btn-eye" onclick="togglePassword('nuevaPassword', this)" title="Mostrar u ocultar contraseña">
                         <svg class="icon-eye" xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -81,10 +114,12 @@
                 </div>
             </div>
 
+            <!-- Campo 2: repetir la nueva contraseña para confirmar que coincide -->
             <div class="form-group">
                 <label for="confirmarPassword">Confirmar Nueva Contraseña</label>
                 <div class="input-wrapper">
                     <input type="password" id="confirmarPassword" placeholder="Repite tu nueva contraseña" required minlength="8">
+                    <!-- Botón del ojo del segundo campo -->
                     <button type="button" class="btn-eye" onclick="togglePassword('confirmarPassword', this)" title="Mostrar u ocultar contraseña">
                         <svg class="icon-eye" xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -94,14 +129,19 @@
                 </div>
             </div>
 
+            <!-- Botón que envía el formulario -->
             <button type="submit" id="btnSubmit" class="btn-submit">Guardar Nueva Contraseña</button>
         </form>
 
+        <!-- Caja de mensajes (éxito o error). La llena el script y empieza oculta -->
         <div id="mensajeBox" class="msg-alert"></div>
     </div>
 
+    <!-- Carga config.js primero: define window.SEMSAD_API y el objeto SEMSAD -->
     <script src="../js/config.js"></script>
+    <!-- Lógica de la página: revisa el enlace, valida las contraseñas y llama al servidor -->
     <script>
+        // Muestra u oculta una contraseña. Recibe el id del campo y el botón del ojo; cambia el tipo del campo entre password y text, y ajusta el texto de accesibilidad y la opacidad del botón
         function togglePassword(inputId, btn) {
             const input = document.getElementById(inputId);
             const ver = input.type === 'password';
@@ -110,8 +150,11 @@
             btn.style.opacity = ver ? '1' : '0.7';
         }
 
+        // Se ejecuta cuando la página termina de cargar: lee el correo y el token del enlace y, si son válidos, activa el formulario
         document.addEventListener('DOMContentLoaded', () => {
+            // Lee los parámetros de la dirección (?correo=...&token=...), que vienen en el enlace enviado al correo
             const params = new URLSearchParams(window.location.search);
+            // Quita los espacios sobrantes de los datos del enlace
             const correo = (params.get('correo') || '').trim();
             const token  = (params.get('token') || '').trim();
 
@@ -119,11 +162,14 @@
             const mensajeBox  = document.getElementById('mensajeBox');
             const form        = document.getElementById('formRestablecer');
 
+            // Función interna: muestra un mensaje en la caja (verde o rojo) y lanza un aviso flotante (toast).
+            // Si enlaceNuevo es true, agrega un enlace para pedir un enlace nuevo
             function mostrarMensaje(texto, tipo, enlaceNuevo) {
                 mensajeBox.textContent = texto;
                 mensajeBox.className = 'msg-alert ' + (tipo === 'success' ? 'msg-success' : 'msg-error');
                 mensajeBox.style.display = 'block';
                 if (enlaceNuevo) {
+                    // Crea el enlace «Pedir un enlace nuevo», que lleva a recuperar.html
                     const a = document.createElement('a');
                     a.href = 'recuperar.html';
                     a.textContent = ' Pedir un enlace nuevo';
@@ -133,31 +179,41 @@
                 SEMSAD.toast(texto, tipo === 'success' ? 'success' : 'error', 6000);
             }
 
+            // Si el enlace trae correo, lo muestra en la burbuja azul
             if (correo) {
                 badgeCorreo.textContent = correo;   // textContent: el correo viene de la URL, no es de fiar
                 badgeCorreo.style.display = 'inline-block';
             }
 
+            // Si falta el correo o el token, el enlace no sirve: muestra el error, oculta el formulario y termina aquí (no se agrega el listener)
             if (!correo || !token) {
                 mostrarMensaje('Enlace inválido o incompleto.', 'error', true);
                 form.style.display = 'none';
                 return;
             }
 
+            // Solo si el enlace es válido: al enviar el formulario se ejecuta esta función
             form.addEventListener('submit', async (e) => {
+                // Evita que la página se recargue
                 e.preventDefault();
 
                 const pass1 = document.getElementById('nuevaPassword').value;   // sin trim: la contraseña se guarda tal cual
                 const pass2 = document.getElementById('confirmarPassword').value;
 
+                // Validación 1: las dos contraseñas deben ser iguales
                 if (pass1 !== pass2) { mostrarMensaje('Las contraseñas no coinciden. Verifícalas.', 'error'); return; }
+                // Validación 2: mínimo 8 caracteres
                 if (pass1.length < 8) { mostrarMensaje('La contraseña debe tener al menos 8 caracteres.', 'error'); return; }
 
+                // Bloquea el botón mientras se guarda
                 const btn = document.getElementById('btnSubmit');
                 btn.disabled = true;
                 btn.textContent = 'Guardando...';
 
+                // Si algo falla, el catch del final muestra un mensaje de conexión
                 try {
+                    // LLAMADA AL SERVIDOR: envía correo, token y la nueva contraseña en JSON a
+                    // restablecer_contrasena_sirve_para_cambiar_clave_con_enlace.php, que comprueba el enlace y guarda la clave
                     const resp = await fetch(`${window.SEMSAD_API}/restablecer_contrasena_sirve_para_cambiar_clave_con_enlace.php`, {
                         method: 'POST',
                         credentials: 'include',
@@ -165,8 +221,10 @@
                         body: JSON.stringify({ correo, token, password: pass1 })
                     });
 
+                    // Lee la respuesta como texto para poder convertirla a JSON
                     const texto = await resp.text();
                     let data;
+                    // Intenta convertir a JSON; si el servidor respondió otra cosa, avisa con el código HTTP y reactiva el botón
                     try { data = JSON.parse(texto); }
                     catch (e) {
                         console.error('Respuesta no válida', resp.status, texto.slice(0, 300));
@@ -175,15 +233,20 @@
                         return;
                     }
 
+                    // Éxito: muestra el mensaje en verde, oculta el formulario y, tras 3 segundos, lleva a index.html (inicio de sesión)
                     if (data.status === 'success') {
+                        // REVISAR: aquí no hay mensaje por defecto (en el error sí lo hay). Si el servidor no envía «mensaje» en éxito, podría verse la palabra undefined
                         mostrarMensaje(data.mensaje, 'success');           // mensaje VERDE
                         form.style.display = 'none';
                         setTimeout(() => { window.location.href = 'index.html'; }, 3000);
+                    // Error: muestra el mensaje del servidor en rojo. Si el código es «enlace_invalido», la caja también ofrece el enlace para pedir uno nuevo
                     } else {
+                        // REVISAR: el texto «enlace_invalido» debe coincidir exactamente con el código que envía el servidor (confirmar en el backend)
                         mostrarMensaje(data.mensaje || 'No se pudo cambiar la contraseña.', 'error', data.codigo === 'enlace_invalido');  // mensaje ROJO
                         btn.disabled = false;
                         btn.textContent = 'Guardar Nueva Contraseña';
                     }
+                // Error de conexión: se registra en la consola y se muestra un aviso
                 } catch (err) {
                     console.error('Sin conexión con la API:', err);
                     mostrarMensaje('No se pudo conectar con el servidor. Revisa tu conexión e inténtalo de nuevo.', 'error');

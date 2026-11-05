@@ -1,3 +1,10 @@
+// ARCHIVO: config.js
+// CAPA: FRONTEND (lo que ve y usa la persona en el navegador)
+// SIRVE PARA: guardar en un solo lugar las funciones comunes que usan todas las páginas de la biblioteca.
+// QUÉ HACE: define la ruta base de la API y el objeto global SEMSAD con utilidades: escapar texto,
+//   mostrar avisos (toast), leer y guardar el usuario del navegador, y cerrar sesión.
+// CONECTA CON: las páginas de login/ y principal/ (todas la cargan); llama a
+//   logout_sirve_para_cerrar_sesion.php al cerrar sesión.
 /* ==========================================================================
    BIBLIOTECA SEMSAD - CONFIGURACIÓN COMÚN DEL FRONTEND
    Se carga ANTES del script de cada página:  <script src="../js/config.js"></script>
@@ -6,9 +13,12 @@
 // Todas las llamadas al backend pasan por /backend/..., que Vercel reenvía a AlwaysData
 // (ver "rewrites" en vercel.json). Así el navegador siempre habla con el mismo dominio:
 // sin problemas de CORS y con cookies de sesión normales.
+// Ruta base de la API. Si otra página ya definió SEMSAD_API, se respeta ese valor.
 window.SEMSAD_API = window.SEMSAD_API || '/backend';
 
+// Objeto global SEMSAD: agrupa las utilidades comunes. Cualquier página las usa como SEMSAD.esc(), SEMSAD.toast(), etc.
 window.SEMSAD = {
+    // Roles del personal de la biblioteca. Solo ellos pueden entrar al panel admin.html.
     ROLES_PERSONAL: ['Administrador', 'Bibliotecario'],
 
     // Escapa texto antes de ponerlo dentro de innerHTML (evita que un nombre como <img onerror=...> ejecute código).
@@ -25,6 +35,7 @@ window.SEMSAD = {
 
     // Aviso emergente (toast). tipo: 'success' (verde) | 'error' (rojo) | 'warning' (amarillo) | 'info' (azul)
     toast(mensaje, tipo = 'info', duracionMs = 5000) {
+        // La primera vez inserta en la página el CSS de los avisos. El id evita insertarlo dos veces.
         if (!document.getElementById('semsad-toast-css')) {
             const css = document.createElement('style');
             css.id = 'semsad-toast-css';
@@ -39,6 +50,7 @@ window.SEMSAD = {
                 .semsad-toast.info{background:#dbeafe;color:#1e40af;border-color:#60a5fa}`;
             document.head.appendChild(css);
         }
+        // Busca la caja donde se apilan los avisos (arriba a la derecha). Si no existe, la crea.
         let caja = document.getElementById('semsad-toasts');
         if (!caja) {
             caja = document.createElement('div');
@@ -46,10 +58,12 @@ window.SEMSAD = {
             caja.setAttribute('aria-live', 'polite');
             document.body.appendChild(caja);
         }
+        // Crea el aviso con su color: success, error, warning o info.
         const t = document.createElement('div');
         t.className = 'semsad-toast ' + tipo;
         t.setAttribute('role', tipo === 'error' ? 'alert' : 'status');
         t.textContent = mensaje;                       // textContent: nunca interpreta HTML
+        // Cierra el aviso: lo vuelve transparente y lo borra 0,3 segundos después.
         const cerrar = () => { t.classList.remove('visible'); setTimeout(() => t.remove(), 300); };
         t.addEventListener('click', cerrar);
         caja.appendChild(t);
@@ -57,19 +71,23 @@ window.SEMSAD = {
         setTimeout(cerrar, duracionMs);
     },
 
+    // Lee el usuario guardado en localStorage (lo guarda el login). Si no hay datos o están dañados, devuelve null.
     getUser() {
         try { return JSON.parse(localStorage.getItem('semsad_user')) || null; }
         catch (e) { return null; }
     },
 
+    // Guarda el usuario en localStorage, convertido a texto JSON.
     setUser(u) {
         localStorage.setItem('semsad_user', JSON.stringify(u));
     },
 
+    // Devuelve true si el rol está en ROLES_PERSONAL.
     esPersonal(rol) {
         return this.ROLES_PERSONAL.includes(rol);
     },
 
+    // Indica a qué página va cada rol: el personal al panel admin y los demás al portal de estudiantes.
     destinoSegunRol(rol) {
         return this.esPersonal(rol) ? '/principal/admin.html' : '/principal/index.html';
     },
@@ -82,7 +100,9 @@ window.SEMSAD = {
         return u;
     },
 
+    // Cierra la sesión: borra el usuario del navegador, avisa al servidor y regresa a la pantalla de login.
     async cerrarSesion(evento) {
+        // Si la función se llama desde un enlace, evita que el navegador siga el enlace.
         if (evento) evento.preventDefault();
         localStorage.removeItem('semsad_user');
         try { await fetch(window.SEMSAD_API + '/logout_sirve_para_cerrar_sesion.php', { credentials: 'include' }); } catch (e) { /* sin red: igual salimos */ }

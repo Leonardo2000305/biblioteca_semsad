@@ -1,4 +1,10 @@
 <?php
+// ARCHIVO: obtener_libros_sirve_para_mostrar_catalogo.php
+// CAPA: BACKEND (API del servidor)
+// SIRVE PARA: mostrar el catálogo de libros con cuántas copias están disponibles.
+// QUÉ HACE: Revisa los libros, cuenta sus ejemplares libres y marca los que el usuario tiene prestados o en lista de espera.
+//   Responde con la lista de libros en formato JSON.
+// CONECTA CON: principal/index.html y principal/admin.html (catálogo); usa usuario_actual_sirve_para_identificar_quien_pide.php y reglas_prestamos_sirve_para_multas_y_plazos.php
 require_once 'conexion_sirve_para_conectar_base_datos.php';
 require_once __DIR__ . '/usuario_actual_sirve_para_identificar_quien_pide.php';
 require_once __DIR__ . '/reglas_prestamos_sirve_para_multas_y_plazos.php';
@@ -8,6 +14,7 @@ header('Content-Type: application/json; charset=utf-8');
 
 try {
     // 1. Auto-sincronización silenciosa de stock para corregir ejemplares inconsistentes
+    // Si esta limpieza de stock falla, el error se ignora y el catálogo sigue cargando.
     try {
         $conexion->exec("
             UPDATE ejemplar 
@@ -40,6 +47,7 @@ try {
     $stmtE = $conexion->query($sqlEjemplares);
     $ejemplares = $stmtE->fetchAll(PDO::FETCH_ASSOC);
 
+    // Cuenta por libro el total de copias y cuántas están libres (disponibles).
     $ejemplaresPorMaterial = [];
     foreach ($ejemplares as $ej) {
         $mId = (int)$ej['id_material'];
@@ -73,6 +81,7 @@ try {
             $categoriaPorMaterial[(int)$f['id_material']] = $f['nombre'];
         }
     } catch (Throwable $ignorar) {}
+    // Datos de la lista de espera: cuántas personas esperan cada libro y en qué turno está el usuario.
     $colaPorMaterial = [];
     $miTurno = [];
     semsad_caducar_reservas($conexion);   // hora de corte de las reservas avisadas
@@ -95,8 +104,10 @@ try {
         $mId = (int)($m['id_material'] ?? $m['id'] ?? 0);
         $disp = $ejemplaresPorMaterial[$mId]['disponibles'] ?? 0;
         $tot  = $ejemplaresPorMaterial[$mId]['total'] ?? 0;
+        // revisar: la variable se llama 'reservado', pero en realidad indica si el usuario tiene este libro en préstamo activo.
         $reservado = in_array($mId, $prestadosPorUsuario);
 
+        // Autor: se busca en tres lugares, en este orden; si ninguno tiene texto, se pone un texto por defecto.
         $autorTexto = 'Autor no especificado';
         if (!empty(trim($m['autores'] ?? ''))) {
             $autorTexto = trim($m['autores']);
@@ -124,6 +135,7 @@ try {
         ];
     }
 
+    // Respuesta JSON de éxito. La misma lista va en tres claves (libros, data y datos) por compatibilidad con el frontend.
     semsad_responder([
         'status' => 'success',
         'libros' => $libros,
@@ -132,6 +144,7 @@ try {
     ]);
 
 } catch (Exception $e) {
+    // Error: responde con código 500 y un mensaje para el usuario.
     semsad_responder([
         'status'  => 'error',
         'mensaje' => 'Error al obtener los libros.' . semsad_detalle_error($e)

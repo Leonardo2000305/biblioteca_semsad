@@ -1,4 +1,13 @@
 <!DOCTYPE html>
+<!--
+    ARCHIVO: index.html
+    CAPA: FRONTEND (lo que ve y usa la persona en el navegador)
+    SIRVE PARA: que la persona inicie sesión con su correo o código y su contraseña.
+    QUÉ HACE: muestra el formulario de acceso y, al enviarlo, pide al servidor que verifique los datos.
+              Si son correctos, guarda al usuario y lo lleva a su pantalla según su rol.
+              Si el servidor bloquea el acceso por demasiados intentos, muestra una cuenta regresiva.
+    CONECTA CON: login_sirve_para_iniciar_sesion.php (API, vía window.SEMSAD_API) y js/config.js
+-->
 <html lang="es">
 <head>
     <meta charset="UTF-8">
@@ -10,7 +19,9 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
 
     <style>
+        /* Regla general: el relleno y el borde se cuentan dentro del tamaño de cada elemento */
         * { box-sizing: border-box; }
+        /* body: fondo gris claro, ocupa toda la altura y centra la tarjeta en la pantalla */
         body {
             background-color: #f1f5f9;
             font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
@@ -21,6 +32,7 @@
             margin: 0;
             padding: 15px;
         }
+        /* Tarjeta blanca donde va el formulario: bordes redondeados, sombra y ancho máximo de 380 px */
         .card-login {
             background: #ffffff;
             border-radius: 20px;
@@ -30,6 +42,7 @@
             padding: 30px 22px;
         }
         @media (min-width: 576px) { .card-login { padding: 35px 28px; } }
+        /* Título de bienvenida, centrado */
         .login-title {
             font-weight: 800;
             color: #0f172a;
@@ -39,6 +52,7 @@
             margin-bottom: 22px;
         }
         @media (min-width: 576px) { .login-title { font-size: 22px; } }
+        /* Campos de texto (correo y contraseña): borde gris que se vuelve azul cuando están seleccionados */
         .form-control {
             border: 1px solid #cbd5e1;
             border-radius: 10px;
@@ -50,8 +64,10 @@
             border-color: #0066ff;
             box-shadow: 0 0 0 3px rgba(0, 102, 255, 0.15);
         }
+        /* Contenedor del campo de contraseña: sirve para colocar el botón del ojo encima del campo */
         .input-group-password { position: relative; }
         .input-group-password .form-control { padding-right: 45px; border-radius: 10px; }
+        /* Botón del ojo: va dentro del campo, a la derecha, y no tiene borde */
         .btn-toggle-eye {
             position: absolute;
             right: 12px;
@@ -66,6 +82,7 @@
             padding: 5px;
         }
         .btn-toggle-eye:hover { color: #0066ff; }
+        /* Botón Acceder: azul y redondeado; se pone gris cuando está desactivado (verificando o bloqueado) */
         .btn-acceder {
             background-color: #0066ff;
             color: #ffffff;
@@ -81,6 +98,7 @@
         }
         .btn-acceder:hover { background-color: #0052cc; }
         .btn-acceder:disabled { background-color: #94a3b8; cursor: not-allowed; box-shadow: none; }
+        /* Enlaces azules «¿Olvidaste tu contraseña?» y «Regístrate» */
         .link-blue {
             color: #0066ff;
             text-decoration: none;
@@ -88,31 +106,41 @@
             font-weight: 600;
         }
         .link-blue:hover { text-decoration: underline; }
+        /* Texto gris pequeño de «¿No tienes cuenta?» */
         .text-muted-info { color: #64748b; font-size: 14px; font-weight: 500; }
     </style>
 </head>
 <body>
 
+<!-- Tarjeta central blanca: contiene el título, el formulario y los enlaces -->
 <div class="card-login">
+    <!-- Título de bienvenida. El <br> hace que el texto baje a una segunda línea -->
     <h2 class="login-title">Bienvenido a la biblioteca<br>SEMSAD</h2>
 
+    <!-- Caja de mensajes (error o éxito). Empieza oculta (clase d-none); la función mostrarAlerta la muestra -->
     <div id="alerta_mensaje" class="alert d-none mb-3" role="alert"></div>
 
+    <!-- Formulario de acceso. Al enviarlo se ejecuta realizarLogin, que evita que la página se recargue -->
     <form id="formLogin" autocomplete="off" onsubmit="realizarLogin(event);">
+        <!-- Campo 1: correo institucional o código. El atributo required obliga a llenarlo -->
         <div class="mb-3">
             <input type="text" id="correo" class="form-control" placeholder="Correo institucional o código" autocomplete="off" required>
         </div>
 
+        <!-- Campo 2: contraseña, con el botón del ojo para mostrarla u ocultarla -->
         <div class="mb-4 input-group-password">
             <input type="password" id="clave" class="form-control" placeholder="Contraseña" autocomplete="current-password" required>
+            <!-- Botón del ojo: al pulsarlo llama a toggleVisibilidad con el campo «clave» y este mismo botón -->
             <button class="btn-toggle-eye" type="button" onclick="toggleVisibilidad('clave', this)">
                 <i class="fas fa-eye"></i>
             </button>
         </div>
 
+        <!-- Botón Acceder: al pulsarlo se envía el formulario -->
         <button type="submit" id="btnAcceder" class="btn-acceder">Acceder</button>
     </form>
 
+    <!-- Enlaces de ayuda: recuperar la contraseña o crear una cuenta nueva -->
     <div class="text-center mt-4">
         <div class="mb-2">
             <a href="recuperar.html" class="link-blue">🔑 ¿Olvidaste tu contraseña?</a>
@@ -124,10 +152,14 @@
     </div>
 </div>
 
+<!-- Carga config.js primero: define window.SEMSAD_API (la ruta de la API) y el objeto SEMSAD (funciones comunes) -->
 <script src="../js/config.js"></script>
+<!-- Lógica de esta página: mostrar mensajes, bloquear el formulario por intentos fallidos y hacer el login -->
 <script>
+// Guarda el identificador del temporizador del bloqueo (setInterval). Empieza en null porque no hay bloqueo activo
 let timerPenitencia = null;
 
+// Muestra u oculta la contraseña: si el campo está oculto (password) lo pasa a visible (text) y cambia el icono del ojo
 function toggleVisibilidad(idInput, boton) {
     const input = document.getElementById(idInput);
     const icono = boton.querySelector('i');
@@ -143,11 +175,13 @@ function toggleVisibilidad(idInput, boton) {
     }
 }
 
+// Borra los avisos flotantes de la esquina (toasts) que hayan quedado en pantalla
 function limpiarToastsAnteriores() {
     // Elimina cualquier toast flotante que pudiera haber quedado en pantalla
     document.querySelectorAll('.toast, .semsad-toast-container, div[class*="toast"]').forEach(el => el.remove());
 }
 
+// Muestra un mensaje dentro de la tarjeta: verde si es éxito y rojo en otro caso
 function mostrarAlerta(mensaje, tipo) {
     // Muestra la alerta ÚNICAMENTE dentro de la tarjeta (#alerta_mensaje)
     const alerta = document.getElementById('alerta_mensaje');
@@ -159,6 +193,7 @@ function mostrarAlerta(mensaje, tipo) {
     limpiarToastsAnteriores();
 }
 
+// Devuelve el botón Acceder a su estado normal (activo y con el texto «Acceder»), salvo que el bloqueo siga vigente
 function restaurarBoton(btn) {
     if (!sessionStorage.getItem('semsad_bloqueado_hasta')) {
         btn.disabled = false;
@@ -166,6 +201,8 @@ function restaurarBoton(btn) {
     }
 }
 
+// Bloquea el formulario durante «segundos» (castigo por intentos fallidos). Guarda la hora de fin en sessionStorage
+// para que el bloqueo siga aunque se recargue la página
 function activarPenitencia(segundos) {
     const btn = document.getElementById('btnAcceder');
     const inputCorreo = document.getElementById('correo');
@@ -182,6 +219,7 @@ function activarPenitencia(segundos) {
 
     if (timerPenitencia) clearInterval(timerPenitencia);
 
+    // Se ejecuta cada segundo: calcula cuánto falta. Mientras queda tiempo muestra la cuenta regresiva; al llegar a cero quita el bloqueo
     const actualizarTimer = () => {
         const restante = Math.ceil((finTimestamp - Date.now()) / 1000);
 
@@ -198,6 +236,7 @@ function activarPenitencia(segundos) {
             mostrarAlerta('Ya puedes volver a intentar iniciar sesión.', 'success');
         } else {
             btn.innerHTML = `<i class="fas fa-lock me-2"></i> Espere ${restante}s...`;
+            // REVISAR: el número 3 está escrito fijo en el texto; el límite real de intentos lo decide el servidor (confirmar en el backend)
             mostrarAlerta(`Has superado el límite de 3 intentos fallidos. Espera ${restante} segundos.`, 'error');
         }
     };
@@ -206,6 +245,7 @@ function activarPenitencia(segundos) {
     timerPenitencia = setInterval(actualizarTimer, 1000);
 }
 
+// Al abrir la página: si quedó un bloqueo guardado y todavía no terminó, lo vuelve a activar con el tiempo restante
 document.addEventListener('DOMContentLoaded', () => {
     const bloqueadoHasta = sessionStorage.getItem('semsad_bloqueado_hasta');
     if (bloqueadoHasta) {
@@ -218,47 +258,62 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
+// FUNCIÓN PRINCIPAL: se ejecuta al pulsar Acceder. Lee los datos, llama al servidor y decide qué mostrar
 async function realizarLogin(event) {
+    // Evita que el formulario recargue la página (comportamiento normal del navegador)
     event.preventDefault();
 
+    // Lee los campos. trim() quita los espacios sobrantes del correo; la contraseña se lee tal cual
     const correo = document.getElementById('correo').value.trim();
     const clave = document.getElementById('clave').value;
     const btn = document.getElementById('btnAcceder');
 
+    // Si falta algún dato, avisa y no llama al servidor
     if (!correo || !clave) {
         mostrarAlerta('Por favor, ingresa tu correo y contraseña.', 'error');
         return;
     }
 
+    // Bloquea el botón y muestra «Verificando...» mientras se espera la respuesta
     btn.disabled = true;
     btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i> Verificando...';
 
+    // Todo lo que sigue va dentro de try: si algo falla (por ejemplo, sin red), se salta al catch del final
     try {
-        const resp = await fetch(`${window.SEMSAD_API}/login.php`, {
+        // LLAMADA AL SERVIDOR: envía correo y contraseña en JSON a login_sirve_para_iniciar_sesion.php.
+        // credentials: 'include' hace que viaje la cookie de sesión
+        const resp = await fetch(`${window.SEMSAD_API}/login_sirve_para_iniciar_sesion.php`, {
             method: 'POST',
             credentials: 'include',
             headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
             body: JSON.stringify({ correo, clave })
         });
 
+        // Lee la respuesta como texto para poder mostrarla si no es JSON válido
         const texto = await resp.text();
         let data;
+        // Intenta convertir el texto en objeto JavaScript. Si falla, el servidor respondió algo que no es JSON (por ejemplo, un error de PHP)
         try {
             data = JSON.parse(texto);
         } catch (e) {
-            console.error('Respuesta no válida de /login.php', resp.status, texto.slice(0, 300));
+            // Registra el detalle en la consola del navegador (F12) y avisa a la persona
+            console.error('Respuesta no válida de /login_sirve_para_iniciar_sesion.php', resp.status, texto.slice(0, 300));
             mostrarAlerta(`El servidor respondió algo inesperado (código ${resp.status}). Revisa la API en Alwaysdata.`, 'error');
             restaurarBoton(btn);
             return;
         }
 
+        // Si el servidor dice que hay que esperar (bloqueado), activa la cuenta regresiva con el tiempo que indica y termina aquí
         if (data.bloqueado && data.tiempo_restante) {
             activarPenitencia(data.tiempo_restante);
             return;
         }
 
+        // Login correcto: el servidor respondió success y envió los datos del usuario
         if (data.status === 'success' && data.usuario) {
+            // Ya no hay bloqueo pendiente: borra la marca guardada en sessionStorage
             sessionStorage.removeItem('semsad_bloqueado_hasta');
+            // Guarda en localStorage (memoria del navegador) los datos básicos del usuario para usarlos en las demás páginas
             SEMSAD.setUser({
                 id: data.usuario.id_usuario,
                 name: data.usuario.nombre,
@@ -266,12 +321,16 @@ async function realizarLogin(event) {
                 ci: data.usuario.ci,
                 correo: data.usuario.correo
             });
+            // Muestra el aviso de éxito y espera 0,8 segundos antes de redirigir
             mostrarAlerta('¡Inicio de sesión exitoso! Redirigiendo...', 'success');
+            // SEMSAD.destinoSegunRol decide la página según el rol: personal de biblioteca va al panel de administración y los demás a la página principal
             setTimeout(() => { window.location.href = SEMSAD.destinoSegunRol(data.usuario.rol); }, 800);
+        // Si no fue exitoso, muestra el mensaje del servidor (o uno genérico) y reactiva el botón para intentar otra vez
         } else {
             mostrarAlerta(data.mensaje || 'Credenciales incorrectas.', 'error');
             restaurarBoton(btn);
         }
+    // Error de red o de conexión (sin internet o servidor caído): avisa a la persona y reactiva el botón
     } catch (err) {
         console.error('Error de red en el login:', err);
         mostrarAlerta('No se pudo conectar con el servidor. Revisa tu conexión e inténtalo de nuevo.', 'error');

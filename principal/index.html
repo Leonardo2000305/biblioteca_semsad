@@ -1,4 +1,11 @@
 <!DOCTYPE html>
+<!-- ARCHIVO: index.html -->
+<!-- CAPA: FRONTEND (lo que ve y usa la persona en el navegador) -->
+<!-- SIRVE PARA: portal de estudiantes y docentes: ver el catálogo, buscar libros, pedir préstamos, anotarse en la lista de espera y revisar el historial. -->
+<!-- QUÉ HACE: muestra una tarjeta por libro con su disponibilidad; permite buscar por texto o por categoría. -->
+<!--   Botones: Solicitar Préstamo, lista de espera, Renovar; el modal Mis Préstamos muestra el historial. Cada acción llama a la API y muestra un aviso. -->
+<!-- CONECTA CON: js/config.js y la API en /backend/: obtener_libros_sirve_para_mostrar_catalogo.php, registrar_prestamo_sirve_para_pedir_libro_estudiante.php, -->
+<!--   reservar_material_sirve_para_lista_de_espera.php, renovar_prestamo_sirve_para_ampliar_7_dias.php y mis_prestamos_sirve_para_historial_del_estudiante.php. -->
 <html lang="es">
 <head>
     <meta charset="UTF-8">
@@ -6,11 +13,15 @@
     <title>Portal de Estudiantes - Biblioteca SEMSAD</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Estilos propios de esta página. Bootstrap y Font Awesome vienen de internet (líneas 7 y 8). -->
     <style>
+        /* Colores generales: fondo claro y color principal. */
         :root { --primary-color: #2563eb; --bg-light: #f8fafc; }
         body { background-color: var(--bg-light); font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; min-height: 100vh; }
         .navbar-custom { background-color: #0f172a; }
+        /* Franja de bienvenida con el buscador: fondo oscuro y esquinas redondeadas. */
         .hero-section { background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); color: white; padding: 40px 20px; border-radius: 16px; margin-bottom: 30px; }
+        /* Tarjeta de libro: esquinas redondeadas y se eleva un poco al pasar el mouse. */
         .book-card { border: none; border-radius: 12px; transition: transform 0.2s, box-shadow 0.2s; }
         .book-card:hover { transform: translateY(-5px); box-shadow: 0 10px 20px rgba(0,0,0,0.08); }
         .extra-small { font-size: 12px; }
@@ -54,12 +65,15 @@
                 <span>BIBLIOTECA SEMSAD</span>
             </a>
             <div class="d-flex align-items-center gap-2 nav-acciones">
+                <!-- Botón Mis Préstamos: abre el modal del historial y carga los datos con cargarMisPrestamos(). -->
                 <button class="btn btn-outline-info btn-sm fw-bold me-2" data-bs-toggle="modal" data-bs-target="#modalMisPrestamos" onclick="cargarMisPrestamos()">
                     <i class="fa-solid fa-clock-rotate-left me-1"></i>Mis Préstamos
                 </button>
+                <!-- Muestra el nombre de quien inició sesión; el texto lo pone JavaScript al cargar la página. -->
                 <span class="badge bg-primary px-3 py-2 fs-6 shadow-sm" id="badgeUsuario">
                     <i class="fa-solid fa-user-graduate me-1"></i><span id="nombreUsuarioHeader">Estudiante</span>
                 </span>
+                <!-- Salir: SEMSAD.cerrarSesion (js/config.js) borra el usuario y lleva al login. -->
                 <a href="../login/index.html" onclick="SEMSAD.cerrarSesion(event)" class="btn btn-outline-light btn-sm fw-bold">
                     <i class="fa-solid fa-right-from-bracket me-1"></i>Salir
                 </a>
@@ -77,8 +91,10 @@
                 <div class="col-md-8 col-lg-6">
                     <div class="input-group input-group-lg">
                         <span class="input-group-text bg-white border-0 text-muted"><i class="fa-solid fa-magnifying-glass"></i></span>
+                        <!-- Buscador: cada tecla llama a filtrarLibros(), que filtra la lista sin recargar la página. -->
                         <input type="text" id="inputBuscar" class="form-control border-0 px-3" placeholder="Buscar por título, autor o código..." onkeyup="filtrarLibros()">
                     </div>
+                    <!-- Selector de categorías: JavaScript lo llena con las categorías de los libros (poblarCategorias). Empieza oculto. -->
                     <select id="selCategoria" class="form-select border-0 mt-2 d-none" onchange="filtrarLibros()" aria-label="Filtrar por categoría">
                         <option value="">Todas las categorías</option>
                     </select>
@@ -89,11 +105,13 @@
         <!-- CATÁLOGO DE LIBROS -->
         <div class="d-flex justify-content-between align-items-center mb-3 cabecera-catalogo">
             <h4 class="fw-bold text-dark mb-0"><i class="fa-solid fa-books text-primary me-2"></i>Libros Disponibles</h4>
+            <!-- Actualizar: vuelve a pedir el catálogo a la API. -->
             <button class="btn btn-sm btn-outline-primary fw-semibold" onclick="cargarCatalogo()">
                 <i class="fa-solid fa-rotate me-1"></i>Actualizar
             </button>
         </div>
 
+        <!-- Aquí JavaScript dibuja una tarjeta por cada libro (renderizarLibros). -->
         <div class="row g-4" id="contenedorLibros"></div>
     </div>
 
@@ -107,6 +125,7 @@
                 </div>
                 <div class="modal-body p-0">
                     <div class="table-responsive">
+                        <!-- Tabla del historial. En celulares cada fila se muestra como tarjeta gracias a la clase tabla-prestamos del CSS. -->
                         <table class="table table-hover align-middle mb-0 tabla-prestamos">
                             <thead class="table-light">
                                 <tr>
@@ -117,6 +136,7 @@
                                     <th>Acción</th>
                                 </tr>
                             </thead>
+                            <!-- Filas del historial: las escribe cargarMisPrestamos(). -->
                             <tbody id="tablaMisPrestamosBody">
                                 <tr><td colspan="5" class="text-center py-4">Cargando tus préstamos...</td></tr>
                             </tbody>
@@ -131,10 +151,14 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="../js/config.js"></script>
     <script>
+        // Lista con todos los libros que llegaron de la API. Los filtros trabajan sobre esta copia.
         let todosLosLibros = [];
 
+        // Al cargar la página: muestra el nombre del usuario y carga el catálogo.
         document.addEventListener('DOMContentLoaded', () => {
+            // Obtiene el usuario que inició sesión.
             const user = obtenerUsuarioLogueado();
+            // Si hay usuario, muestra su nombre completo (o su correo); si no, muestra Estudiante.
             if (user) {
                 document.getElementById('nombreUsuarioHeader').innerText = user.nombreCompleto || user.correo;
             } else {
@@ -143,6 +167,7 @@
             cargarCatalogo();
         });
 
+        // Devuelve el usuario que inició sesión con id_usuario, correo y nombreCompleto; o null si no hay sesión.
         function obtenerUsuarioLogueado() {
             // Única fuente: el usuario que guardó el inicio de sesión actual (semsad_user).
             // Antes se recorría todo el navegador y podía tomar datos viejos de otra cuenta.
@@ -157,6 +182,8 @@
                 };
             }
             return null;
+            // AVISO: esta función nunca se llama: todas sus llamadas están después del return null de arriba (código sin uso).
+            //   Revisar si se puede eliminar.
             function extraerUser(candidate) {
                 if (!candidate) return null;
                 if (typeof candidate === 'string') {
@@ -223,6 +250,7 @@
             return null;
         }
 
+        // Pide el catálogo a la API y dibuja las tarjetas. Muestra mensajes de cargando, vacío o error.
         async function cargarCatalogo() {
             const userObj = obtenerUsuarioLogueado();
             const idUsuario = userObj ? userObj.id_usuario : 0;
@@ -236,12 +264,15 @@
                 </div>`;
 
             try {
-                const url = window.SEMSAD_API + '/obtener_libros.php?id_usuario=' + idUsuario + '&correo=' + encodeURIComponent(correoUsuario);
+                // Llamada GET: envía el id y el correo del usuario en la URL, para que la API marque sus reservas.
+                const url = window.SEMSAD_API + '/obtener_libros_sirve_para_mostrar_catalogo.php?id_usuario=' + idUsuario + '&correo=' + encodeURIComponent(correoUsuario);
                 const resp = await fetch(url, { credentials: 'include' });
                 const res = await resp.json();
 
+                // La API puede devolver la lista con distintos nombres (libros, data o datos); se acepta cualquiera.
                 const listaLibros = res.libros || res.data || res.datos || [];
 
+                // Si hay libros, los guarda, arma el selector de categorías y dibuja las tarjetas.
                 if (res.status === 'success' && listaLibros.length > 0) {
                     todosLosLibros = listaLibros;
                     poblarCategorias();
@@ -263,6 +294,7 @@
             }
         }
 
+        // Dibuja una tarjeta por libro. Según su situación muestra: Ya reservaste, Disponible o Agotado.
         function renderizarLibros(lista) {
             const contenedor = document.getElementById('contenedorLibros');
             if (!lista || lista.length === 0) {
@@ -275,34 +307,42 @@
 
             contenedor.innerHTML = '';
             lista.forEach(libro => {
+                // Toma los datos del libro aceptando los distintos nombres de campo que puede enviar la API.
                 const idMaterial = parseInt(libro.id_material || libro.id) || 0;
                 const titulo = libro.titulo || libro.nombre || 'Sin título';
                 const isbn = libro.isbn || libro.codigo_isbn_issn || libro.codigo_barras || 'Código S/N';
                 const anio = libro.agno_publicacion || libro.año_publicacion || libro.anio || libro.year || 'N/A';
                 const autor = libro.autores || libro.autor || 'Autor no especificado';
                 
+                // Copias disponibles: usa stock_disponible o, si no existe, el campo disponible.
                 const stockDisponible = (libro.stock_disponible !== undefined) ? parseInt(libro.stock_disponible) : parseInt(libro.disponible || 0);
+                // Verdadero si este usuario ya tiene reservado o en su poder este libro.
                 const reservadoPorMi = libro.reservado_por_mi === true;
+                // Está disponible si tiene copias y el usuario no lo tiene ya.
                 const estaDisponible = stockDisponible > 0 && !reservadoPorMi;
 
                 let badgeHTML = '';
                 let botonHTML = '';
 
+                // Caso 1: el usuario ya tiene el libro. El botón queda deshabilitado.
                 if (reservadoPorMi) {
                     badgeHTML = `<span class="badge bg-warning text-dark mb-2"><i class="fa-solid fa-bookmark me-1"></i>Ya reservaste este libro</span>`;
                     botonHTML = `<button class="btn btn-warning text-dark w-100 fw-bold btn-sm mt-2" disabled>
                                     <i class="fa-solid fa-check-double me-1"></i> Libro en tu Poder
                                  </button>`;
+                // Caso 2: disponible. El botón Solicitar Préstamo llama a solicitarPrestamo().
                 } else if (estaDisponible) {
                     badgeHTML = `<span class="badge bg-success mb-2"><i class="fa-solid fa-circle-check me-1"></i>Disponible</span>`;
                     botonHTML = `<button class="btn btn-outline-primary w-100 fw-bold btn-sm mt-2" onclick="solicitarPrestamo(${idMaterial}, ${SEMSAD.jsArg(titulo)})">
                                     <i class="fa-solid fa-hand-holding-hand me-1"></i> Solicitar Préstamo
                                  </button>`;
                 } else {
+                    // Caso 3: agotado. El botón queda deshabilitado, y debajo se ofrece la lista de espera.
                     badgeHTML = `<span class="badge bg-danger mb-2"><i class="fa-solid fa-circle-xmark me-1"></i>Agotado</span>`;
                     botonHTML = `<button class="btn btn-secondary w-100 fw-bold btn-sm mt-2" disabled>
                                     <i class="fa-solid fa-ban me-1"></i> No Disponible
                                  </button>`;
+                    // Lista de espera: si el usuario ya está en ella, le ofrece salir; si no, le ofrece anotarse.
                     const enCola = parseInt(libro.en_cola || 0);
                     if (parseInt(libro.mi_turno || 0) > 0) {
                         botonHTML += `<div class="small text-center text-warning-emphasis fw-semibold mt-2"><i class="fa-solid fa-hourglass-half me-1"></i>En lista de espera · tu turno: ${parseInt(libro.mi_turno)}</div>
@@ -314,8 +354,10 @@
                     }
                 }
 
+                // Etiqueta con la categoría del libro (solo si tiene una).
                 const catHTML = libro.categoria ? `<span class="badge bg-light text-secondary border ms-1 mb-2">${SEMSAD.esc(libro.categoria)}</span>` : '';
 
+                // Agrega la tarjeta al final del contenedor.
                 contenedor.innerHTML += `
                     <div class="col-12 col-md-6 col-lg-4">
                         <div class="card book-card h-100 shadow-sm p-3 bg-white">
@@ -333,9 +375,11 @@
             });
         }
 
+        // Pide un préstamo de 7 días: primero verifica la sesión, luego pide confirmación y envía la solicitud.
         async function solicitarPrestamo(idMaterial, tituloLibro) {
             const userObj = obtenerUsuarioLogueado();
 
+            // Si no hay usuario identificado, avisa y manda al login.
             if (!userObj || (!userObj.id_usuario && !userObj.correo)) {
                 alert("No se detectó tu sesión activa de estudiante. Redirigiendo al inicio de sesión...");
                 window.location.href = '../login/index.html';
@@ -343,12 +387,14 @@
             }
 
             const nombreSolicitante = userObj.nombreCompleto || userObj.correo;
+            // Pide confirmación antes de enviar la solicitud.
             if (!confirm(`¿Confirmas que deseas solicitar el préstamo de "${tituloLibro}" a nombre de ${nombreSolicitante} por 7 días?`)) {
                 return;
             }
 
             try {
-                const resp = await fetch(window.SEMSAD_API + '/registrar_prestamo.php', {
+                // Llamada POST a la API de préstamos con el id del libro, el usuario y 7 días.
+                const resp = await fetch(window.SEMSAD_API + '/registrar_prestamo_sirve_para_pedir_libro_estudiante.php', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     credentials: 'include',
@@ -362,6 +408,7 @@
 
                 const res = await resp.json();
 
+                // Éxito: muestra el aviso y vuelve a cargar el catálogo para actualizar el stock.
                 if (res.status === 'success') {
                     if (typeof SEMSAD !== 'undefined' && SEMSAD.toast) {
                         SEMSAD.toast(res.mensaje, 'success');
@@ -370,6 +417,7 @@
                     }
                     cargarCatalogo();
                 } else {
+                    // Si la sesión expiró: muestra el aviso y, a los 2,5 segundos, regresa al login.
                     if (res.codigo === 'sin_sesion') {
                         SEMSAD.toast(res.mensaje, 'error');
                         setTimeout(() => { window.location.href = '../login/index.html'; }, 2500);
@@ -387,6 +435,7 @@
             }
         }
 
+        // Carga el historial de préstamos del usuario en la tabla del modal.
         async function cargarMisPrestamos() {
             const userObj = obtenerUsuarioLogueado();
             const tbody = document.getElementById('tablaMisPrestamosBody');
@@ -395,17 +444,20 @@
             if (!userObj) return;
 
             try {
-                const url = window.SEMSAD_API + '/mis_prestamos.php?id_usuario=' + userObj.id_usuario + '&correo=' + encodeURIComponent(userObj.correo);
+                const url = window.SEMSAD_API + '/mis_prestamos_sirve_para_historial_del_estudiante.php?id_usuario=' + userObj.id_usuario + '&correo=' + encodeURIComponent(userObj.correo);
                 const resp = await fetch(url, { credentials: 'include' });
                 const res = await resp.json();
 
+                // Si hay préstamos, arma una fila por cada uno. Si no hay, muestra un mensaje.
                 if (res.status === 'success' && res.prestamos.length > 0) {
                     tbody.innerHTML = '';
                     res.prestamos.forEach(p => {
+                        // Etiqueta del estado: Activo (azul), Devuelto (verde) o Vencido (rojo).
                         let badge = '<span class="badge bg-primary">Activo</span>';
                         if (p.estado === 'Devuelto') badge = '<span class="badge bg-success">Devuelto</span>';
                         if (p.estado === 'Vencido' || p.estado === 'Con Mora') badge = '<span class="badge bg-danger">Vencido (Con Mora)</span>';
 
+                        // Agrega la fila. El botón Renovar solo aparece en los préstamos Activos.
                         tbody.innerHTML += `
                             <tr>
                                 <td class="fw-bold text-dark celda-titulo">${SEMSAD.esc(p.titulo)}</td>
@@ -423,6 +475,7 @@
             }
         }
 
+        // Llena el selector de categorías con los nombres únicos, en orden alfabético.
         function poblarCategorias() {
             const sel = document.getElementById('selCategoria');
             const nombres = [...new Set(todosLosLibros.map(l => l.categoria).filter(Boolean))].sort();
@@ -432,13 +485,16 @@
             sel.classList.toggle('d-none', nombres.length === 0);
         }
 
+        // Filtra la lista que ya está en memoria, sin volver a llamar a la API.
         function filtrarLibros() {
             const texto = document.getElementById('inputBuscar').value.toLowerCase().trim();
             const categoria = document.getElementById('selCategoria').value;
+            // Si no hay texto ni categoría, muestra todos los libros.
             if (!texto && !categoria) {
                 renderizarLibros(todosLosLibros);
                 return;
             }
+            // Pasa el filtro si el texto aparece en título, autor o ISBN, y si la categoría coincide.
             const filtrados = todosLosLibros.filter(libro => {
                 const titulo = (libro.titulo || libro.nombre || '').toLowerCase();
                 const autor = (libro.autores || libro.autor || '').toLowerCase();
@@ -451,17 +507,21 @@
         }
 
         // Lista de espera para libros agotados (RF11)
+        // Envía la acción de lista de espera. accion puede ser reservar (entrar) o cancelar (salir).
         async function reservarMaterial(idMaterial, titulo, accion) {
             try {
-                const resp = await fetch(window.SEMSAD_API + '/reservar_material.php', {
+                const resp = await fetch(window.SEMSAD_API + '/reservar_material_sirve_para_lista_de_espera.php', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     credentials: 'include',
                     body: JSON.stringify({ id_material: idMaterial, accion: accion || 'reservar' })
                 });
                 const res = await resp.json();
+                // Muestra el mensaje del servidor: verde si salió bien, rojo si no.
                 SEMSAD.toast(res.mensaje || 'No se pudo completar la operación.', res.status === 'success' ? 'success' : 'error');
+                // Si la sesión expiró, regresa al login después de 2,5 segundos.
                 if (res.codigo === 'sin_sesion') { setTimeout(() => { window.location.href = '../login/index.html'; }, 2500); return; }
+                // Si salió bien, recarga el catálogo para ver el nuevo estado.
                 if (res.status === 'success') cargarCatalogo();
             } catch (e) {
                 SEMSAD.toast('Error de conexión con el servidor.', 'error');
@@ -470,9 +530,11 @@
 
         // Renovación de préstamos (RF10)
         async function renovarPrestamo(idPrestamo) {
+            // Pide confirmación antes de renovar.
             if (!confirm('¿Quieres renovar este préstamo por 7 días más?')) return;
             try {
-                const resp = await fetch(window.SEMSAD_API + '/renovar_prestamo.php', {
+                // Llamada POST para ampliar el préstamo 7 días más.
+                const resp = await fetch(window.SEMSAD_API + '/renovar_prestamo_sirve_para_ampliar_7_dias.php', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     credentials: 'include',
@@ -480,6 +542,7 @@
                 });
                 const res = await resp.json();
                 SEMSAD.toast(res.mensaje || 'No se pudo renovar.', res.status === 'success' ? 'success' : 'error');
+                // Si salió bien, recarga el historial para mostrar la nueva fecha límite.
                 if (res.status === 'success') cargarMisPrestamos();
             } catch (e) {
                 SEMSAD.toast('Error de conexión con el servidor.', 'error');

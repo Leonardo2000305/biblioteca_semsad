@@ -4,7 +4,7 @@
 // SIRVE PARA: dejar que un estudiante o docente pida un libro prestado desde su cuenta.
 // QUÉ HACE: Identifica al usuario por su sesión y revisa las reglas: cuenta activa, sin multas, turno en la lista de espera, sin repetir el libro y máximo 5 préstamos.
 //   Si todo está bien, crea el préstamo a 7 días y responde en JSON.
-// CONECTA CON: principal/index.html y js/app.js (botón de pedir libro del estudiante); usa usuario_actual_sirve_para_identificar_quien_pide.php y reglas_prestamos_sirve_para_multas_y_plazos.php
+// CONECTA CON: principal/index.html (botón de pedir libro del estudiante); usa usuario_actual_sirve_para_identificar_quien_pide.php y reglas_prestamos_sirve_para_multas_y_plazos.php
 require_once 'conexion_sirve_para_conectar_base_datos.php';
 require_once __DIR__ . '/usuario_actual_sirve_para_identificar_quien_pide.php';
 require_once __DIR__ . '/reglas_prestamos_sirve_para_multas_y_plazos.php';

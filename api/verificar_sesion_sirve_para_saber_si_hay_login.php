@@ -4,7 +4,7 @@
 // SIRVE PARA: decirle a la página si hay alguien con la sesión iniciada.
 // QUÉ HACE: Lee la sesión del servidor. Si hay un id de usuario, responde sesion_activa = true con nombre, rol y CI guardados en la sesión.
 //   Si no hay id, responde sesion_activa = false. No consulta la base de datos.
-// CONECTA CON: js/app.js (revisa la sesión al cargar la página); la sesión la crea login_sirve_para_iniciar_sesion.php
+// CONECTA CON: principal/index.html (revisa la sesión al cargar la página); la sesión la crea login_sirve_para_iniciar_sesion.php
 // Permitir cookies de sesión en entornos con HTTPS/Vercel
 if (session_status() === PHP_SESSION_NONE) {
     ini_set('session.cookie_samesite', 'None');

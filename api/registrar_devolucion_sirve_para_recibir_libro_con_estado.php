@@ -4,7 +4,7 @@
 // SIRVE PARA: registrar que un libro prestado fue devuelto a la biblioteca y en qué estado llegó.
 // QUÉ HACE: Recibe el id del préstamo y el estado físico (Bueno, Regular o Malo). Valida los datos, cierra el préstamo y libera la copia en una sola transacción.
 //   Responde en JSON con el resultado.
-// CONECTA CON: js/admin.js (devolución desde el panel del bibliotecario); usa conexion_sirve_para_conectar_base_datos.php
+// CONECTA CON: principal/admin.html (devolución desde el panel del bibliotecario); usa conexion_sirve_para_conectar_base_datos.php
 if (session_status() === PHP_SESSION_NONE) {
     ini_set('session.cookie_samesite', 'None');
     ini_set('session.cookie_secure', 'True');

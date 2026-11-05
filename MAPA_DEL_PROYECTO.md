@@ -38,10 +38,7 @@ Generado a partir de los encabezados de cada archivo. Cada fila dice para qué s
 | `api/solicitar_recuperacion_sirve_para_enviar_enlace_de_clave.php` | BACKEND | enviar por correo un enlace para cambiar una contraseña olvidada. |
 | `api/usuario_actual_sirve_para_identificar_quien_pide.php` | BACKEND | saber qué usuario está conectado, usando solo la sesión del servidor. |
 | `api/verificar_sesion_sirve_para_saber_si_hay_login.php` | BACKEND | decirle a la página si hay alguien con la sesión iniciada. |
-| `js/admin.js` | FRONTEND | lógica del panel del personal: indicadores, inventario, ventanilla, devoluciones y auditoría. |
-| `js/app.js` | FRONTEND | lógica del portal de estudiantes: catálogo, búsqueda, reserva y lista de préstamos del usuario. |
 | `js/config.js` | FRONTEND | guardar en un solo lugar las funciones comunes que usan todas las páginas de la biblioteca. |
-| `js/login.js` | FRONTEND | procesar el formulario de inicio de sesión (correo y código de empleado). |
 | `login/index.html` | FRONTEND | que la persona inicie sesión con su correo o código y su contraseña. |
 | `login/recuperar.html` | FRONTEND | que la persona pida un enlace para cambiar su contraseña si la olvidó. |
 | `login/registro.html` | FRONTEND | que un estudiante cree su cuenta nueva, confirmando su correo con un código. |

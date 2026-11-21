@@ -292,7 +292,8 @@
             const ids = new Set();
             if (!usuarioDemo) return ids;
             [...historialDemo(), ...pruebasCompartidas].forEach(r => {
-                if (r && r.estado === 'SIMULADO' && String(r.usuario_id || '') === usuarioDemo && Array.isArray(r.multa_ids))
+                if (r && r.estado === 'SIMULADO' &&
+                    String(r.usuario_id || r.id_usuario || '') === usuarioDemo && Array.isArray(r.multa_ids))
                     r.multa_ids.forEach(id => ids.add(Number(id)));
             });
             return ids;

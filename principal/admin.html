@@ -464,7 +464,6 @@
                             <div class="btn-group" role="group">
                                 <button class="btn btn-sm btn-primary fw-bold" id="comprobBtnPago" onclick="cargarComprobantes('pago')"><i class="fa-solid fa-credit-card me-1"></i>Pagos de multas</button>
                                 <button class="btn btn-sm btn-outline-primary fw-bold" id="comprobBtnPrestamo" onclick="cargarComprobantes('prestamo')"><i class="fa-solid fa-book me-1"></i>Préstamos entregados</button>
-                                <button class="btn btn-sm btn-outline-primary fw-bold" id="comprobBtnDemo" onclick="cargarComprobantes('demo')"><i class="fa-solid fa-flask me-1"></i>Operaciones de prueba</button>
                             </div>
                             <button class="btn btn-sm btn-outline-primary" onclick="cargarComprobantes(comprobTipo)" title="Actualizar"><i class="fa-solid fa-rotate"></i></button>
                         </div>
@@ -500,7 +499,6 @@
             <!-- Barra del reporte: Actualizar, Exportar Excel (archivo CSV) e Imprimir / PDF. No se imprime. -->
             <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3 no-print">
                 <small class="text-muted" id="repGenerado"></small>
-                <a href="reportes_demo.html" class="btn btn-sm btn-outline-info fw-bold" target="_blank" rel="noopener">Reportes de pagos DEMO</a>
                 <div class="d-flex gap-2">
                     <button class="btn btn-sm btn-outline-primary" onclick="cargarReportes()"><i class="fa-solid fa-rotate me-1"></i>Actualizar</button>
                     <!-- Descarga el último reporte generado como archivo CSV, que se abre en Excel. -->
@@ -932,8 +930,6 @@
                 if (!document.getElementById('secDashboard').classList.contains('d-none')) cargarDashboard();
                 if (!document.getElementById('secVentanilla').classList.contains('d-none')) cargarVentanilla(true);
                 if (!document.getElementById('secMultas').classList.contains('d-none')) cargarMultas();
-                if (!document.getElementById('secComprobantes').classList.contains('d-none') &&
-                    comprobTipo === 'demo' && !comprobUrlActual) cargarComprobantes('demo');
             }, 15000);
         });
 
@@ -1245,23 +1241,6 @@
             tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4"><i class="fa-solid fa-spinner fa-spin text-danger me-2"></i>Cargando datos de multas...</td></tr>';
 
             try {
-                // La vista del personal comprueba los registros académicos sin modificar el estado de la multa real.
-                const operacionesDePrueba = new Map();
-                try {
-                    const demoResp = await fetch(window.SEMSAD_API +
-                        '/pagos_demo_sirve_para_registrar_y_listar.php?listar=1',
-                        { credentials:'include', cache:'no-store' });
-                    const demoData = await demoResp.json();
-                    if (demoData.status === 'success' && Array.isArray(demoData.lista)) {
-                        demoData.lista.forEach(op => {
-                            if (op.estado === 'SIMULADO' && Array.isArray(op.multa_ids)) {
-                                op.multa_ids.forEach(id => operacionesDePrueba.set(Number(id),Number(op.id)));
-                            }
-                        });
-                    }
-                } catch (error) {
-                    console.warn('Los datos del entorno de pruebas no están disponibles.', error);
-                }
                 // Llamada GET a la API de multas.
                 const resp = await fetch(window.SEMSAD_API + '/obtener_multas_sirve_para_cobrar_y_ver_mora.php', { credentials: 'include' });
                 // La respuesta se lee como texto antes de convertirla a JSON.
@@ -1291,13 +1270,6 @@
                                 ? `<span class="badge bg-success py-2 px-3">Activo</span>`
                                 : `<span class="badge bg-danger py-2 px-3">${SEMSAD.esc(estadoUser)}</span>`;
 
-                            const comprobantePrueba = operacionesDePrueba.get(Number(m.id_multa));
-                            const etiquetaPrueba = comprobantePrueba
-                                ? '<div class="mt-1"><span class="badge bg-info text-dark">Cubierta en pruebas</span> ' +
-                                  '<a class="small fw-bold" href="comprobante.html?tipo=demo&id=' + comprobantePrueba +
-                                  '" target="_blank" rel="noopener">Ver constancia</a></div>' +
-                                  '<div class="small text-muted">La multa real sigue pendiente.</div>'
-                                : '';
                             // Agrega la fila de la multa. El botón abre la ventana de cobro (abrirCobroMulta) con el id de la multa.
                             tbody.innerHTML += `
                                 <tr>
@@ -1307,7 +1279,7 @@
                                     </td>
                                     <td><span class="badge bg-secondary">${SEMSAD.esc(m.tipo_multa || 'Por Mora')}</span></td>
                                     <td class="text-muted fw-bold">${SEMSAD.esc(m.fecha_limite || 'N/A')}</td>
-                                    <td><strong class="text-danger fs-6">${parseFloat(m.monto).toFixed(2)} Bs.</strong>${etiquetaPrueba}</td>
+                                    <td><strong class="text-danger fs-6">${parseFloat(m.monto).toFixed(2)} Bs.</strong></td>
                                     <td>${badgeUser}</td>
                                     <td class="text-center no-print">
                                         <button class="btn btn-success btn-sm fw-bold px-3" onclick="abrirCobroMulta(${Number(m.id_multa)})">
@@ -1574,55 +1546,27 @@
         let comprobTipo = 'pago';
         let comprobUrlActual = null;
         async function cargarComprobantes(tipo) {
-            if (!['pago', 'prestamo', 'demo'].includes(tipo)) return;
             comprobTipo = tipo;
-            for (const [id, name] of [['comprobBtnPago','pago'],['comprobBtnPrestamo','prestamo'],['comprobBtnDemo','demo']]) {
-                document.getElementById(id).className = 'btn btn-sm fw-bold ' + (tipo === name ? 'btn-primary' : 'btn-outline-primary');
-            }
-            document.getElementById('comprobColDetalle').textContent =
-                tipo === 'pago' ? 'Método' : (tipo === 'prestamo' ? 'Libro' : 'Método · libros');
+            document.getElementById('comprobBtnPago').className = 'btn btn-sm fw-bold ' + (tipo === 'pago' ? 'btn-primary' : 'btn-outline-primary');
+            document.getElementById('comprobBtnPrestamo').className = 'btn btn-sm fw-bold ' + (tipo === 'prestamo' ? 'btn-primary' : 'btn-outline-primary');
+            document.getElementById('comprobColDetalle').innerText = tipo === 'pago' ? 'Método' : 'Libro';
             const tbody = document.getElementById('comprobTbody');
             tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-muted">Cargando...</td></tr>';
-            const frame = document.getElementById('comprobPreview');
-            frame.classList.add('d-none');
-            frame.removeAttribute('src');
-            document.getElementById('comprobVacio').classList.remove('d-none');
-            document.getElementById('comprobAbrir').disabled = true;
-            document.getElementById('comprobImprimir').disabled = true;
-            comprobUrlActual = null;
             try {
-                const url = tipo === 'demo'
-                    ? window.SEMSAD_API + '/pagos_demo_sirve_para_registrar_y_listar.php?listar=1'
-                    : window.SEMSAD_API + '/comprobantes_sirve_para_consultar.php?tipo=' + tipo + '&listar=1';
-                const resp = await fetch(url, { credentials: 'include', cache: 'no-store' });
+                const resp = await fetch(`${window.SEMSAD_API}/comprobantes_sirve_para_consultar.php?tipo=${tipo}&listar=1`, { credentials: 'include', cache: 'no-store' });
                 const res = await resp.json();
-                if (comprobTipo !== tipo) return;
-                if (!resp.ok || res.status !== 'success') {
-                    tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-danger">' +
-                        SEMSAD.esc(res.mensaje || 'No se pudieron cargar los comprobantes.') + '</td></tr>';
-                    return;
-                }
-                const lista = Array.isArray(res.lista) ? res.lista : [];
-                tbody.innerHTML = lista.length ? lista.map(c => {
-                    const detalle = tipo === 'pago' ? c.metodo
-                        : tipo === 'prestamo' ? c.libro
-                        : String(c.metodo || '') + ' · ' + String(c.libros || 'Prueba de pago');
-                    const importe = tipo === 'prestamo' ? SEMSAD.esc(c.estado)
-                        : formatoBs(c.monto) + (tipo === 'demo'
-                            ? ' <span class="badge bg-info text-dark">PRUEBA · sin cobro bancario</span>' : '');
-                    return '<tr>' +
-                        '<td class="fw-bold">' + SEMSAD.esc(c.codigo) + '</td>' +
-                        '<td>' + SEMSAD.esc(c.usuario || '') + '</td>' +
-                        '<td>' + SEMSAD.esc(detalle) + '</td>' +
-                        '<td>' + SEMSAD.esc(tipo === 'demo' ? String(c.fecha || '') : fechaHoraES(c.fecha)) + '</td>' +
-                        '<td>' + importe + '<div><button class="btn btn-sm btn-outline-primary fw-bold mt-1" onclick="verComprobantePreview(' +
-                        "'" + tipo + "', " + Number(c.id) + ', this)"><i class="fa-solid fa-eye me-1"></i>Vista previa</button></div></td></tr>';
-                }).join('') : '<tr><td colspan="5" class="text-center py-4 text-muted">No hay registros de este tipo.</td></tr>';
+                if (res.status !== 'success') { tbody.innerHTML = `<tr><td colspan="5" class="text-center py-4 text-danger">${SEMSAD.esc(res.mensaje || 'No se pudieron cargar.')}</td></tr>`; return; }
+                tbody.innerHTML = res.lista.length ? res.lista.map(c => `<tr>
+                    <td class="fw-bold">${SEMSAD.esc(c.codigo)}</td>
+                    <td>${SEMSAD.esc(c.usuario)}</td>
+                    <td>${SEMSAD.esc(tipo === 'pago' ? c.metodo : c.libro)}</td>
+                    <td>${SEMSAD.esc(fechaHoraES(c.fecha))}</td>
+                    <td>${tipo === 'pago' ? formatoBs(c.monto) : SEMSAD.esc(c.estado)}
+                        <div><button class="btn btn-sm btn-outline-primary fw-bold mt-1" onclick="verComprobantePreview('${tipo}', ${Number(c.id)}, this)"><i class="fa-solid fa-eye me-1"></i>Vista previa</button></div></td>
+                </tr>`).join('') : '<tr><td colspan="5" class="text-center py-4 text-muted">No hay comprobantes todavía.</td></tr>';
             } catch (e) {
-                console.error('Comprobantes:',e);
-                if (comprobTipo === tipo) {
-                    tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-danger">Error al consultar registros.</td></tr>';
-                }
+                console.error('Comprobantes:', e);
+                tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-danger">Error de conexión.</td></tr>';
             }
         }
         function verComprobantePreview(tipo, id, boton) {

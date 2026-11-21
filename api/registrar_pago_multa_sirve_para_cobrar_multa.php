@@ -87,7 +87,7 @@ try {
     // Si ya no debe ninguna multa, se revisa si la cuenta debe reactivarse.
     if ($pendientes === 0 && $duenio > 0) {
         // Solo se reactivan cuentas bloqueadas/suspendidas por mora, no las desactivadas a mano
-        $u = $conexion->prepare("UPDATE usuario SET estado = 'Activo' WHERE id_usuario = :u AND estado IN ('Bloqueado', 'Suspendido')");
+        $u = $conexion->prepare("UPDATE usuario SET estado = 'Activo', bloqueo_por_mora = 0 WHERE id_usuario = :u AND estado IN ('Bloqueado', 'Suspendido') AND bloqueo_por_mora = 1");
         $u->execute([':u' => $duenio]);
         $reactivado = $u->rowCount() > 0;
     }

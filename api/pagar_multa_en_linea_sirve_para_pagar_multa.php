@@ -34,9 +34,10 @@ if ($idMulta <= 0 || !in_array($metodo, ['tarjeta', 'paypal'], true)) {
 if ($metodo === 'tarjeta' && $ultimos4 === '') {
     semsad_responder(['status' => 'error', 'mensaje' => 'Faltan los datos de la tarjeta.']);
 }
-$demo = !empty($cfg['pagos_demo']);
-if (!$demo) {
-    semsad_responder(['status' => 'error', 'mensaje' => 'La pasarela de pago real todavía no está conectada.'], 503);
+// Pago en línea: solo se acepta con una pasarela real conectada (pasarela_real = true y pagos_demo = false).
+// La demostración NO liquida multas ni desbloquea cuentas: una simulación no puede cobrar dinero.
+if (empty($cfg['pasarela_real']) || !empty($cfg['pagos_demo'])) {
+    semsad_responder(['status' => 'error', 'mensaje' => 'El pago en línea no está disponible. Paga en ventanilla con QR o efectivo.'], 503);
 }
 
 try {
@@ -73,7 +74,7 @@ try {
     $q->execute([':u' => (int)$yo['id_usuario']]);
     $reactivado = false;
     if ((int)$q->fetchColumn() === 0) {
-        $u = $conexion->prepare("UPDATE usuario SET estado = 'Activo' WHERE id_usuario = :u AND estado IN ('Bloqueado', 'Suspendido')");
+        $u = $conexion->prepare("UPDATE usuario SET estado = 'Activo', bloqueo_por_mora = 0 WHERE id_usuario = :u AND estado IN ('Bloqueado', 'Suspendido') AND bloqueo_por_mora = 1");
         $u->execute([':u' => (int)$yo['id_usuario']]);
         $reactivado = $u->rowCount() > 0;
     }

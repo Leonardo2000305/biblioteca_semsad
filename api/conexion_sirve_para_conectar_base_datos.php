@@ -27,6 +27,7 @@ $cfg = [
     'allowed_origins' => [],     // dominios extra permitidos para CORS, ej. 'https://mi-dominio.com'
     'frontend_url'    => 'https://bibliotecasemsad.vercel.app', // dominio de la web (para el enlace del correo de recuperación)
     'mail_from'       => 'no-reply@semsad.edu.bo',               // remitente de los correos (usa uno de tu dominio verificado)
+    'pasarela_real'   => false,  // true solo cuando haya una pasarela de pago real conectada
     'pagos_demo'      => true,   // true = la pasarela de pago es de DEMOSTRACIÓN: no cobra dinero real (ver pagar_multa_en_linea)
     'app_secret'      => '',     // opcional: clave para firmar enlaces. Si está vacía se crea sola en api/.secreto
 ];

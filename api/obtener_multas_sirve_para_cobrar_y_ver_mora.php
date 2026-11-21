@@ -74,7 +74,7 @@ try {
 
         // RF13: más de SEMSAD_DIAS_BLOQUEO días de retraso => cuenta bloqueada
         if ($pendiente && $mora['dias'] > SEMSAD_DIAS_BLOQUEO && $estadoBloqueo !== null) {
-            $conexion->prepare("UPDATE usuario SET estado = :e WHERE id_usuario = :u AND estado = 'Activo'")
+            $conexion->prepare("UPDATE usuario SET estado = :e, bloqueo_por_mora = 1 WHERE id_usuario = :u AND estado = 'Activo'")
                      ->execute([':e' => $estadoBloqueo, ':u' => $v['id_usuario']]);
         }
     }

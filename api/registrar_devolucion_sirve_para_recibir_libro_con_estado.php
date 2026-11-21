@@ -56,7 +56,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $sql = "SELECT p.id_prestamo, p.fecha_limite, dp.id_ejemplar 
                 FROM prestamo p
                 INNER JOIN detalle_prestamo dp ON p.id_prestamo = dp.id_prestamo
-                WHERE p.id_prestamo = :id_prestamo AND p.estado IN ('Activo', 'Con Mora')";
+                WHERE p.id_prestamo = :id_prestamo AND p.estado IN ('Activo', 'Vencido', 'Con Mora')";
         $stmt = $conexion->prepare($sql);
         $stmt->execute([':id_prestamo' => $id_prestamo]);
         $prestamo = $stmt->fetch();

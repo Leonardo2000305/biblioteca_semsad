@@ -159,6 +159,7 @@ try {
         $msg = "Usuario \"$nombres $apellidos\" registrado exitosamente.";
     }
 
+    semsad_bitacora(str_contains((string)$msg, 'actualizado') ? 'Editar usuario' : 'Nuevo usuario', 'Usuarios', (string)$msg, true, $id_usuario_final);
     semsad_responder(['status' => 'success', 'mensaje' => $msg, 'id_usuario' => $id_usuario_final]);
 
 } catch (Exception $e) {

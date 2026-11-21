@@ -35,6 +35,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // 2. Marcar préstamo como Devuelto
         $stmtP = $conexion->prepare("UPDATE prestamo SET estado = 'Devuelto' WHERE id_prestamo = :p");
         $stmtP->execute([':p' => $id_prestamo]);
+        semsad_bitacora('Devolución', 'Préstamos', "Devolución registrada del préstamo #$id_prestamo", false);
 
         // Fecha real de devolución (la usan los reportes). Si la columna no existe, se ignora.
         // La fecha real de devolución es opcional: si la columna no existe, este paso se omite sin detener la devolución.
@@ -58,7 +59,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 SELECT DISTINCT dp.id_ejemplar 
                 FROM detalle_prestamo dp 
                 INNER JOIN prestamo p ON dp.id_prestamo = p.id_prestamo 
-                WHERE p.estado IN ('Activo', 'Vencido', 'Con Mora')
+                WHERE p.estado IN ('Solicitado', 'Activo', 'Vencido', 'Con Mora')
             )
         ");
 

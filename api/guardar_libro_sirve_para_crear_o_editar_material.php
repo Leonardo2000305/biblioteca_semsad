@@ -159,6 +159,7 @@ try {
 
     // Confirma todos los cambios del libro.
     $conexion->commit();
+    semsad_bitacora(isset($msg) && str_contains($msg, 'actualizado') ? 'Editar libro' : 'Nuevo libro', 'Inventario', (string)$msg, false);
     semsad_responder(['status' => 'success', 'mensaje' => $msg, 'id_material' => $id_material]);
 
 } catch (Exception $e) {

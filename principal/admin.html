@@ -357,7 +357,7 @@
                                     <th class="text-center no-print">Acción</th>
                                 </tr>
                             </thead>
-                            <!-- Aquí cargarMultas() escribe una fila por multa. El botón Cobrar y Desbloquear llama a registrarPagoMulta(). -->
+                            <!-- Aquí cargarMultas() escribe una fila por multa. El botón Cobrar y Desbloquear abre la ventana abrirCobroMulta(). -->
                             <tbody id="tablaMultasBody">
                                 <tr><td colspan="6" class="text-center py-4">Cargando datos de multas...</td></tr>
                             </tbody>
@@ -547,6 +547,93 @@
     </main>
 
     <!-- MODAL NUEVO / EDITAR LIBRO -->
+    <!-- Ventana de cobro de multas: QR fijo de la caseta o efectivo con cambio. -->
+    <style>
+        .cobro-icono { width: 46px; height: 46px; border-radius: 14px; display: grid; place-items: center; background: #2563eb; color: #fff; font-size: 1.2rem; }
+        .cobro-usuario { background: #eff6ff; border: 1px solid #dbeafe; }
+        .cobro-avatar { width: 48px; height: 48px; border-radius: 50%; display: grid; place-items: center; background: #64748b; color: #fff; font-size: 1.2rem; }
+        .cobro-metodo { border: 2px solid #cbd5e1; border-radius: 16px; background: #fff; padding: 1rem .5rem; color: #1e293b; transition: all .15s; }
+        .cobro-metodo i { font-size: 1.9rem; color: #2563eb; display: block; margin-bottom: .4rem; }
+        .cobro-metodo:hover { border-color: #93c5fd; }
+        .cobro-metodo.activo { border-color: #2563eb; background: #eff6ff; box-shadow: 0 0 0 3px rgba(37, 99, 235, .15); }
+        .cobro-cambio { background: #dcfce7; color: #15803d; border: 1px solid #bbf7d0; }
+    </style>
+    <div class="modal fade" id="modalCobroMulta" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 rounded-4 shadow-lg">
+                <div class="modal-header border-0 pb-0">
+                    <div class="d-flex align-items-center gap-3">
+                        <span class="cobro-icono"><i class="fa-solid fa-credit-card"></i></span>
+                        <div>
+                            <h5 class="modal-title fw-bold mb-0">Registrar pago de multa</h5>
+                            <small class="text-muted">Registra el cobro y desbloquea al usuario.</small>
+                        </div>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="cobro-usuario d-flex align-items-center justify-content-between flex-wrap gap-3 p-3 rounded-3 mb-3">
+                        <div class="d-flex align-items-center gap-3">
+                            <span class="cobro-avatar"><i class="fa-solid fa-user"></i></span>
+                            <div>
+                                <div class="fw-bold" id="cobroNombre"></div>
+                                <small class="text-muted" id="cobroCorreo"></small>
+                            </div>
+                        </div>
+                        <div class="text-end">
+                            <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-3 py-2">Multa pendiente</span>
+                            <div class="small text-muted mt-1">Monto de la multa</div>
+                            <div class="fs-4 fw-bold text-danger" id="cobroMonto"></div>
+                        </div>
+                    </div>
+
+                    <div class="fw-bold mb-2">Método de pago</div>
+                    <div class="row g-2 mb-3" role="radiogroup" aria-label="Método de pago">
+                        <div class="col-6">
+                            <button type="button" class="cobro-metodo w-100" id="cobroBtnQR" role="radio" aria-checked="false" onclick="elegirMetodoCobro('QR')">
+                                <i class="fa-solid fa-qrcode"></i>
+                                <div class="fw-bold">Pago por QR</div>
+                            </button>
+                        </div>
+                        <div class="col-6">
+                            <button type="button" class="cobro-metodo w-100" id="cobroBtnEfectivo" role="radio" aria-checked="false" onclick="elegirMetodoCobro('Efectivo')">
+                                <i class="fa-solid fa-money-bill-wave"></i>
+                                <div class="fw-bold">Pago en Efectivo</div>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- QR: el código está impreso en la caseta. No se muestra aquí; el personal confirma que el dinero llegó. -->
+                    <div id="cobroPanelQR" class="alert alert-warning d-flex gap-2 align-items-start mb-0">
+                        <i class="fa-solid fa-circle-info mt-1"></i>
+                        <div>Pídele al usuario que escanee el QR de la caseta. Verifica que el pago haya llegado a la cuenta de la biblioteca antes de registrarlo.</div>
+                    </div>
+
+                    <!-- Efectivo: el monto ya está puesto; el personal escribe lo recibido y el cambio se calcula solo. -->
+                    <div id="cobroPanelEfectivo" class="d-none">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label for="cobroRecibido" class="form-label fw-bold">Monto recibido (Bs.) <span class="text-danger">*</span></label>
+                                <input type="number" class="form-control form-control-lg fw-bold" id="cobroRecibido" min="0" step="0.01" inputmode="decimal" placeholder="0,00" oninput="actualizarCambioCobro()">
+                            </div>
+                            <div class="col-md-6">
+                                <div class="fw-bold mb-1">Cambio</div>
+                                <div class="cobro-cambio rounded-3 px-3 py-2 fs-4 fw-bold" id="cobroCambio">Bs. 0,00</div>
+                            </div>
+                        </div>
+                        <div class="small text-danger mt-2 d-none" id="cobroAviso">El dinero recibido no alcanza para cubrir la multa.</div>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 pt-0">
+                    <button type="button" class="btn btn-light fw-bold px-4" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary fw-bold px-4" id="cobroBtnConfirmar" onclick="confirmarCobroMulta()" disabled>
+                        <i class="fa-solid fa-check me-1"></i>Registrar pago y desbloquear
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div class="modal fade" id="modalLibro" tabindex="-1">
         <div class="modal-dialog">
             <div class="modal-content">
@@ -993,6 +1080,7 @@
                 // Si la API respondió bien: dibuja una fila por multa, o un mensaje si no hay ninguna.
                 if (res.status === 'success') {
                     const lista = res.data || [];
+                    window.multasActuales = lista;
                     if (lista.length > 0) {
                         tbody.innerHTML = '';
                         lista.forEach(m => {
@@ -1002,7 +1090,7 @@
                                 ? `<span class="badge bg-success py-2 px-3">Activo</span>`
                                 : `<span class="badge bg-danger py-2 px-3">${SEMSAD.esc(estadoUser)}</span>`;
 
-                            // Agrega la fila de la multa. El botón llama a registrarPagoMulta con el id de la multa y el del usuario.
+                            // Agrega la fila de la multa. El botón abre la ventana de cobro (abrirCobroMulta) con el id de la multa.
                             tbody.innerHTML += `
                                 <tr>
                                     <td>
@@ -1014,7 +1102,7 @@
                                     <td><strong class="text-danger fs-6">${parseFloat(m.monto).toFixed(2)} Bs.</strong></td>
                                     <td>${badgeUser}</td>
                                     <td class="text-center no-print">
-                                        <button class="btn btn-success btn-sm fw-bold px-3" onclick="registrarPagoMulta(${Number(m.id_multa)}, ${Number(m.id_usuario)})">
+                                        <button class="btn btn-success btn-sm fw-bold px-3" onclick="abrirCobroMulta(${Number(m.id_multa)})">
                                             <i class="fa-solid fa-cash-register me-1"></i> Cobrar y Desbloquear
                                         </button>
                                     </td>
@@ -1032,32 +1120,94 @@
             }
         }
 
-        // Confirma el pago y desbloquea al usuario; después recarga las multas y el padrón de usuarios.
-        async function registrarPagoMulta(idMulta, idUsuario) {
-            if (!confirm('¿Confirmar que el usuario canceló la multa y autorizar el desbloqueo de su cuenta?')) return;
+        // ===== Cobro de multas: ventana con pago por QR (caseta) o en efectivo =====
+        let cobroActual = null;
 
+        function formatoBs(n) {
+            return 'Bs. ' + Number(n || 0).toFixed(2).replace('.', ',');
+        }
+
+        // Abre la ventana con los datos de la multa seleccionada. Por defecto se marca QR.
+        function abrirCobroMulta(idMulta) {
+            const m = (window.multasActuales || []).find(x => Number(x.id_multa) === Number(idMulta));
+            if (!m) {
+                SEMSAD.toast('No encontré esa multa. Pulsa "Actualizar Multas" e inténtalo otra vez.', 'error');
+                return;
+            }
+            cobroActual = { id: Number(m.id_multa), idUsuario: Number(m.id_usuario), monto: parseFloat(m.monto) || 0, metodo: null };
+            document.getElementById('cobroNombre').innerText = `${m.nombres || ''} ${m.apellidos || ''}`.trim();
+            document.getElementById('cobroCorreo').innerText = m.correo || '';
+            document.getElementById('cobroMonto').innerText = formatoBs(cobroActual.monto);
+            document.getElementById('cobroRecibido').value = '';
+            elegirMetodoCobro('QR');
+            bootstrap.Modal.getOrCreateInstance(document.getElementById('modalCobroMulta')).show();
+        }
+
+        // Cambia entre QR y efectivo dentro de la misma ventana.
+        function elegirMetodoCobro(metodo) {
+            if (!cobroActual) return;
+            cobroActual.metodo = metodo;
+            const esQR = metodo === 'QR';
+            document.getElementById('cobroBtnQR').classList.toggle('activo', esQR);
+            document.getElementById('cobroBtnEfectivo').classList.toggle('activo', !esQR);
+            document.getElementById('cobroBtnQR').setAttribute('aria-checked', esQR);
+            document.getElementById('cobroBtnEfectivo').setAttribute('aria-checked', !esQR);
+            document.getElementById('cobroPanelQR').classList.toggle('d-none', !esQR);
+            document.getElementById('cobroPanelEfectivo').classList.toggle('d-none', esQR);
+            actualizarCambioCobro();
+        }
+
+        // En efectivo: calcula el cambio y bloquea el botón si el dinero no alcanza.
+        function actualizarCambioCobro() {
+            if (!cobroActual) return;
+            const btn = document.getElementById('cobroBtnConfirmar');
+            if (cobroActual.metodo !== 'Efectivo') {
+                btn.disabled = false;
+                return;
+            }
+            const texto = document.getElementById('cobroRecibido').value.replace(',', '.');
+            const recibido = parseFloat(texto);
+            const hayValor = texto.trim() !== '';
+            const alcanza = !isNaN(recibido) && recibido + 0.0001 >= cobroActual.monto;
+            const cambio = alcanza ? Math.round((recibido - cobroActual.monto) * 100) / 100 : 0;
+            document.getElementById('cobroCambio').innerText = formatoBs(cambio);
+            document.getElementById('cobroAviso').classList.toggle('d-none', !hayValor || alcanza);
+            btn.disabled = !alcanza;
+        }
+
+        // Envía el cobro al servidor. El servidor vuelve a validar el monto y el dinero recibido.
+        async function confirmarCobroMulta() {
+            if (!cobroActual || !cobroActual.metodo) return;
+            const btn = document.getElementById('cobroBtnConfirmar');
+            const cuerpo = { id_multa: cobroActual.id, id_usuario: cobroActual.idUsuario, metodo: cobroActual.metodo };
+            if (cobroActual.metodo === 'Efectivo') {
+                cuerpo.monto_recibido = document.getElementById('cobroRecibido').value.replace(',', '.');
+            }
+            btn.disabled = true;
             try {
-                // Llamada POST a la API con el id de la multa y el id del usuario.
                 const resp = await fetch(window.SEMSAD_API + '/registrar_pago_multa_sirve_para_cobrar_multa.php', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     credentials: 'include',
-                    body: JSON.stringify({ id_multa: idMulta, id_usuario: idUsuario })
+                    body: JSON.stringify(cuerpo)
                 });
-
                 const res = await resp.json();
-
                 if (res.status === 'success') {
-                    SEMSAD.toast(res.mensaje || "Pago registrado correctamente.", 'success');
+                    bootstrap.Modal.getOrCreateInstance(document.getElementById('modalCobroMulta')).hide();
+                    let aviso = res.mensaje || 'Pago registrado correctamente.';
+                    if (res.metodo === 'Efectivo') aviso += ` Cambio: ${formatoBs(res.cambio)}.`;
+                    SEMSAD.toast(aviso, 'success');
                     cargarMultas();
-                    // Si la función del padrón existe, la vuelve a cargar para ver el usuario desbloqueado.
                     if (typeof cargarUsuariosRegistrados === 'function') cargarUsuariosRegistrados();
                 } else {
-                    alert(res.mensaje || res.message || "Error al procesar el pago.");
+                    SEMSAD.toast(res.mensaje || 'No se pudo registrar el pago.', 'error');
+                    actualizarCambioCobro();
+                    btn.disabled = cobroActual.metodo === 'Efectivo' ? btn.disabled : false;
                 }
             } catch (e) {
-                console.error("Error al registrar pago de multa:", e);
-                alert("Error de conexión al procesar el pago.");
+                console.error('Error al registrar pago de multa:', e);
+                SEMSAD.toast('Error de conexión al registrar el pago.', 'error');
+                btn.disabled = false;
             }
         }
         /* ====================================================================== */

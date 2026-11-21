@@ -204,15 +204,45 @@
         });
 
         // Pide las multas pendientes del estudiante. Si tiene, muestra el aviso con el total y el botón de pagar.
+        // Marca solo las simulaciones de esta cuenta en el navegador: la base real no cambia.
+        function idsDeMultasDemo() {
+            const ids = new Set(), id = String(SEMSAD.getUser()?.id || '');
+            if (!id) return ids;
+            try {
+                const arr = JSON.parse(localStorage.getItem('semsad_pagos_prueba_v1') || '[]');
+                if (Array.isArray(arr)) arr.forEach(r => {
+                    if (r && r.estado === 'SIMULADO' && String(r.usuario_id || '') === id && Array.isArray(r.multa_ids))
+                        r.multa_ids.forEach(n => ids.add(Number(n)));
+                });
+            } catch (e) { /* Podría estar deshabilitado el almacenamiento. */ }
+            return ids;
+        }
+
         async function cargarMultasEstudiante() {
             try {
                 const resp = await fetch(window.SEMSAD_API + '/mis_multas_sirve_para_pagar_en_linea.php', { credentials: 'include', cache: 'no-store' });
                 const res = await resp.json();
-                if (res.status === 'success' && res.multas.length > 0) {
-                    document.getElementById('bannerMultasTexto').innerText =
-                        `${res.multas.length} multa(s) por un total de Bs ${Number(res.total).toFixed(2)}. Mientras tengas multas no podrás pedir libros.`;
-                    document.getElementById('bannerMultas').classList.remove('d-none');
-                }
+                const banner = document.getElementById('bannerMultas');
+                if (res.status === 'success' && Array.isArray(res.multas) && res.multas.length) {
+                    const hechas = idsDeMultasDemo();
+                    const pendientes = res.multas.filter(m => !hechas.has(Number(m.id_multa)));
+                    const cubiertas = res.multas.length - pendientes.length;
+                    const titulo = banner.querySelector('.fw-bold');
+                    const texto = document.getElementById('bannerMultasTexto');
+                    if (cubiertas && !pendientes.length) {
+                        titulo.textContent = 'DEMOSTRACIÓN: multas cubiertas';
+                        texto.textContent = 'Las simulaciones están completas en este navegador. Las multas reales siguen pendientes hasta su pago verdadero.';
+                    } else if (cubiertas) {
+                        titulo.textContent = 'DEMOSTRACIÓN: multas pendientes';
+                        texto.textContent = pendientes.length + ' faltan por simular; ' + cubiertas +
+                            ' cubiertas solo en DEMO. La deuda real no ha cambiado.';
+                    } else {
+                        titulo.textContent = 'Tienes multas pendientes';
+                        texto.textContent = res.multas.length + ' multa(s) por un total de Bs ' +
+                            Number(res.total).toFixed(2) + '. Mientras tengas multas no podrás pedir libros.';
+                    }
+                    banner.classList.remove('d-none');
+                } else banner.classList.add('d-none');
             } catch (e) { console.error('Multas:', e); }
         }
 
@@ -522,7 +552,9 @@
             } catch (e) {
                 console.warn('No fue posible leer el historial de pruebas.', e);
             }
+            const idUsuario = String(SEMSAD.getUser()?.id || '');
             pruebas = pruebas.filter(p => p && p.estado === 'SIMULADO'
+                && (!p.usuario_id || String(p.usuario_id) === idUsuario)
                 && Number.isFinite(Number(p.monto)) && Number(p.monto) >= 0);
             if (!pruebas.length) {
                 const msg = document.createElement('div');
@@ -544,6 +576,11 @@
                 const cuando = Number.isFinite(f.getTime()) ? f.toLocaleString('es-BO') : 'Fecha no disponible';
                 fecha.textContent = cuando + ' · ' + String(p.metodo || 'Método de prueba');
                 info.append(codigo, fecha);
+                const nombres = document.createElement('div');
+                nombres.className = 'small text-muted';
+                nombres.textContent = Array.isArray(p.detalle_multas) && p.detalle_multas.length
+                    ? 'Multas: ' + p.detalle_multas.join(', ') : 'Prueba antigua sin multa vinculada';
+                info.appendChild(nombres);
                 const detalle = document.createElement('div');
                 detalle.className = 'd-flex flex-wrap gap-2 align-items-center';
                 const monto = document.createElement('span');

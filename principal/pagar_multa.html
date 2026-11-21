@@ -121,6 +121,12 @@
             <i class="fa-solid fa-flask me-2"></i><strong>DEMOSTRACIÓN · SIN COBRO REAL:</strong> usa únicamente los ejemplos predefinidos. No ingreses tarjetas ni credenciales personales. Las multas reales no se modificarán.
         </div>
 
+        <!-- Publicación voluntaria de pruebas anteriores que solo estaban en este navegador. -->
+        <div id="migrarPruebas" class="aviso-demo p-3 mb-3 d-none">
+            <div class="fw-bold mb-2"><i class="fa-solid fa-cloud-arrow-up me-1"></i>Comprobantes anteriores encontrados</div>
+            <p class="small mb-2">Hay operaciones de prueba guardadas antes de incorporar el registro compartido. Se pueden validar y hacer visibles al administrador.</p>
+            <button type="button" class="btn btn-sm btn-outline-warning fw-bold" id="btnCompartirPruebas" onclick="compartirPruebasAnteriores()">Incluir comprobantes anteriores en el registro</button>
+        </div>
         <!-- Estado: sin multas -->
         <div id="vistaSinMultas" class="panel p-4 p-md-5 text-center d-none">
             <i class="fa-solid fa-circle-check fa-3x text-success mb-3"></i>
@@ -287,6 +293,50 @@
                 throw new Error(res.mensaje || 'No se pudo consultar el historial compartido de pruebas.');
             }
             pruebasCompartidas = res.lista;
+            actualizarAvisoSincronizacion();
+        }
+        function antiguasSinCompartir() {
+            if (!usuarioDemo) return [];
+            const compartidas = new Set(pruebasCompartidas.map(r => String(r.codigo || '')));
+            return historialDemo().filter(r => r && r.estado === 'SIMULADO'
+                && String(r.usuario_id || '') === usuarioDemo
+                && Array.isArray(r.multa_ids) && r.multa_ids.length > 0
+                && !compartidas.has(String(r.codigo || '')));
+        }
+        function actualizarAvisoSincronizacion() {
+            const aviso = document.getElementById('migrarPruebas');
+            if (aviso) aviso.classList.toggle('d-none', antiguasSinCompartir().length === 0);
+        }
+        async function compartirPruebasAnteriores() {
+            const previas = antiguasSinCompartir();
+            if (!previas.length) { actualizarAvisoSincronizacion(); return; }
+            if (!confirm('¿Compartir ' + previas.length + ' operación(es) de prueba anteriores con el panel administrativo? Las multas reales no cambiarán.')) return;
+            const btn = document.getElementById('btnCompartirPruebas');
+            btn.disabled = true;
+            let completadas = 0, rechazadas = 0;
+            try {
+                for (const r of previas) {
+                    try {
+                        const resp = await fetch(window.SEMSAD_API + '/pagos_demo_sirve_para_registrar_y_listar.php', {
+                            method:'POST', credentials:'include',
+                            headers:{'Content-Type':'application/json'},
+                            body:JSON.stringify({codigo:r.codigo,metodo:r.metodo,multa_ids:r.multa_ids})
+                        });
+                        const data = await resp.json();
+                        if (!resp.ok || data.status !== 'success') { rechazadas++; continue; }
+                        completadas++;
+                    } catch (error) { rechazadas++; }
+                }
+                await cargarPruebasCompartidas();
+                actualizarPendientesDemo();
+                if (completadas) SEMSAD.toast(completadas + ' comprobante(s) de prueba visibles para el administrador.', 'success');
+                if (rechazadas) SEMSAD.toast(rechazadas + ' no se pudieron transferir (revisa multas repetidas o ya pagadas).', 'warning', 7000);
+            } catch (error) {
+                SEMSAD.toast('No se pudo actualizar el historial compartido.', 'error');
+            } finally {
+                btn.disabled = false;
+                actualizarAvisoSincronizacion();
+            }
         }
         function idsCubiertos() {
             const ids = new Set();
@@ -325,6 +375,7 @@
                 '\n\n¿Confirmas que estas son las multas que simulaste? Sólo se cambian registros DEMO locales.')) return;
             matches.forEach(x => { data[x.i].usuario_id=usuarioDemo; data[x.i].multa_ids=[x.m.id_multa]; data[x.i].detalle_multas=[x.m.titulo]; });
             try { localStorage.setItem(LLAVE_DEMO, JSON.stringify(data)); actualizarPendientesDemo();
+                actualizarAvisoSincronizacion();
                 SEMSAD.toast('Pruebas anteriores asociadas; ya no aparecen pendientes en DEMO.','success');
             } catch(e) { SEMSAD.toast('No se pudieron guardar las asociaciones.','error'); }
         }
@@ -483,6 +534,7 @@
                 registro.id = Number(resultado.id);
                 registro.monto = Number(resultado.monto ?? registro.monto);
                 pruebasCompartidas.push(registro);
+                actualizarAvisoSincronizacion();
                 // La copia del navegador mantiene compatibilidad con los comprobantes anteriores.
                 try {
                     const lista = historialDemo().slice(-99);

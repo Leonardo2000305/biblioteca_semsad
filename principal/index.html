@@ -177,7 +177,7 @@
                             <div class="fw-bold"><i class="fa-solid fa-flask text-info me-2"></i>Mis pruebas de pago en línea <span class="badge bg-info text-dark">DEMO</span></div>
                             <a href="reportes_demo.html" target="_blank" rel="noopener" class="btn btn-sm btn-outline-primary fw-bold">Ver reporte DEMO</a>
                         </div>
-                        <p class="text-muted small mb-2">Simulaciones guardadas solo en este navegador. No son pagos reales ni desbloquean cuentas.</p>
+                        <p class="text-muted small mb-2">Los registros del servidor pueden consultarse desde otras sesiones autorizadas. No son cobros bancarios ni desbloquean cuentas reales.</p>
                         <div id="listaMisPruebasPago" class="small" aria-live="polite"><div class="text-muted">Cargando pruebas...</div></div>
                     </div>
                 </div>
@@ -218,6 +218,20 @@
 
         // Pide las multas pendientes del estudiante. Si tiene, muestra el aviso con el total y el botón de pagar.
         // Marca solo las simulaciones de esta cuenta en el navegador: la base real no cambia.
+        let registrosDemoServidor = [];
+        async function cargarEstadoDemoServidor() {
+            try {
+                const resp = await fetch(window.SEMSAD_API + '/pagos_demo_sirve_para_registrar_y_listar.php',
+                    { credentials:'include', cache:'no-store' });
+                const res = await resp.json();
+                if (!resp.ok || res.status !== 'success' || !Array.isArray(res.lista)) return false;
+                registrosDemoServidor = res.lista;
+                return true;
+            } catch (e) {
+                console.warn('El historial compartido de pruebas aún no está disponible.',e);
+                return false;
+            }
+        }
         function idsDeMultasDemo() {
             const ids = new Set(), id = String(SEMSAD.getUser()?.id || '');
             if (!id) return ids;
@@ -228,11 +242,16 @@
                         r.multa_ids.forEach(n => ids.add(Number(n)));
                 });
             } catch (e) { /* Podría estar deshabilitado el almacenamiento. */ }
+            registrosDemoServidor.forEach(r => {
+                if (r && r.estado === 'SIMULADO' && String(r.id_usuario || '') === id && Array.isArray(r.multa_ids))
+                    r.multa_ids.forEach(n => ids.add(Number(n)));
+            });
             return ids;
         }
 
         async function cargarMultasEstudiante() {
             try {
+                await cargarEstadoDemoServidor();
                 const resp = await fetch(window.SEMSAD_API + '/mis_multas_sirve_para_pagar_en_linea.php', { credentials: 'include', cache: 'no-store' });
                 const res = await resp.json();
                 const banner = document.getElementById('bannerMultas');
@@ -243,10 +262,10 @@
                     const titulo = banner.querySelector('.fw-bold');
                     const texto = document.getElementById('bannerMultasTexto');
                     if (cubiertas && !pendientes.length) {
-                        titulo.textContent = 'DEMOSTRACIÓN: multas cubiertas';
-                        texto.textContent = 'Las simulaciones están completas en este navegador. Las multas reales siguen pendientes hasta su pago verdadero.';
+                        titulo.textContent = 'Multas cubiertas en pruebas';
+                        texto.textContent = 'Las operaciones de prueba están registradas. Las deudas reales siguen pendientes hasta un pago auténtico.';
                     } else if (cubiertas) {
-                        titulo.textContent = 'DEMOSTRACIÓN: multas pendientes';
+                        titulo.textContent = 'Multas pendientes en pruebas';
                         texto.textContent = pendientes.length + ' faltan por simular; ' + cubiertas +
                             ' cubiertas solo en DEMO. La deuda real no ha cambiado.';
                     } else {
@@ -554,7 +573,8 @@
 
         // Las simulaciones son independientes de los pagos reales: la API nunca registra estos cobros.
         // Incluye las pruebas antiguas creadas con la PR #32 en este mismo navegador.
-        function cargarMisPruebasPago() {
+        async function cargarMisPruebasPago() {
+            await cargarEstadoDemoServidor();
             const cont = document.getElementById('listaMisPruebasPago');
             if (!cont) return;
             cont.replaceChildren();
@@ -566,6 +586,22 @@
                 console.warn('No fue posible leer el historial de pruebas.', e);
             }
             const idUsuario = String(SEMSAD.getUser()?.id || '');
+            const codigosLocales = new Map(pruebas.map((r,i) => [String(r?.codigo || ''), i]));
+            // El servidor es la fuente de verdad para los registros compartidos.
+            registrosDemoServidor.forEach(r => {
+                const filaServidor = {
+                    id: Number(r.id), codigo: r.codigo, fecha: r.fecha,
+                    metodo: r.metodo, monto: r.monto, estado: r.estado,
+                    usuario_id: String(r.id_usuario || ''),
+                    multa_ids: r.multa_ids || [],
+                    detalle_multas: r.libros ? [r.libros] : []
+                };
+                const clave = String(r.codigo || '');
+                if (codigosLocales.has(clave)) {
+                    const indice = codigosLocales.get(clave);
+                    pruebas[indice] = { ...pruebas[indice], ...filaServidor };
+                } else pruebas.push(filaServidor);
+            });
             pruebas = pruebas.filter(p => p && p.estado === 'SIMULADO'
                 && (!p.usuario_id || String(p.usuario_id) === idUsuario)
                 && Number.isFinite(Number(p.monto)) && Number(p.monto) >= 0);
@@ -601,8 +637,17 @@
                 monto.textContent = 'Bs. ' + Number(p.monto).toFixed(2).replace('.', ',');
                 const estado = document.createElement('span');
                 estado.className = 'badge bg-info text-dark';
-                estado.textContent = 'SIMULADO · sin cobro';
+                estado.textContent = 'PRUEBA · sin cobro';
                 detalle.append(monto, estado);
+                if (Number.isInteger(Number(p.id)) && Number(p.id) > 0) {
+                    const abrir = document.createElement('a');
+                    abrir.href = 'comprobante.html?tipo=demo&id=' + Number(p.id);
+                    abrir.target = '_blank';
+                    abrir.rel = 'noopener';
+                    abrir.className = 'btn btn-sm btn-outline-primary';
+                    abrir.textContent = 'Comprobante';
+                    detalle.appendChild(abrir);
+                }
                 fila.append(info, detalle);
                 cont.appendChild(fila);
             });
@@ -635,6 +680,7 @@
         // Carga el historial de préstamos del usuario en la tabla del modal.
         async function cargarMisPrestamos() {
             cargarMisComprobantesPago();
+            await cargarEstadoDemoServidor();
             const userObj = obtenerUsuarioLogueado();
             const tbody = document.getElementById('tablaMisPrestamosBody');
             tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4"><i class="fa-solid fa-spinner fa-spin me-2 text-primary"></i>Cargando tus préstamos...</td></tr>';

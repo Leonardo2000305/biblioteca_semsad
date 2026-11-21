@@ -24,7 +24,7 @@
         .comp-acciones { display: flex; gap: .5rem; justify-content: center; margin: 1rem 0 2rem; flex-wrap: wrap; }
         @media print {
             body { background: #fff; }
-            .comp-acciones { display: none; }
+            .comp-acciones, #avisoEstadoDemo { display: none !important; }
             .comp-hoja { box-shadow: none; margin: 0; max-width: none; border-radius: 0; }
         }
     </style>
@@ -39,6 +39,8 @@
             <p class="text-center text-muted mb-0">Cargando comprobante...</p>
         </div>
     </div>
+    <!-- Nota de presentación fuera del comprobante oficial (no se imprime). -->
+    <div id="avisoEstadoDemo" class="alert alert-info mx-auto mt-3 d-none" style="max-width:640px" role="status"></div>
     <div class="comp-acciones">
         <button class="btn btn-primary fw-bold px-4" onclick="window.print()"><i class="fa-solid fa-print me-1"></i>Imprimir / Guardar PDF</button>
         <button class="btn btn-outline-secondary fw-bold px-4" onclick="window.close()"><i class="fa-solid fa-xmark me-1"></i>Cerrar</button>
@@ -101,7 +103,45 @@
                 cuerpo.innerHTML = '<p class="text-center text-danger mb-0">Error de conexión al cargar el comprobante.</p>';
             }
         }
+        // El comprobante de préstamo es histórico; el pago DEMO se muestra fuera, en una nota.
+        async function actualizarAvisoDemo() {
+            const aviso = document.getElementById('avisoEstadoDemo');
+            aviso.classList.add('d-none');
+            if (tipo !== 'prestamo') return;
+            const usuario = SEMSAD.getUser();
+            if (!usuario?.id) return;
+            let arr = [];
+            try {
+                const data = JSON.parse(localStorage.getItem('semsad_pagos_prueba_v1') || '[]');
+                if (Array.isArray(data)) arr = data;
+            } catch (e) { return; }
+            const cubiertos = new Set();
+            arr.forEach(r => {
+                if (r && r.estado === 'SIMULADO' && String(r.usuario_id || '') === String(usuario.id)
+                    && Array.isArray(r.multa_ids)) r.multa_ids.forEach(n => cubiertos.add(Number(n)));
+            });
+            if (!cubiertos.size) return;
+            try {
+                const res = await fetch(window.SEMSAD_API + '/mis_prestamos_sirve_para_historial_del_estudiante.php',
+                    { credentials: 'include', cache: 'no-store' });
+                const data = await res.json();
+                if (data.status !== 'success' || !Array.isArray(data.prestamos)) return;
+                const p = data.prestamos.find(x => Number(x.id_prestamo) === Number(id));
+                const pendientes = Array.isArray(p?.multas_pendientes_ids)
+                    ? p.multas_pendientes_ids.map(Number) : [];
+                const n = pendientes.filter(n => cubiertos.has(n)).length;
+                if (!n) return;
+                aviso.textContent = n === pendientes.length
+                    ? 'MULTA CUBIERTA EN DEMO: este pago fue simulado. El préstamo conserva su estado real y, si está vencido, sigue así hasta devolver el libro. La deuda real no cambió.'
+                    : 'DEMO: se simuló parte de la multa de este préstamo; las deudas y los estados reales no se han modificado.';
+                aviso.classList.remove('d-none');
+            } catch (e) { /* El comprobante oficial se muestra incluso sin este estado opcional. */ }
+        }
         cargar();
+        actualizarAvisoDemo();
+        window.addEventListener('storage', e => {
+            if (e.key === 'semsad_pagos_prueba_v1') actualizarAvisoDemo();
+        });
     </script>
 </body>
 </html>

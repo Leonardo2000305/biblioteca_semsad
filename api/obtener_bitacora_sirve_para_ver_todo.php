@@ -12,13 +12,17 @@ semsad_requerir_rol(['Administrador', 'Bibliotecario']);
 
 try {
     // Une los eventos de la bitácora con los intentos de contraseña (auditoria_recuperacion), con el mismo formato.
+    // Si la tabla de intentos de contraseña no existe todavía, la bitácora igual funciona con sus propios eventos.
+    $tieneRecuperacion = (int)$conexion->query("SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = 'auditoria_recuperacion'")->fetchColumn() > 0;
     $base = "SELECT b.fecha_hora, b.id_usuario, b.correo, b.accion, b.modulo, b.descripcion,
                     b.ip_origen AS ip, b.clave, 'bitacora' AS origen
-               FROM bitacora b
-              UNION ALL
+               FROM bitacora b";
+    if ($tieneRecuperacion) {
+        $base .= " UNION ALL
              SELECT a.fecha_hora, a.id_usuario, a.correo_ingresado AS correo, 'Cambio de contraseña' AS accion,
                     'Seguridad' AS modulo, a.estado AS descripcion, a.ip_origen AS ip, 1 AS clave, 'recuperacion' AS origen
                FROM auditoria_recuperacion a";
+    }
 
     // Filtros: se arman con parámetros (nunca se pega texto del usuario en la consulta).
     $where = []; $params = [];
@@ -64,5 +68,6 @@ try {
     ]);
 } catch (PDOException $e) {
     error_log('[SEMSAD] obtener_bitacora: ' . $e->getMessage());
-    semsad_responder(['status' => 'error', 'mensaje' => 'No se pudo cargar la bitácora. Si es la primera vez, ejecuta db/migracion_solicitudes_bitacora_pagos.sql en phpMyAdmin.' . semsad_detalle_error($e)], 500);
+    // Solo personal llega aquí: se muestra el motivo exacto para poder corregirlo rápido.
+    semsad_responder(['status' => 'error', 'mensaje' => 'No se pudo cargar la bitácora: ' . $e->getMessage()], 500);
 }

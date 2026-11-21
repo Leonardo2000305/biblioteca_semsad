@@ -5,6 +5,23 @@
 -- Ejecutar ANTES de usar la versión nueva de la biblioteca.
 -- ============================================================================
 
+-- 0. Tabla de intentos de recuperación de contraseña (la usa la bitácora). Igual que en seguridad_v5.sql.
+CREATE TABLE IF NOT EXISTS auditoria_recuperacion (
+  id               INT(11)      NOT NULL AUTO_INCREMENT,
+  correo_ingresado VARCHAR(150) NOT NULL,
+  id_usuario       INT(11)      NULL,
+  estado           VARCHAR(100) NOT NULL,
+  ip_origen        VARCHAR(64)  NULL,
+  fecha_hora       DATETIME     NOT NULL,
+  PRIMARY KEY (id),
+  KEY idx_audit_correo (correo_ingresado),
+  KEY idx_audit_fecha (fecha_hora)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 0b. Estado de cada copia (ejemplar): ahora puede ser 'Reservado' mientras se entrega la solicitud.
+--     Se cambia a texto para que acepte ese valor sin perder los que ya existen.
+ALTER TABLE ejemplar MODIFY estado_ejemplar VARCHAR(30) NOT NULL DEFAULT 'Disponible';
+
 -- 1. Préstamos: ahora pueden quedar en estado 'Solicitado' (el usuario pidió el libro y
 --    el personal todavía no lo entregó). Se cambia la columna a texto para aceptar el nuevo valor
 --    sin perder los estados que ya existen (Activo, Vencido, Con Mora, Devuelto...).

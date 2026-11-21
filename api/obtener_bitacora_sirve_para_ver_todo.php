@@ -14,13 +14,18 @@ try {
     // Une los eventos de la bitácora con los intentos de contraseña (auditoria_recuperacion), con el mismo formato.
     // Si la tabla de intentos de contraseña no existe todavía, la bitácora igual funciona con sus propios eventos.
     $tieneRecuperacion = (int)$conexion->query("SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = 'auditoria_recuperacion'")->fetchColumn() > 0;
-    $base = "SELECT b.fecha_hora, b.id_usuario, b.correo, b.accion, b.modulo, b.descripcion,
-                    b.ip_origen AS ip, b.clave, 'bitacora' AS origen
+    // Las dos tablas pueden tener distinta collation (una vieja y otra nueva): todo se convierte a utf8mb4_unicode_ci para poder unirlo.
+    $t = fn(string $col): string => "CONVERT($col USING utf8mb4) COLLATE utf8mb4_unicode_ci";
+    $base = "SELECT b.fecha_hora, b.id_usuario, " . $t('b.correo') . " AS correo, " . $t('b.accion') . " AS accion,
+                    " . $t('b.modulo') . " AS modulo, " . $t('b.descripcion') . " AS descripcion,
+                    " . $t('b.ip_origen') . " AS ip, b.clave, 'bitacora' AS origen
                FROM bitacora b";
     if ($tieneRecuperacion) {
         $base .= " UNION ALL
-             SELECT a.fecha_hora, a.id_usuario, a.correo_ingresado AS correo, 'Cambio de contraseña' AS accion,
-                    'Seguridad' AS modulo, a.estado AS descripcion, a.ip_origen AS ip, 1 AS clave, 'recuperacion' AS origen
+             SELECT a.fecha_hora, a.id_usuario, " . $t('a.correo_ingresado') . " AS correo,
+                    'Cambio de contraseña' COLLATE utf8mb4_unicode_ci AS accion,
+                    'Seguridad' COLLATE utf8mb4_unicode_ci AS modulo, " . $t('a.estado') . " AS descripcion,
+                    " . $t('a.ip_origen') . " AS ip, 1 AS clave, 'recuperacion' AS origen
                FROM auditoria_recuperacion a";
     }
 

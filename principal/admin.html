@@ -377,6 +377,8 @@
                     <button class="btn btn-sm btn-outline-primary" onclick="cargarReportes()"><i class="fa-solid fa-rotate me-1"></i>Actualizar</button>
                     <!-- Descarga el último reporte generado como archivo CSV, que se abre en Excel. -->
                     <button class="btn btn-sm btn-success" onclick="exportarReporteExcel()"><i class="fa-solid fa-file-excel me-1"></i>Exportar Excel</button>
+                    <!-- Descarga el mismo reporte como CSV estándar (columnas separadas por comas), para sistemas y bases de datos. -->
+                    <button class="btn btn-sm btn-outline-success" onclick="exportarReporteCSV()"><i class="fa-solid fa-file-csv me-1"></i>Exportar CSV</button>
                     <!-- Imprime el reporte o lo guarda como PDF (window.print). -->
                     <button class="btn btn-sm btn-danger" onclick="window.print()"><i class="fa-solid fa-file-pdf me-1"></i>Imprimir / PDF</button>
                 </div>
@@ -1615,27 +1617,50 @@
         }
 
         // Genera un CSV con el último reporte. Usa punto y coma para que Excel en español separe bien las columnas.
-        function exportarReporteExcel() {
-            if (!ultimoReporte) { SEMSAD.toast('Primero genera el reporte.', 'warning'); return; }
+        // Arma las filas del reporte (sin formato). Lo usan Excel y CSV.
+        function filasDelReporte() {
             const r = ultimoReporte, filas = [];
-            // Celdas que empiezan por = + - @ se neutralizan: Excel no ejecutará fórmulas inyectadas
-            const celdaSegura = v => { let t = String(v ?? ''); if (/^[=+\-@\t\r]/.test(t)) t = "'" + t; return '"' + t.replace(/"/g, '""') + '"'; };
-            // Función auxiliar: une las celdas de una fila con punto y coma y la agrega a la lista.
-            const add = (...c) => filas.push(c.map(celdaSegura).join(';'));
-            // Secciones del archivo: encabezado, resumen, libros más solicitados, morosos, stock crítico e inventario.
+            const add = (...c) => filas.push(c);
             add('REPORTE BIBLIOTECA SEMSAD', r.generado); add();
             add('RESUMEN'); Object.entries(r.resumen).forEach(([k, v]) => add(k, v)); add();
             add('LIBROS MAS SOLICITADOS', 'Veces'); r.mas_solicitados.forEach(l => add(l.titulo, l.veces)); add();
             add('USUARIOS MOROSOS', 'Libro', 'Fecha limite', 'Dias', 'Multa Bs'); r.morosos.forEach(m => add(m.usuario, m.libro, m.limite, m.dias, m.monto)); add();
             add('STOCK CRITICO', 'Disponibles', 'Total'); r.stock_critico.forEach(l => add(l.titulo, l.disponibles || 0, l.total)); add();
             add('INVENTARIO POR ESTADO', 'Cantidad'); Object.entries(r.inventario).forEach(([k, v]) => add(k, v));
-            // Crea el archivo en memoria. La marca BOM al inicio hace que Excel reconozca las tildes; sep=; indica el separador.
-            const blob = new Blob(['\ufeffsep=;\n' + filas.join('\n')], { type: 'text/csv;charset=utf-8' });
-            // Crea un enlace invisible, lo activa para descargar el archivo y luego lo quita de la página.
+            return filas;
+        }
+
+        // Convierte las filas en texto CSV. Celdas que empiezan por = + - @ se neutralizan (no se ejecutan como fórmulas).
+        function textoCSV(filas, separador) {
+            const celda = v => {
+                let t = String(v ?? '');
+                if (/^[=+\-@\t\r]/.test(t)) t = "'" + t;
+                return '"' + t.replace(/"/g, '""') + '"';
+            };
+            return filas.map(f => f.map(celda).join(separador)).join('\r\n');
+        }
+
+        function descargarArchivo(contenido, nombre) {
+            const blob = new Blob(['\ufeff' + contenido], { type: 'text/csv;charset=utf-8' });
             const a = document.createElement('a');
             a.href = URL.createObjectURL(blob);
-            a.download = 'reporte_biblioteca_semsad_' + new Date().toISOString().slice(0, 10) + '.csv';
+            a.download = nombre;
             document.body.appendChild(a); a.click(); a.remove();
+            URL.revokeObjectURL(a.href);
+        }
+
+        // Excel: CSV con punto y coma y la marca sep=; para que Excel separe las columnas solo.
+        function exportarReporteExcel() {
+            if (!ultimoReporte) { SEMSAD.toast('Primero genera el reporte.', 'warning'); return; }
+            const hoy = new Date().toISOString().slice(0, 10);
+            descargarArchivo('sep=;\r\n' + textoCSV(filasDelReporte(), ';'), 'reporte_biblioteca_semsad_' + hoy + '.csv');
+        }
+
+        // CSV estándar: columnas separadas por comas, sin línea sep=.
+        function exportarReporteCSV() {
+            if (!ultimoReporte) { SEMSAD.toast('Primero genera el reporte.', 'warning'); return; }
+            const hoy = new Date().toISOString().slice(0, 10);
+            descargarArchivo(textoCSV(filasDelReporte(), ','), 'reporte_biblioteca_semsad_' + hoy + '.csv');
         }
 
     </script>

@@ -586,18 +586,21 @@
                 console.warn('No fue posible leer el historial de pruebas.', e);
             }
             const idUsuario = String(SEMSAD.getUser()?.id || '');
-            const codigosLocales = new Set(pruebas.map(r => String(r?.codigo || '')));
-            // Las operaciones del servidor están disponibles también en el panel de personal.
+            const codigosLocales = new Map(pruebas.map((r,i) => [String(r?.codigo || ''), i]));
+            // El servidor es la fuente de verdad para los registros compartidos.
             registrosDemoServidor.forEach(r => {
-                if (!codigosLocales.has(String(r.codigo))) {
-                    pruebas.push({
-                        id: Number(r.id), codigo: r.codigo, fecha: r.fecha,
-                        metodo: r.metodo, monto: r.monto, estado: r.estado,
-                        usuario_id: String(r.id_usuario || ''),
-                        multa_ids: r.multa_ids || [],
-                        detalle_multas: r.libros ? [r.libros] : []
-                    });
-                }
+                const filaServidor = {
+                    id: Number(r.id), codigo: r.codigo, fecha: r.fecha,
+                    metodo: r.metodo, monto: r.monto, estado: r.estado,
+                    usuario_id: String(r.id_usuario || ''),
+                    multa_ids: r.multa_ids || [],
+                    detalle_multas: r.libros ? [r.libros] : []
+                };
+                const clave = String(r.codigo || '');
+                if (codigosLocales.has(clave)) {
+                    const indice = codigosLocales.get(clave);
+                    pruebas[indice] = { ...pruebas[indice], ...filaServidor };
+                } else pruebas.push(filaServidor);
             });
             pruebas = pruebas.filter(p => p && p.estado === 'SIMULADO'
                 && (!p.usuario_id || String(p.usuario_id) === idUsuario)

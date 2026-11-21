@@ -57,6 +57,12 @@ try {
         $conexion->rollBack();
         semsad_responder(['status' => 'error', 'mensaje' => 'Esta multa ya fue cobrada.']);
     }
+    // Control de caja: si hoy ya se cerró la caja, no se registran más cobros (el cierre no puede cambiar en silencio).
+    $cierreHoy = $conexion->query("SELECT 1 FROM cierre_caja WHERE fecha = CURDATE()")->fetchColumn();
+    if ($cierreHoy) {
+        $conexion->rollBack();
+        semsad_responder(['status' => 'error', 'mensaje' => 'La caja de hoy ya fue cerrada. No se pueden registrar cobros después del cierre; si hubo un error, corrige el cierre.']);
+    }
     $duenio = (int)($multa['id_usuario'] ?: $idUsuario);
     // El monto sale de la base de datos, no de la página.
     $monto = round((float)$multa['monto'], 2);

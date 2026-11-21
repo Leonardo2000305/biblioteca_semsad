@@ -248,8 +248,12 @@
                     }
                 // Error de conexión: se registra en la consola y se muestra un aviso
                 } catch (err) {
-                    console.error('Sin conexión con la API:', err);
-                    mostrarMensaje('No se pudo conectar con el servidor. Revisa tu conexión e inténtalo de nuevo.', 'error');
+                    // Solo un fallo de red (fetch no llegó al servidor) es «sin conexión»; cualquier otro error muestra su motivo real
+                    console.error('Error al cambiar la contraseña:', err);
+                    const esRed = err instanceof TypeError;
+                    mostrarMensaje(esRed
+                        ? 'No se pudo conectar con el servidor. Revisa tu conexión e inténtalo de nuevo.'
+                        : 'Ocurrió un error al cambiar la contraseña: ' + (err && err.message ? err.message : 'desconocido') + '.', 'error');
                     btn.disabled = false;
                     btn.textContent = 'Guardar Nueva Contraseña';
                 }

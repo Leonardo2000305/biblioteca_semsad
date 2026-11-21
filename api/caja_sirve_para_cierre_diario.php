@@ -16,6 +16,11 @@ $yo = (int)($_SESSION['id_usuario'] ?? 0);
 function fechaValida(?string $f): bool {
     return is_string($f) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $f) && checkdate((int)substr($f, 5, 2), (int)substr($f, 8, 2), (int)substr($f, 0, 4));
 }
+// Una fecha de caja no puede ser futura: se compara con la fecha de hoy de la base (zona horaria de La Paz).
+function fechaCajaNoFutura(PDO $c, string $f): bool {
+    $hoy = (string)$c->query('SELECT CURDATE()')->fetchColumn();
+    return $f <= $hoy;
+}
 function importeValido($v): ?float {
     if ($v === null || $v === '') return null;
     $n = str_replace(',', '.', (string)$v);
@@ -36,6 +41,7 @@ try {
 
         $fecha = $_GET['fecha'] ?? date('Y-m-d');
         if (!fechaValida($fecha)) semsad_responder(['status' => 'error', 'mensaje' => 'Fecha no válida.'], 400);
+        if (!fechaCajaNoFutura($conexion, $fecha)) semsad_responder(['status' => 'error', 'mensaje' => 'No se puede cerrar ni consultar la caja de una fecha futura.'], 400);
 
         // Cobros del día: solo multas pagadas con fecha de cobro.
         $q = $conexion->prepare("SELECT m.id_multa, m.monto, m.metodo_pago, m.fecha_pago, m.monto_recibido, m.cambio,
@@ -98,6 +104,7 @@ try {
     if ($accion === 'cerrar') {
         $fecha = $in['fecha'] ?? '';
         if (!fechaValida($fecha)) semsad_responder(['status' => 'error', 'mensaje' => 'Fecha no válida.'], 400);
+        if (!fechaCajaNoFutura($conexion, $fecha)) semsad_responder(['status' => 'error', 'mensaje' => 'No se puede cerrar ni consultar la caja de una fecha futura.'], 400);
 
         $conexion->beginTransaction();
         // Un solo cierre por día: se revisa dentro de la transacción y la clave única lo garantiza.

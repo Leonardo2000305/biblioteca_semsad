@@ -87,6 +87,12 @@
             .tabla-tarjetas td:first-child:has(> div)::before { content: none; }
             .tabla-tarjetas td.no-print:empty { display: none; }
         }
+        /* Celulares: las tablas no se aplastan ni parten las palabras; se desplazan dentro de su tarjeta. */
+        @media (max-width: 767.98px) {
+            .table-card { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+            .table-card table { min-width: 600px; }
+            .table-card th { white-space: nowrap; }
+        }
     </style>
 </head>
 <body>
@@ -527,12 +533,12 @@
                 <div class="card-body">
                     <div class="row g-3 mb-3" id="estCards"></div>
                     <div class="row g-3 mb-3">
-                        <div class="col-lg-8"><div class="border rounded-3 p-3 h-100"><div class="fw-bold mb-2">Préstamos y devoluciones por mes</div><canvas id="estChartDias" height="120"></canvas></div></div>
+                        <div class="col-lg-8"><div class="border rounded-3 p-3 h-100"><div class="fw-bold mb-2">Préstamos y devoluciones por mes</div><canvas id="estChartDias" class="w-100" height="120"></canvas></div></div>
                         <div class="col-lg-4"><div class="border rounded-3 p-3 h-100"><div class="fw-bold mb-2">Distribución de cobros</div>
-                            <div class="position-relative" style="height:190px"><canvas id="estChartRecaudacion"></canvas>
+                            <div class="position-relative" style="height:190px"><canvas id="estChartRecaudacion" class="w-100"></canvas>
                                 <div class="position-absolute top-50 start-50 translate-middle text-center" style="pointer-events:none"><div class="small text-muted">Total</div><div class="fw-bold" id="estDonaTotal">Bs. 0,00</div></div></div>
                             <div class="small mt-2" id="estRecaudacionLeyenda"></div></div></div>
-                        <div class="col-lg-6"><div class="border rounded-3 p-3 h-100"><div class="fw-bold mb-2">Multas cobradas por mes (Bs.)</div><canvas id="estChartMultas" height="130"></canvas></div></div>
+                        <div class="col-lg-6"><div class="border rounded-3 p-3 h-100"><div class="fw-bold mb-2">Multas cobradas por mes (Bs.)</div><canvas id="estChartMultas" class="w-100" height="130"></canvas></div></div>
                         <div class="col-lg-6"><div class="border rounded-3 p-3 h-100"><div class="fw-bold mb-2" id="estTopTitulo">Libros más solicitados</div>
                             <div class="table-responsive"><table class="table table-sm align-middle mb-0"><thead class="table-light"><tr><th style="width:40px">#</th><th>Libro</th><th class="text-end">Préstamos</th></tr></thead><tbody id="estTop"></tbody></table></div></div></div>
                     </div>
@@ -1404,7 +1410,9 @@
         // ===== Cierre de caja =====
         async function cargarCaja() {
             const input = document.getElementById('cajaFecha');
+            input.max = hoyLocalISO();
             if (!input.value) input.value = hoyLocalISO();
+            if (input.value > input.max) input.value = input.max;
             try {
                 const resp = await fetch(`${window.SEMSAD_API}/caja_sirve_para_cierre_diario.php?fecha=${encodeURIComponent(input.value)}`, { credentials: 'include', cache: 'no-store' });
                 const res = await resp.json();
@@ -1620,10 +1628,13 @@
             const mes = Number(document.getElementById('estMes').value);
             if (tipo === 'mensual') {
                 const ultimo = new Date(anio, mes, 0).getDate();
-                return { desde: fechaISO(anio, mes, 1), hasta: fechaISO(anio, mes, ultimo), etiqueta: `${MESES_ES[mes - 1]} ${anio}` };
+                const pa = mes === 1 ? anio - 1 : anio, pm = mes === 1 ? 12 : mes - 1;
+                return { desde: fechaISO(anio, mes, 1), hasta: fechaISO(anio, mes, ultimo), etiqueta: `${MESES_ES[mes - 1]} ${anio}`,
+                         antDesde: fechaISO(pa, pm, 1), antHasta: fechaISO(pa, pm, new Date(pa, pm, 0).getDate()) };
             }
             if (tipo === 'anual') {
-                return { desde: fechaISO(anio, 1, 1), hasta: fechaISO(anio, 12, 31), etiqueta: `${anio}` };
+                return { desde: fechaISO(anio, 1, 1), hasta: fechaISO(anio, 12, 31), etiqueta: `${anio}`,
+                         antDesde: fechaISO(anio - 1, 1, 1), antHasta: fechaISO(anio - 1, 12, 31) };
             }
             const desdeInput = document.getElementById('estDesde');
             const hastaInput = document.getElementById('estHasta');
@@ -1657,7 +1668,8 @@
             iniciarFiltrosEst();
             const rango = rangoEstadistico();
             try {
-                const url = `${window.SEMSAD_API}/estadisticas_sirve_para_graficos.php?desde=${rango.desde}&hasta=${rango.hasta}`;
+                let url = `${window.SEMSAD_API}/estadisticas_sirve_para_graficos.php?desde=${rango.desde}&hasta=${rango.hasta}`;
+                if (rango.antDesde) url += `&ant_desde=${rango.antDesde}&ant_hasta=${rango.antHasta}`;
                 const resp = await fetch(url, { credentials: 'include', cache: 'no-store' });
                 const res = await resp.json();
                 if (res.status !== 'success') { SEMSAD.toast(res.mensaje || 'No se pudieron calcular las estadísticas.', 'error'); return; }

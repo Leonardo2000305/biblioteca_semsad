@@ -24,7 +24,7 @@
         .comp-acciones { display: flex; gap: .5rem; justify-content: center; margin: 1rem 0 2rem; flex-wrap: wrap; }
         @media print {
             body { background: #fff; }
-            .comp-acciones, #avisoEstadoDemo { display: none !important; }
+            .comp-acciones { display: none; }
             .comp-hoja { box-shadow: none; margin: 0; max-width: none; border-radius: 0; }
         }
     </style>
@@ -39,8 +39,6 @@
             <p class="text-center text-muted mb-0">Cargando comprobante...</p>
         </div>
     </div>
-    <!-- Nota de presentación fuera del comprobante oficial (no se imprime). -->
-    <div id="avisoEstadoDemo" class="alert alert-info mx-auto mt-3 d-none" style="max-width:640px" role="status"></div>
     <div class="comp-acciones">
         <button class="btn btn-primary fw-bold px-4" onclick="window.print()"><i class="fa-solid fa-print me-1"></i>Imprimir / Guardar PDF</button>
         <button class="btn btn-outline-secondary fw-bold px-4" onclick="window.close()"><i class="fa-solid fa-xmark me-1"></i>Cerrar</button>
@@ -88,95 +86,22 @@
             }
         }
 
-        function pintarRegistroPrueba(c) {
-            document.getElementById('compCodigo').textContent = c.codigo || 'PRUEBA';
-            document.title = String(c.codigo || 'Comprobante de prueba') + ' - Biblioteca SEMSAD';
-            const detalles = Array.isArray(c.detalle) ? c.detalle : [];
-            document.getElementById('compCuerpo').innerHTML =
-                '<div class="comp-titulo">Constancia de operación de prueba</div>' +
-                '<div class="alert alert-info"><strong>ENTORNO DE PRUEBAS.</strong> No hubo transferencia de dinero ni confirmación bancaria. Este documento no acredita un pago real.</div>' +
-                fila('Usuario', esc(c.usuario || 'Estudiante')) +
-                fila('Método de prueba', esc(c.metodo || 'Tarjeta')) +
-                fila('Fecha y hora', esc(fecha(c.fecha))) +
-                detalles.map(d => fila('Concepto', esc(d.titulo || 'Multa') + ' — ' + bs(d.monto))).join('') +
-                '<div class="comp-fila"><span>Importe de prueba</span><span class="comp-total">' + bs(c.monto) + '</span></div>' +
-                '<div class="comp-ok"><strong>Operación registrada en el entorno de pruebas.</strong> Disponible para consulta del administrador. No cambia las multas, la caja ni los préstamos reales.</div>';
-        }
         async function cargar() {
             const cuerpo = document.getElementById('compCuerpo');
-            if (!['pago', 'prestamo', 'demo'].includes(tipo) || !id) {
+            if (!['pago', 'prestamo'].includes(tipo) || !id) {
                 cuerpo.innerHTML = '<p class="text-center text-danger mb-0">Comprobante no válido.</p>';
                 return;
             }
             try {
-                const url = tipo === 'demo'
-                    ? window.SEMSAD_API + '/pagos_demo_sirve_para_registrar_y_listar.php?id=' + encodeURIComponent(id)
-                    : window.SEMSAD_API + '/comprobantes_sirve_para_consultar.php?tipo=' +
-                        encodeURIComponent(tipo) + '&id=' + encodeURIComponent(id);
-                const resp = await fetch(url, { credentials: 'include', cache: 'no-store' });
+                const resp = await fetch(`${window.SEMSAD_API}/comprobantes_sirve_para_consultar.php?tipo=${encodeURIComponent(tipo)}&id=${encodeURIComponent(id)}`, { credentials: 'include', cache: 'no-store' });
                 const res = await resp.json();
-                if (res.status === 'success') {
-                    if (tipo === 'demo') pintarRegistroPrueba(res.comprobante);
-                    else pintar(res.comprobante);
-                } else cuerpo.innerHTML = '<p class="text-center text-danger mb-0">' +
-                    esc(res.mensaje || 'No se pudo cargar el comprobante.') + '</p>';
+                if (res.status === 'success') pintar(res.comprobante);
+                else cuerpo.innerHTML = `<p class="text-center text-danger mb-0">${esc(res.mensaje || 'No se pudo cargar el comprobante.')}</p>`;
             } catch (e) {
                 cuerpo.innerHTML = '<p class="text-center text-danger mb-0">Error de conexión al cargar el comprobante.</p>';
             }
         }
-        // El comprobante de préstamo es histórico; el pago DEMO se muestra fuera, en una nota.
-        async function actualizarAvisoDemo() {
-            const aviso = document.getElementById('avisoEstadoDemo');
-            aviso.classList.add('d-none');
-            if (tipo !== 'prestamo') return;
-            const usuario = SEMSAD.getUser();
-            if (!usuario?.id) return;
-            let arr = [];
-            try {
-                const data = JSON.parse(localStorage.getItem('semsad_pagos_prueba_v1') || '[]');
-                if (Array.isArray(data)) arr = data;
-            } catch (e) { return; }
-            const cubiertos = new Set();
-            arr.forEach(r => {
-                if (r && r.estado === 'SIMULADO' && String(r.usuario_id || '') === String(usuario.id)
-                    && Array.isArray(r.multa_ids)) r.multa_ids.forEach(n => cubiertos.add(Number(n)));
-            });
-            try {
-                const dResp = await fetch(window.SEMSAD_API + '/pagos_demo_sirve_para_registrar_y_listar.php',
-                    { credentials:'include', cache:'no-store' });
-                const dRes = await dResp.json();
-                if (dRes.status === 'success' && Array.isArray(dRes.lista)) {
-                    dRes.lista.forEach(r => {
-                        if (r && r.estado === 'SIMULADO'
-                            && String(r.id_usuario || '') === String(usuario.id)
-                            && Array.isArray(r.multa_ids)) {
-                            r.multa_ids.forEach(n => cubiertos.add(Number(n)));
-                        }
-                    });
-                }
-            } catch (e) { /* Se conserva el estado local si el servidor de pruebas no responde. */ }
-            if (!cubiertos.size) return;
-            try {
-                const res = await fetch(window.SEMSAD_API + '/mis_prestamos_sirve_para_historial_del_estudiante.php',
-                    { credentials: 'include', cache: 'no-store' });
-                const data = await res.json();
-                if (data.status !== 'success' || !Array.isArray(data.prestamos)) return;
-                const p = data.prestamos.find(x => Number(x.id_prestamo) === Number(id));
-                const pendientes = Array.isArray(p?.multas_pendientes_ids)
-                    ? p.multas_pendientes_ids.map(Number) : [];
-                const n = pendientes.filter(n => cubiertos.has(n)).length;
-                if (!n) return;
-                aviso.textContent = n === pendientes.length
-                    ? 'MULTA CUBIERTA EN DEMO: este pago fue simulado. El préstamo conserva su estado real y, si está vencido, sigue así hasta devolver el libro. La deuda real no cambió.'
-                    : 'DEMO: se simuló parte de la multa de este préstamo; las deudas y los estados reales no se han modificado.';
-                aviso.classList.remove('d-none');
-            } catch (e) { /* El comprobante oficial se muestra incluso sin este estado opcional. */ }
-        }
         cargar();
-        actualizarAvisoDemo();
-        window.addEventListener('storage', e => {
-            if (e.key === 'semsad_pagos_prueba_v1') actualizarAvisoDemo();
-        });
     </script>
 </body>
 </html>

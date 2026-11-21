@@ -33,10 +33,7 @@ try {
                 $exprIsbn AS libro_isbn,
                 p.fecha_salida,
                 p.fecha_limite,
-                p.estado,
-                (SELECT GROUP_CONCAT(mf.id_multa ORDER BY mf.id_multa SEPARATOR ',')
-                   FROM multa mf
-                  WHERE mf.id_prestamo = p.id_prestamo AND mf.estado_pago = 'Pendiente') AS multas_pendientes_ids
+                p.estado
             FROM prestamo p
             INNER JOIN detalle_prestamo dp ON p.id_prestamo = dp.id_prestamo
             INNER JOIN ejemplar e ON dp.id_ejemplar = e.id_ejemplar
@@ -58,9 +55,7 @@ try {
             'isbn'          => $f['libro_isbn'] ?? 'S/N',
             'fecha_salida'  => date('d/m/Y H:i', strtotime($f['fecha_salida'])),
             'fecha_limite'  => date('d/m/Y', strtotime($f['fecha_limite'])),
-            'estado'        => $f['estado'] ?? 'Activo',
-            'multas_pendientes_ids' => empty($f['multas_pendientes_ids'])
-                ? [] : array_map('intval', explode(',', $f['multas_pendientes_ids']))
+            'estado'        => $f['estado'] ?? 'Activo'
         ];
     }
 

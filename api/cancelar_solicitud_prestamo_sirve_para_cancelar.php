@@ -41,9 +41,10 @@ try {
         $conexion->rollBack();
         semsad_responder(['status' => 'error', 'mensaje' => 'Esa solicitud no es de tu cuenta.'], 403);
     }
-    if ($p['estado'] !== 'Solicitado') {
+    // Se puede cancelar una solicitud (Solicitado) o un préstamo activo (Activo), sin importar el orden de los estados.
+    if (!in_array($p['estado'], ['Solicitado', 'Activo'], true)) {
         $conexion->rollBack();
-        semsad_responder(['status' => 'error', 'mensaje' => 'Solo se pueden cancelar solicitudes que aún no se entregaron.']);
+        semsad_responder(['status' => 'error', 'mensaje' => 'Este préstamo ya no se puede cancelar desde aquí.']);
     }
 
     $conexion->prepare("UPDATE prestamo SET estado = 'Cancelado' WHERE id_prestamo = :p")->execute([':p' => $idPrestamo]);
@@ -51,14 +52,14 @@ try {
     $conexion->prepare(
         "UPDATE ejemplar e INNER JOIN detalle_prestamo dp ON dp.id_ejemplar = e.id_ejemplar
             SET e.estado_ejemplar = 'Disponible'
-          WHERE dp.id_prestamo = :p AND e.estado_ejemplar = 'Reservado'"
+          WHERE dp.id_prestamo = :p AND e.estado_ejemplar IN ('Reservado', 'Prestado')"
     )->execute([':p' => $idPrestamo]);
 
     $quien = $esPersonal ? 'el personal' : 'el estudiante';
-    semsad_bitacora('Cancelación de solicitud', 'Préstamos', "Solicitud #$idPrestamo cancelada por $quien", $esPersonal, $yo['id_usuario'], $yo['correo'] ?? null);
+    semsad_bitacora('Cancelación de préstamo', 'Préstamos', "Préstamo #$idPrestamo cancelado (estado anterior: {$p['estado']}) por $quien", $esPersonal, $yo['id_usuario'], $yo['correo'] ?? null);
 
     $conexion->commit();
-    semsad_responder(['status' => 'success', 'mensaje' => 'Solicitud cancelada. El libro volvió a quedar disponible.']);
+    semsad_responder(['status' => 'success', 'mensaje' => 'Cancelado. El libro volvió a quedar disponible.']);
 } catch (PDOException $e) {
     if ($conexion->inTransaction()) { $conexion->rollBack(); }
     error_log('[SEMSAD] cancelar_solicitud: ' . $e->getMessage());

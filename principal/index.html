@@ -200,8 +200,11 @@
         }
 
         // Cancela una solicitud de préstamo (el estudiante cambió de opinión). Actualiza el catálogo y el historial.
-        async function cancelarSolicitudEstudiante(idPrestamo, titulo) {
-            if (!confirm(`¿Cancelar tu solicitud del libro "${titulo}"?`)) return;
+        async function cancelarSolicitudEstudiante(idPrestamo, titulo, esActivo = false) {
+            const pregunta = esActivo
+                ? `¿Cancelar el préstamo del libro "${titulo}"?\n\nSi ya te llevaste el libro, devuélvelo en ventanilla en lugar de cancelarlo.`
+                : `¿Cancelar tu solicitud del libro "${titulo}"?`;
+            if (!confirm(pregunta)) return;
             try {
                 const resp = await fetch(window.SEMSAD_API + '/cancelar_solicitud_prestamo_sirve_para_cancelar.php', {
                     method: 'POST',
@@ -512,11 +515,11 @@
                         if (p.estado === 'Solicitado') badge = '<span class="badge bg-info text-dark"><i class="fa-solid fa-hourglass-half me-1"></i>Solicitado</span>';
                         if (p.estado === 'Cancelado') badge = '<span class="badge bg-secondary">Cancelado</span>';
                         if (p.estado === 'Vencido' || p.estado === 'Con Mora') badge = '<span class="badge bg-danger">Vencido (Con Mora)</span>';
+                        const idP = parseInt(p.id_prestamo);
+                        const btnCancelar = (activo) => `<button class="btn btn-outline-danger btn-sm fw-bold" onclick="cancelarSolicitudEstudiante(${idP}, ${SEMSAD.jsArg(p.titulo)}, ${activo})"><i class="fa-solid fa-xmark me-1"></i>${activo ? 'Cancelar préstamo' : 'Cancelar solicitud'}</button>`;
                         const accionHTML = p.estado === 'Activo'
-                            ? `<button class="btn btn-outline-primary btn-sm fw-bold" onclick="renovarPrestamo(${parseInt(p.id_prestamo)})"><i class="fa-solid fa-rotate me-1"></i>Renovar</button>`
-                            : (p.estado === 'Solicitado'
-                                ? `<button class="btn btn-outline-danger btn-sm fw-bold" onclick="cancelarSolicitudEstudiante(${parseInt(p.id_prestamo)}, ${SEMSAD.jsArg(p.titulo)})"><i class="fa-solid fa-xmark me-1"></i>Cancelar solicitud</button>`
-                                : '');
+                            ? `<div class="d-flex flex-wrap gap-2"><button class="btn btn-outline-primary btn-sm fw-bold" onclick="renovarPrestamo(${idP})"><i class="fa-solid fa-rotate me-1"></i>Renovar</button>${btnCancelar(true)}</div>`
+                            : (p.estado === 'Solicitado' ? btnCancelar(false) : '');
 
                         // Agrega la fila. El botón Renovar solo aparece en los préstamos Activos.
                         tbody.innerHTML += `

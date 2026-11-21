@@ -464,6 +464,7 @@
                             <div class="btn-group" role="group">
                                 <button class="btn btn-sm btn-primary fw-bold" id="comprobBtnPago" onclick="cargarComprobantes('pago')"><i class="fa-solid fa-credit-card me-1"></i>Pagos de multas</button>
                                 <button class="btn btn-sm btn-outline-primary fw-bold" id="comprobBtnPrestamo" onclick="cargarComprobantes('prestamo')"><i class="fa-solid fa-book me-1"></i>Préstamos entregados</button>
+                                <button class="btn btn-sm btn-outline-primary fw-bold" id="comprobBtnDemo" onclick="cargarComprobantes('demo')"><i class="fa-solid fa-flask me-1"></i>Operaciones de prueba</button>
                             </div>
                             <button class="btn btn-sm btn-outline-primary" onclick="cargarComprobantes(comprobTipo)" title="Actualizar"><i class="fa-solid fa-rotate"></i></button>
                         </div>
@@ -1547,27 +1548,55 @@
         let comprobTipo = 'pago';
         let comprobUrlActual = null;
         async function cargarComprobantes(tipo) {
+            if (!['pago', 'prestamo', 'demo'].includes(tipo)) return;
             comprobTipo = tipo;
-            document.getElementById('comprobBtnPago').className = 'btn btn-sm fw-bold ' + (tipo === 'pago' ? 'btn-primary' : 'btn-outline-primary');
-            document.getElementById('comprobBtnPrestamo').className = 'btn btn-sm fw-bold ' + (tipo === 'prestamo' ? 'btn-primary' : 'btn-outline-primary');
-            document.getElementById('comprobColDetalle').innerText = tipo === 'pago' ? 'Método' : 'Libro';
+            for (const [id, name] of [['comprobBtnPago','pago'],['comprobBtnPrestamo','prestamo'],['comprobBtnDemo','demo']]) {
+                document.getElementById(id).className = 'btn btn-sm fw-bold ' + (tipo === name ? 'btn-primary' : 'btn-outline-primary');
+            }
+            document.getElementById('comprobColDetalle').textContent =
+                tipo === 'pago' ? 'Método' : (tipo === 'prestamo' ? 'Libro' : 'Método · libros');
             const tbody = document.getElementById('comprobTbody');
             tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-muted">Cargando...</td></tr>';
+            const frame = document.getElementById('comprobPreview');
+            frame.classList.add('d-none');
+            frame.removeAttribute('src');
+            document.getElementById('comprobVacio').classList.remove('d-none');
+            document.getElementById('comprobAbrir').disabled = true;
+            document.getElementById('comprobImprimir').disabled = true;
+            comprobUrlActual = null;
             try {
-                const resp = await fetch(`${window.SEMSAD_API}/comprobantes_sirve_para_consultar.php?tipo=${tipo}&listar=1`, { credentials: 'include', cache: 'no-store' });
+                const url = tipo === 'demo'
+                    ? window.SEMSAD_API + '/pagos_demo_sirve_para_registrar_y_listar.php?listar=1'
+                    : window.SEMSAD_API + '/comprobantes_sirve_para_consultar.php?tipo=' + tipo + '&listar=1';
+                const resp = await fetch(url, { credentials: 'include', cache: 'no-store' });
                 const res = await resp.json();
-                if (res.status !== 'success') { tbody.innerHTML = `<tr><td colspan="5" class="text-center py-4 text-danger">${SEMSAD.esc(res.mensaje || 'No se pudieron cargar.')}</td></tr>`; return; }
-                tbody.innerHTML = res.lista.length ? res.lista.map(c => `<tr>
-                    <td class="fw-bold">${SEMSAD.esc(c.codigo)}</td>
-                    <td>${SEMSAD.esc(c.usuario)}</td>
-                    <td>${SEMSAD.esc(tipo === 'pago' ? c.metodo : c.libro)}</td>
-                    <td>${SEMSAD.esc(fechaHoraES(c.fecha))}</td>
-                    <td>${tipo === 'pago' ? formatoBs(c.monto) : SEMSAD.esc(c.estado)}
-                        <div><button class="btn btn-sm btn-outline-primary fw-bold mt-1" onclick="verComprobantePreview('${tipo}', ${Number(c.id)}, this)"><i class="fa-solid fa-eye me-1"></i>Vista previa</button></div></td>
-                </tr>`).join('') : '<tr><td colspan="5" class="text-center py-4 text-muted">No hay comprobantes todavía.</td></tr>';
+                if (comprobTipo !== tipo) return;
+                if (!resp.ok || res.status !== 'success') {
+                    tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-danger">' +
+                        SEMSAD.esc(res.mensaje || 'No se pudieron cargar los comprobantes.') + '</td></tr>';
+                    return;
+                }
+                const lista = Array.isArray(res.lista) ? res.lista : [];
+                tbody.innerHTML = lista.length ? lista.map(c => {
+                    const detalle = tipo === 'pago' ? c.metodo
+                        : tipo === 'prestamo' ? c.libro
+                        : String(c.metodo || '') + ' · ' + String(c.libros || 'Prueba de pago');
+                    const importe = tipo === 'prestamo' ? SEMSAD.esc(c.estado)
+                        : formatoBs(c.monto) + (tipo === 'demo'
+                            ? ' <span class="badge bg-info text-dark">PRUEBA · sin cobro bancario</span>' : '');
+                    return '<tr>' +
+                        '<td class="fw-bold">' + SEMSAD.esc(c.codigo) + '</td>' +
+                        '<td>' + SEMSAD.esc(c.usuario || '') + '</td>' +
+                        '<td>' + SEMSAD.esc(detalle) + '</td>' +
+                        '<td>' + SEMSAD.esc(tipo === 'demo' ? String(c.fecha || '') : fechaHoraES(c.fecha)) + '</td>' +
+                        '<td>' + importe + '<div><button class="btn btn-sm btn-outline-primary fw-bold mt-1" onclick="verComprobantePreview(' +
+                        "'" + tipo + "', " + Number(c.id) + ', this)"><i class="fa-solid fa-eye me-1"></i>Vista previa</button></div></td></tr>';
+                }).join('') : '<tr><td colspan="5" class="text-center py-4 text-muted">No hay registros de este tipo.</td></tr>';
             } catch (e) {
-                console.error('Comprobantes:', e);
-                tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-danger">Error de conexión.</td></tr>';
+                console.error('Comprobantes:',e);
+                if (comprobTipo === tipo) {
+                    tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-danger">Error al consultar registros.</td></tr>';
+                }
             }
         }
         function verComprobantePreview(tipo, id, boton) {

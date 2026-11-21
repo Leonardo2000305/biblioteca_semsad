@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reportes DEMO · Biblioteca SEMSAD</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<style>
+:root{color-scheme:light}body{background:#f1f5f9;color:#172033;font-family:system-ui,Segoe UI,sans-serif}
+.hero{background:linear-gradient(125deg,#0f172a,#1d4ed8);color:white;border-radius:18px;padding:24px}
+.card{border:0;border-radius:16px;box-shadow:0 5px 18px #0f172a0d}
+.kpi{font-size:clamp(1.4rem,4vw,2rem);font-weight:800}
+.thead-dark th{background:#0f172a;color:#fff}
+.trama{height:12px;border-radius:12px;background:#e2e8f0;overflow:hidden}.trama span{display:block;height:100%;background:#2563eb}
+@media print{.no-print{display:none!important}body{background:white}.hero{color:black;background:white;border:1px solid #ddd}.card{box-shadow:none;border:1px solid #ddd}}
+</style></head>
+<body><main class="container py-4">
+<div class="hero mb-4 d-flex flex-wrap justify-content-between align-items-center gap-3">
+ <div><div class="small fw-bold opacity-75">BIBLIOTECA SEMSAD · DEMOSTRACIÓN</div><h1 class="h3 fw-bold mt-2">Reportes de pagos simulados</h1><div>Datos de ejemplo almacenados solo en este navegador. No representan ingresos reales.</div></div>
+ <a href="pagar_multa.html" class="btn btn-light fw-bold no-print">Nueva prueba</a>
+</div>
+<div class="alert alert-warning" role="note"><strong>IMPORTANTE:</strong> Estos resultados son exclusivamente académicos. No se registró dinero, no se pagaron multas ni se afectó la base de datos oficial.</div>
+<div class="row g-3 mb-4">
+ <div class="col-6 col-lg-3"><div class="card p-3"><div class="text-muted small">Simulaciones</div><div class="kpi" id="totalOperaciones">0</div></div></div>
+ <div class="col-6 col-lg-3"><div class="card p-3"><div class="text-muted small">Importe ficticio</div><div class="kpi" id="totalMonto">Bs 0.00</div></div></div>
+ <div class="col-6 col-lg-3"><div class="card p-3"><div class="text-muted small">Tarjetas demo</div><div class="kpi" id="totalTarjeta">Bs 0.00</div></div></div>
+ <div class="col-6 col-lg-3"><div class="card p-3"><div class="text-muted small">PayPal demo</div><div class="kpi" id="totalPaypal">Bs 0.00</div></div></div>
+</div>
+<div class="card p-3 p-md-4 mb-4">
+ <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3"><h2 class="h5 fw-bold mb-0">Distribución de pruebas</h2><div class="d-flex flex-wrap gap-2 no-print"><button type="button" class="btn btn-outline-primary btn-sm" onclick="window.print()">Imprimir / PDF</button><button type="button" class="btn btn-outline-danger btn-sm" onclick="limpiarDemo()">Borrar pruebas</button></div></div>
+ <div class="mb-2 small">Tarjeta de ejemplo <span id="pTarjeta" class="float-end">0%</span></div><div class="trama mb-3"><span id="barraTarjeta" style="width:0%"></span></div>
+ <div class="mb-2 small">PayPal de ejemplo <span id="pPaypal" class="float-end">0%</span></div><div class="trama"><span id="barraPaypal" style="width:0%;background:#0e7490"></span></div>
+</div>
+<div class="card p-3 p-md-4">
+ <h2 class="h5 fw-bold mb-3">Historial de transacciones ficticias</h2>
+ <div class="table-responsive"><table class="table table-hover align-middle"><thead><tr><th>Comprobante demo</th><th>Fecha</th><th>Método simulado</th><th>Importe de prueba</th><th>Estado</th></tr></thead><tbody id="filas"><tr><td colspan="5">Todavía no se realizaron pruebas.</td></tr></tbody></table></div>
+</div>
+</main>
+<script>
+const LLAVE_DEMO='semsad_pagos_prueba_v1';
+const bs=n=>'Bs '+Number(n||0).toFixed(2);
+function cargar(){
+ let data=[];try{const leido=JSON.parse(localStorage.getItem(LLAVE_DEMO)||'[]');if(Array.isArray(leido)) data=leido;}catch(e){}
+ data=data.filter(r=>r&&r.estado==='SIMULADO'&&Number.isFinite(Number(r.monto))&&Number(r.monto)>=0);
+ const card=data.filter(r=>String(r.metodo).toLowerCase().includes('paypal')===false);
+ const paypal=data.filter(r=>String(r.metodo).toLowerCase().includes('paypal'));
+ const sumar=list=>list.reduce((acc,r)=>acc+Number(r.monto),0);
+ const t=sumar(data),tc=sumar(card),tp=sumar(paypal);
+ document.getElementById('totalOperaciones').textContent=String(data.length);
+ document.getElementById('totalMonto').textContent=bs(t);
+ document.getElementById('totalTarjeta').textContent=bs(tc);
+ document.getElementById('totalPaypal').textContent=bs(tp);
+ const pc=t>0?100*tc/t:0,pp=t>0?100*tp/t:0;
+ document.getElementById('pTarjeta').textContent=pc.toFixed(1)+'%';
+ document.getElementById('pPaypal').textContent=pp.toFixed(1)+'%';
+ document.getElementById('barraTarjeta').style.width=pc+'%';
+ document.getElementById('barraPaypal').style.width=pp+'%';
+ const tbody=document.getElementById('filas');tbody.replaceChildren();
+ if(!data.length){const tr=document.createElement('tr'),td=document.createElement('td');td.colSpan=5;td.textContent='Todavía no hay simulaciones. Realiza una prueba desde Pagar multas.';tr.appendChild(td);tbody.appendChild(tr);return;}
+ data.slice().reverse().forEach(r=>{
+  const tr=document.createElement('tr');
+  const fecha=new Date(r.fecha);
+  [r.codigo,Number.isFinite(fecha.getTime())?fecha.toLocaleString('es-BO'):'—',r.metodo,bs(r.monto),'SIMULADO'].forEach(v=>{const td=document.createElement('td');td.textContent=String(v||'');tr.appendChild(td);});
+  tbody.appendChild(tr);
+ });
+}
+function limpiarDemo(){if(!confirm('¿Borrar únicamente las pruebas guardadas en este navegador?'))return;localStorage.removeItem(LLAVE_DEMO);cargar();}
+cargar();
+</script></body></html>

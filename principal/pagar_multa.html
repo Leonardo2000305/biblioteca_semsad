@@ -112,13 +112,13 @@
 
     <main class="container py-4 py-md-5">
         <div class="text-center mb-4">
-            <div class="etiqueta mb-2"><i class="fa-solid fa-shield-halved me-1"></i>Pago seguro</div>
+            <div class="etiqueta mb-2"><i class="fa-solid fa-flask me-1"></i>Pago en línea · demostración</div>
             <h1 class="fw-bold h2 mb-1">Pagar multas</h1>
             <p class="text-secondary mb-0" id="saludo">Cargando tus multas...</p>
         </div>
 
-        <div class="aviso-demo p-3 mb-4 d-none" id="avisoDemo" role="note">
-            <i class="fa-solid fa-flask me-2"></i><strong>Modo demostración:</strong> este pago es de prueba. No se cobra dinero real y no se guarda ningún dato de tu tarjeta.
+        <div class="aviso-demo p-3 mb-4" id="avisoDemo" role="note">
+            <i class="fa-solid fa-flask me-2"></i><strong>DEMOSTRACIÓN · SIN COBRO REAL:</strong> usa únicamente los ejemplos predefinidos. No ingreses tarjetas ni credenciales personales. Las multas reales no se modificarán.
         </div>
 
         <!-- Estado: sin multas -->
@@ -132,11 +132,13 @@
         <!-- Estado: pago y recibo -->
         <div id="vistaComprobante" class="panel p-4 p-md-5 d-none comprobante">
             <div class="check-anim"><i class="fa-solid fa-check"></i></div>
-            <h2 class="h4 fw-bold">¡Pago registrado!</h2>
+            <h2 class="h4 fw-bold">¡Simulación completada!</h2>
             <p class="text-secondary" id="comprobanteMensaje"></p>
             <div class="text-start mx-auto" style="max-width: 420px" id="comprobanteLineas"></div>
             <div class="d-flex flex-wrap gap-2 justify-content-center mt-4">
-                <a href="index.html" class="btn btn-pagar px-4">Volver al catálogo</a>
+                <a href="index.html" class="btn btn-outline-light px-4">Volver al catálogo</a>
+                <button type="button" class="btn btn-pagar px-4" onclick="volverADemostracion()">Nueva prueba</button>
+                <a href="reportes_demo.html" class="btn btn-outline-info fw-bold px-4">Ver reportes DEMO</a>
                 <button class="btn btn-outline-light fw-bold px-4" onclick="window.print()"><i class="fa-solid fa-print me-1"></i>Imprimir</button>
             </div>
         </div>
@@ -163,12 +165,12 @@
                         <button type="button" class="metodo activo" id="btnMetodoTarjeta" role="radio" aria-checked="true" onclick="elegirMetodo('tarjeta')">
                             <i class="fa-solid fa-credit-card icono text-info"></i>
                             <div class="fw-bold mt-1">Tarjeta</div>
-                            <small>Visa, Mastercard, Amex y más</small>
+                            <small>Visa, Mastercard o Amex ficticias</small>
                         </button>
                         <button type="button" class="metodo" id="btnMetodoPaypal" role="radio" aria-checked="false" onclick="elegirMetodo('paypal')">
                             <i class="fa-brands fa-paypal icono" style="color:#38bdf8"></i>
                             <div class="fw-bold mt-1">PayPal</div>
-                            <small>Paga con tu cuenta PayPal</small>
+                            <small>Autorización simulada, sin iniciar sesión</small>
                         </button>
                     </div>
 
@@ -193,47 +195,36 @@
                             </div>
                         </div>
 
-                        <form id="pagoTarjeta" autocomplete="on" novalidate>
-                            <div class="mb-3">
-                                <label class="form-label" for="inNumero">Número de tarjeta</label>
-                                <div class="input-group">
-                                    <span class="input-group-text bg-transparent border-end-0" style="border-color:var(--borde);color:#94a3b8"><i class="fa-solid fa-hashtag"></i></span>
-                                    <input type="text" class="form-control border-start-0" id="inNumero" inputmode="numeric" autocomplete="cc-number" placeholder="1234 5678 9012 3456" maxlength="23" aria-describedby="marcaTexto">
-                                </div>
-                                <div class="marca-texto mt-1" id="marcaTexto" aria-live="polite"></div>
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label" for="inNombre">Nombre del titular</label>
-                                <input type="text" class="form-control" id="inNombre" autocomplete="cc-name" placeholder="Como aparece en la tarjeta" maxlength="40">
-                            </div>
-                            <div class="row g-3">
-                                <div class="col-6">
-                                    <label class="form-label" for="inVence">Vencimiento</label>
-                                    <input type="text" class="form-control" id="inVence" inputmode="numeric" autocomplete="cc-exp" placeholder="MM/AA" maxlength="5">
-                                </div>
-                                <div class="col-6">
-                                    <label class="form-label" for="inCvv">CVV</label>
-                                    <div class="input-group">
-                                        <input type="password" class="form-control" id="inCvv" inputmode="numeric" autocomplete="cc-csc" placeholder="123" maxlength="4">
-                                        <span class="input-group-text bg-transparent" style="border-color:var(--borde);color:#94a3b8" title="Los 3 o 4 dígitos al reverso de la tarjeta (4 en Amex)"><i class="fa-solid fa-circle-info"></i></span>
-                                    </div>
-                                </div>
-                            </div>
-                        </form>
+                        <div class="alert alert-info small mb-3" role="note">
+                            Selecciona una tarjeta ficticia. Los campos son ilustrativos: no aceptan números, CVV ni datos personales.
+                        </div>
+                        <div class="d-flex flex-wrap gap-2 mb-3" role="group" aria-label="Elegir tarjeta de ejemplo">
+                            <button type="button" class="btn btn-info btn-sm fw-bold" id="demoVisa" onclick="seleccionarTarjetaDemo('visa')">Visa de ejemplo</button>
+                            <button type="button" class="btn btn-outline-info btn-sm fw-bold" id="demoMastercard" onclick="seleccionarTarjetaDemo('mastercard')">Mastercard de ejemplo</button>
+                            <button type="button" class="btn btn-outline-info btn-sm fw-bold" id="demoAmex" onclick="seleccionarTarjetaDemo('amex')">Amex de ejemplo</button>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label" for="ejemploNumero">Tarjeta seleccionada (solo ilustración)</label>
+                            <input class="form-control" id="ejemploNumero" value="•••• •••• •••• DEMO" disabled>
+                        </div>
+                        <div class="row g-3">
+                            <div class="col-7"><label class="form-label" for="ejemploTitular">Titular</label><input class="form-control" id="ejemploTitular" value="TITULAR DE PRUEBA" disabled></div>
+                            <div class="col-5"><label class="form-label" for="ejemploVencimiento">Vencimiento</label><input class="form-control" id="ejemploVencimiento" value="DEMO" disabled></div>
+                        </div>
                     </div>
 
                     <!-- Panel de PayPal -->
                     <div id="formPaypal" class="d-none text-center py-3">
                         <i class="fa-brands fa-paypal fa-4x mb-3" style="color:#38bdf8"></i>
-                        <p class="text-secondary mb-4">Serás llevado a PayPal para confirmar el pago. Tu cuenta no se comparte con la biblioteca.</p>
+                        <p class="text-secondary mb-4">Se simula la aprobación de PayPal sin conectar cuentas ni procesar una transacción.</p>
                         <button type="button" class="btn btn-paypal px-4" onclick="abrirPaypalDemo()"><i class="fa-brands fa-paypal me-1"></i>Continuar con PayPal</button>
                     </div>
 
                     <div class="d-grid mt-4">
-                        <button type="button" class="btn btn-pagar" id="btnPagar" onclick="pagar()" disabled>
-                            <i class="fa-solid fa-lock me-1"></i><span id="textoBoton">Pagar Bs 0.00</span>
+                        <button type="button" class="btn btn-pagar" id="btnPagar" onclick="simularPago()" disabled>
+                            <i class="fa-solid fa-flask me-1"></i><span id="textoBoton">Simular Bs 0.00</span>
                         </button>
-                        <small class="text-center text-secondary mt-2"><i class="fa-solid fa-shield-halved me-1"></i>Conexión protegida. No guardamos el número completo ni el CVV.</small>
+                        <small class="text-center text-secondary mt-2">No se enviarán datos de pago ni se liquidarán multas. Resultados guardados solo en este navegador.</small>
                     </div>
                 </section>
             </div>
@@ -246,10 +237,10 @@
             <div class="modal-content" style="background:#fff;color:#111827;border-radius:16px">
                 <div class="modal-body text-center p-4">
                     <i class="fa-brands fa-paypal fa-2x mb-2" style="color:#0070ba"></i>
-                    <h2 class="h6 fw-bold" id="tituloPaypal">Confirmar pago con PayPal</h2>
+                    <h2 class="h6 fw-bold" id="tituloPaypal">Simular autorización PayPal</h2>
                     <p class="small text-secondary">Demostración: no se conecta con una cuenta real.</p>
                     <div class="d-grid gap-2">
-                        <button type="button" class="btn btn-primary fw-bold" data-bs-dismiss="modal" onclick="confirmarPaypalDemo()">Aprobar pago</button>
+                        <button type="button" class="btn btn-primary fw-bold" data-bs-dismiss="modal" onclick="confirmarPaypalDemo()">Aprobar simulación</button>
                         <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
                     </div>
                 </div>
@@ -260,280 +251,191 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="../js/config.js"></script>
     <script>
-        // ===== Estado de la página =====
-        let multas = [];              // multas pendientes que trae la API
-        let seleccion = new Set();    // ids de las multas que se van a pagar
-        let metodo = 'tarjeta';       // 'tarjeta' o 'paypal'
-        let pagoPaypalAprobado = false;
 
-        // ===== Marcas de tarjeta: prefijo, longitudes válidas y CVV =====
-        const MARCAS = [
-            { id: 'amex',       nombre: 'American Express', re: /^3[47]/,                      largos: [15],       cvv: 4, grupos: [4, 6, 5] },
-            { id: 'diners',     nombre: 'Diners Club',      re: /^3(0[0-5]|[68])/,             largos: [14],       cvv: 3, grupos: [4, 6, 4] },
-            { id: 'jcb',        nombre: 'JCB',              re: /^35(2[89]|[3-8])/,            largos: [16],       cvv: 3, grupos: [4, 4, 4, 4] },
-            { id: 'visa',       nombre: 'Visa',             re: /^4/,                          largos: [13, 16, 19], cvv: 3, grupos: [4, 4, 4, 4] },
-            { id: 'mastercard', nombre: 'Mastercard',       re: /^(5[1-5]|2(2[2-9]|[3-6]\d|7[01]|720))/, largos: [16], cvv: 3, grupos: [4, 4, 4, 4] },
-            { id: 'discover',   nombre: 'Discover',         re: /^(6011|65|64[4-9])/,          largos: [16, 19],   cvv: 3, grupos: [4, 4, 4, 4] }
-        ];
-        const detectarMarca = digitos => MARCAS.find(m => m.re.test(digitos)) || null;
-
-        // Algoritmo de Luhn: detecta números de tarjeta mal escritos
-        function luhnValido(digitos) {
-            let suma = 0, doble = false;
-            for (let i = digitos.length - 1; i >= 0; i--) {
-                let d = Number(digitos[i]);
-                if (doble) { d *= 2; if (d > 9) d -= 9; }
-                suma += d; doble = !doble;
-            }
-            return suma % 10 === 0;
-        }
-
-        // Escribe el número con espacios según la marca (Amex: 4-6-5)
-        function formatearNumero(valor, marca) {
-            const d = valor.replace(/\D/g, '').slice(0, marca ? Math.max(...marca.largos) : 19);
-            const grupos = marca ? marca.grupos : [4, 4, 4, 4, 3];
-            const partes = []; let pos = 0;
-            for (const g of grupos) { if (pos >= d.length) break; partes.push(d.slice(pos, pos + g)); pos += g; }
-            if (pos < d.length) partes.push(d.slice(pos));
-            return partes.join(' ');
-        }
-
-        // ===== Carga inicial =====
+        // Prueba exclusivamente visual. Nunca llama a la API POST de pagos ni altera los datos reales.
+        const LLAVE_DEMO = 'semsad_pagos_prueba_v1';
+        let multas = [], seleccion = new Set(), metodo = 'tarjeta';
+        let tarjetaDemo = 'visa', paypalAprobado = false, procesando = false;
+        const TARJETAS = {
+            visa: { nombre: 'VISA · DEMO', css: 'marca-visa', numero: '•••• •••• •••• DEMO', boton: 'demoVisa' },
+            mastercard: { nombre: 'MASTERCARD · DEMO', css: 'marca-mastercard', numero: '•••• •••• •••• DEMO', boton: 'demoMastercard' },
+            amex: { nombre: 'AMEX · DEMO', css: 'marca-amex', numero: '•••• •••• •••• DEMO', boton: 'demoAmex' }
+        };
+        const bs = n => 'Bs ' + Number(n || 0).toFixed(2);
         document.addEventListener('DOMContentLoaded', async () => {
-            // Lo que el estudiante escribe en la tarjeta no se guarda en ningún lado: no hay localStorage ni cookies.
-            enlazarFormulario();
+            seleccionarTarjetaDemo('visa');
             try {
                 const resp = await fetch(window.SEMSAD_API + '/mis_multas_sirve_para_pagar_en_linea.php', { credentials: 'include', cache: 'no-store' });
                 const res = await resp.json();
                 if (res.codigo === 'sin_sesion') { window.location.href = '../login/index.html'; return; }
-                if (res.status !== 'success') { mostrarError(res.mensaje || 'No se pudieron cargar tus multas.'); return; }
-                if (res.demo) document.getElementById('avisoDemo').classList.remove('d-none');
-                document.getElementById('saludo').innerText = res.nombre ? `Hola, ${res.nombre}. Elige qué multas pagar.` : 'Elige qué multas pagar.';
-                multas = res.multas || [];
-                if (!multas.length) { document.getElementById('vistaSinMultas').classList.remove('d-none'); return; }
-                multas.forEach(m => seleccion.add(m.id_multa));
+                if (res.status !== 'success') { mostrarError(res.mensaje || 'No se pudieron cargar las multas.'); return; }
+                multas = (res.multas || []).map(m => ({
+                    id_multa: Number(m.id_multa), titulo: String(m.titulo || 'Multa'), monto: Number(m.monto) || 0
+                }));
+                document.getElementById('saludo').textContent = res.nombre
+                    ? 'Hola, ' + res.nombre + '. Prueba el recorrido sin realizar un cobro.'
+                    : 'Prueba un recorrido de pago ficticio.';
+                if (!multas.length) {
+                    multas = [{id_multa: -1, titulo:'Multa ficticia de presentación', monto:120}];
+                    document.getElementById('saludo').textContent = 'No tienes multas pendientes. Se muestra un ejemplo de Bs 120 para la presentación.';
+                }
+                seleccion = new Set(multas.map(m => m.id_multa));
                 document.getElementById('vistaPago').classList.remove('d-none');
                 dibujarMultas();
                 actualizarTotal();
-            } catch (e) {
-                mostrarError('No se pudo conectar con el servidor. Inténtalo de nuevo.');
+            } catch (err) {
+                mostrarError('No se pudo cargar la información. Inténtalo de nuevo.');
             }
         });
-
-        function mostrarError(texto) {
-            document.getElementById('saludo').innerText = texto;
+        function mostrarError(msg) {
+            document.getElementById('saludo').textContent = msg;
             document.getElementById('saludo').classList.add('text-danger');
         }
-
-        // Dibuja la lista de multas con su casilla
         function dibujarMultas() {
             const cont = document.getElementById('listaMultas');
-            cont.innerHTML = multas.map(m => `
-                <label class="multa">
-                    <input type="checkbox" value="${m.id_multa}" ${seleccion.has(m.id_multa) ? 'checked' : ''} onchange="cambiarSeleccion(${m.id_multa}, this.checked)">
-                    <span>
-                        <span class="d-block fw-bold">${SEMSAD.esc(m.titulo)}</span>
-                        <small class="text-secondary">Préstamo vencido el ${SEMSAD.esc(m.vencio || '—')}</small>
-                    </span>
-                    <span class="monto">Bs ${Number(m.monto).toFixed(2)}</span>
-                </label>`).join('');
+            cont.replaceChildren();
+            multas.forEach(m => {
+                const label = document.createElement('label');
+                label.className = 'multa';
+                const input = document.createElement('input');
+                input.type = 'checkbox';
+                input.value = String(m.id_multa);
+                input.checked = seleccion.has(m.id_multa);
+                input.addEventListener('change', () => cambiarSeleccion(m.id_multa, input.checked));
+                const info = document.createElement('span');
+                const tit = document.createElement('span');
+                tit.className = 'd-block fw-bold';
+                tit.textContent = m.titulo;
+                const desc = document.createElement('small');
+                desc.className = 'text-secondary';
+                desc.textContent = m.id_multa < 0 ? 'Ficticia · demostración' : 'Solo consulta: esta multa no será pagada';
+                info.append(tit, desc);
+                const monto = document.createElement('span');
+                monto.className = 'monto';
+                monto.textContent = bs(m.monto);
+                label.append(input, info, monto);
+                cont.appendChild(label);
+            });
         }
-
         function cambiarSeleccion(id, marcada) {
-            marcada ? seleccion.add(id) : seleccion.delete(id);
+            if (marcada) seleccion.add(Number(id)); else seleccion.delete(Number(id));
             actualizarTotal();
         }
-
         function totalSeleccionado() {
-            return multas.filter(m => seleccion.has(m.id_multa)).reduce((s, m) => s + Number(m.monto), 0);
+            return multas.filter(m => seleccion.has(m.id_multa)).reduce((s, m) => s + m.monto, 0);
         }
-
         function actualizarTotal() {
-            const total = totalSeleccionado();
-            document.getElementById('totalPagar').innerText = `Bs ${total.toFixed(2)}`;
-            document.getElementById('textoBoton').innerText = `Pagar Bs ${total.toFixed(2)}`;
+            const total = bs(totalSeleccionado());
+            document.getElementById('totalPagar').textContent = total;
+            document.getElementById('textoBoton').textContent = 'Simular ' + total;
             validarFormulario();
         }
-
-        // ===== Método de pago =====
+        function seleccionarTarjetaDemo(tipo) {
+            if (!TARJETAS[tipo]) return;
+            tarjetaDemo = tipo;
+            const t = TARJETAS[tipo];
+            const visual = document.getElementById('tarjetaVisual');
+            visual.classList.remove('marca-visa','marca-mastercard','marca-amex','marca-desconocida');
+            visual.classList.add(t.css);
+            document.getElementById('vistaNumero').textContent = t.numero;
+            document.getElementById('vistaNombre').textContent = 'TITULAR DEMO';
+            document.getElementById('vistaVence').textContent = 'DEMO';
+            document.getElementById('vistaCvv').textContent = '•••';
+            document.getElementById('chipMarca').textContent = t.nombre;
+            document.getElementById('vistaMarcaReverso').textContent = t.nombre;
+            document.getElementById('ejemploNumero').value = t.nombre + ' · sin datos bancarios';
+            Object.values(TARJETAS).forEach(e => {
+                const btn = document.getElementById(e.boton);
+                btn.classList.toggle('btn-info',e === t);
+                btn.classList.toggle('btn-outline-info',e !== t);
+                btn.setAttribute('aria-pressed',String(e === t));
+            });
+            validarFormulario();
+        }
         function elegirMetodo(m) {
+            if (m !== 'tarjeta' && m !== 'paypal') return;
             metodo = m;
-            const esTarjeta = m === 'tarjeta';
-            document.getElementById('btnMetodoTarjeta').classList.toggle('activo', esTarjeta);
-            document.getElementById('btnMetodoPaypal').classList.toggle('activo', !esTarjeta);
-            document.getElementById('btnMetodoTarjeta').setAttribute('aria-checked', String(esTarjeta));
-            document.getElementById('btnMetodoPaypal').setAttribute('aria-checked', String(!esTarjeta));
-            document.getElementById('formTarjeta').classList.toggle('d-none', !esTarjeta);
-            document.getElementById('formPaypal').classList.toggle('d-none', esTarjeta);
+            paypalAprobado = false;
+            const tarjeta = m === 'tarjeta';
+            document.getElementById('btnMetodoTarjeta').classList.toggle('activo', tarjeta);
+            document.getElementById('btnMetodoPaypal').classList.toggle('activo', !tarjeta);
+            document.getElementById('btnMetodoTarjeta').setAttribute('aria-checked',String(tarjeta));
+            document.getElementById('btnMetodoPaypal').setAttribute('aria-checked',String(!tarjeta));
+            document.getElementById('formTarjeta').classList.toggle('d-none',!tarjeta);
+            document.getElementById('formPaypal').classList.toggle('d-none',tarjeta);
             validarFormulario();
         }
-
         function abrirPaypalDemo() {
             bootstrap.Modal.getOrCreateInstance(document.getElementById('modalPaypal')).show();
         }
         function confirmarPaypalDemo() {
-            pagoPaypalAprobado = true;
+            paypalAprobado = true;
+            SEMSAD.toast('PayPal autorizado en la simulación. No se contactó con PayPal real.', 'info');
             validarFormulario();
-            SEMSAD.toast('PayPal aprobado (demostración). Ahora pulsa Pagar.', 'info');
         }
-
-        // ===== Formulario de tarjeta: detección de marca en vivo =====
-        function enlazarFormulario() {
-            const inNumero = document.getElementById('inNumero');
-            const inVence = document.getElementById('inVence');
-            const inCvv = document.getElementById('inCvv');
-            const inNombre = document.getElementById('inNombre');
-
-            inNumero.addEventListener('input', () => {
-                const digitos = inNumero.value.replace(/\D/g, '');
-                const marca = detectarMarca(digitos);
-                inNumero.value = formatearNumero(digitos, marca);
-                pintarMarca(digitos, marca);
-                validarFormulario();
-            });
-            inVence.addEventListener('input', () => {
-                let d = inVence.value.replace(/\D/g, '').slice(0, 4);
-                inVence.value = d.length > 2 ? d.slice(0, 2) + '/' + d.slice(2) : d;
-                document.getElementById('vistaVence').innerText = inVence.value || 'MM/AA';
-                validarFormulario();
-            });
-            inCvv.addEventListener('input', () => {
-                inCvv.value = inCvv.value.replace(/\D/g, '').slice(0, 4);
-                document.getElementById('vistaCvv').innerText = '•'.repeat(inCvv.value.length) || '•••';
-                validarFormulario();
-            });
-            inCvv.addEventListener('focus', () => document.getElementById('tarjetaVisual').classList.add('girada'));
-            inCvv.addEventListener('blur', () => document.getElementById('tarjetaVisual').classList.remove('girada'));
-            inNombre.addEventListener('input', () => {
-                inNombre.value = inNombre.value.replace(/[^\p{L} .'-]/gu, '');
-                document.getElementById('vistaNombre').innerText = inNombre.value.trim() || 'Nombre del titular';
-                validarFormulario();
-            });
-        }
-
-        // Pinta la marca encontrada: texto, color de la tarjeta, logo y validez del número
-        function pintarMarca(digitos, marca) {
-            const visual = document.getElementById('tarjetaVisual');
-            const texto = document.getElementById('marcaTexto');
-            const inNumero = document.getElementById('inNumero');
-            const clases = MARCAS.map(m => 'marca-' + m.id);
-            visual.classList.remove(...clases, 'marca-desconocida');
-            const nombreMarca = marca ? marca.nombre : '';
-            document.getElementById('chipMarca').innerText = marca ? marca.nombre.toUpperCase() : '';
-            document.getElementById('vistaMarcaReverso').innerText = nombreMarca;
-            visual.classList.add(marca ? 'marca-' + marca.id : 'marca-desconocida');
-            document.getElementById('vistaNumero').innerText = digitos ? formatearNumero(digitos, marca) : '•••• •••• •••• ••••';
-
-            inNumero.classList.remove('is-valid', 'is-invalid');
-            if (!digitos) { texto.innerText = ''; return; }
-            if (!marca) { texto.innerText = 'Marca no reconocida todavía'; return; }
-            const largoOk = marca.largos.includes(digitos.length);
-            const completo = largoOk && luhnValido(digitos);
-            if (completo) {
-                inNumero.classList.add('is-valid');
-                texto.innerHTML = `<i class="fa-solid fa-circle-check text-success me-1"></i>${marca.nombre} · número válido`;
-            } else if (digitos.length >= Math.min(...marca.largos)) {
-                if (largoOk) inNumero.classList.add('is-invalid');
-                texto.innerHTML = `<i class="fa-solid fa-circle-info text-info me-1"></i>${marca.nombre}${largoOk ? ' · revisa el número' : ''}`;
-            } else {
-                texto.innerHTML = `<i class="fa-solid fa-credit-card text-info me-1"></i>${marca.nombre}`;
-            }
-        }
-
-        // Valida el vencimiento: mes entre 01 y 12 y fecha no pasada
-        function vencimientoValido(texto) {
-            const m = /^(\d{2})\/(\d{2})$/.exec(texto);
-            if (!m) return false;
-            const mes = Number(m[1]), anio = 2000 + Number(m[2]);
-            if (mes < 1 || mes > 12) return false;
-            const ahora = new Date();
-            return anio > ahora.getFullYear() || (anio === ahora.getFullYear() && mes >= ahora.getMonth() + 1);
-        }
-
-        // Habilita el botón solo cuando todo está correcto para el método elegido
         function validarFormulario() {
-            const boton = document.getElementById('btnPagar');
-            let ok = seleccion.size > 0 && totalSeleccionado() > 0;
-            if (ok && metodo === 'tarjeta') {
-                const digitos = document.getElementById('inNumero').value.replace(/\D/g, '');
-                const marca = detectarMarca(digitos);
-                const nombre = document.getElementById('inNombre').value.trim();
-                const cvv = document.getElementById('inCvv').value;
-                ok = !!marca && marca.largos.includes(digitos.length) && luhnValido(digitos)
-                    && nombre.length >= 3 && vencimientoValido(document.getElementById('inVence').value)
-                    && cvv.length === marca.cvv;
-            } else if (ok && metodo === 'paypal') {
-                ok = pagoPaypalAprobado;
-            }
-            boton.disabled = !ok;
+            document.getElementById('btnPagar').disabled = procesando || seleccion.size === 0
+                || totalSeleccionado() <= 0 || (metodo === 'paypal' && !paypalAprobado);
         }
-
-        // ===== Pagar =====
-        async function pagar() {
-            const boton = document.getElementById('btnPagar');
-            let marca = null, ultimos4 = '';
-            if (metodo === 'tarjeta') {
-                const digitos = document.getElementById('inNumero').value.replace(/\D/g, '');
-                marca = detectarMarca(digitos);
-                ultimos4 = digitos.slice(-4);
-            }
-            const ids = [...seleccion];
-            boton.disabled = true;
-            const hechos = [];
-            try {
-                for (let i = 0; i < ids.length; i++) {
-                    boton.innerHTML = `<i class="fa-solid fa-spinner fa-spin me-1"></i>Procesando ${i + 1} de ${ids.length}...`;
-                    const resp = await fetch(window.SEMSAD_API + '/pagar_multa_en_linea_sirve_para_pagar_multa.php', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        credentials: 'include',
-                        // Solo la marca y los últimos 4 dígitos: el número completo, la fecha y el CVV no salen del navegador.
-                        body: JSON.stringify({ id_multa: ids[i], metodo, marca: marca ? marca.nombre : '', ultimos4 })
-                    });
-                    const res = await resp.json();
-                    if (res.codigo === 'sin_sesion') { window.location.href = '../login/index.html'; return; }
-                    if (res.status !== 'success') {
-                        SEMSAD.toast(res.mensaje || 'No se pudo registrar el pago.', 'error', 7000);
-                        break;
-                    }
-                    hechos.push({ ...res, id: ids[i] });
-                }
-            } catch (e) {
-                SEMSAD.toast('Error de conexión con el servidor. Revisa tus multas antes de intentar de nuevo.', 'error', 7000);
-            }
-            boton.innerHTML = '<i class="fa-solid fa-lock me-1"></i><span id="textoBoton"></span>';
-            actualizarTotal();
-            if (hechos.length) mostrarComprobante(hechos);
+        function simularPago() {
+            if (procesando || seleccion.size === 0 || totalSeleccionado() <= 0 || (metodo === 'paypal' && !paypalAprobado)) return;
+            procesando = true;
+            validarFormulario();
+            const btn = document.getElementById('btnPagar');
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-2"></i>Simulando autorización...';
+            // Retardo solo para mostrar el recorrido: no se realiza ninguna petición de cobro.
+            setTimeout(() => {
+                const ahora = new Date();
+                const total = totalSeleccionado();
+                const registro = {
+                    codigo: 'DEMO-' + String(ahora.getTime()),
+                    fecha: ahora.toISOString(),
+                    metodo: metodo === 'tarjeta' ? TARJETAS[tarjetaDemo].nombre : 'PayPal · DEMO',
+                    monto: Number(total.toFixed(2)),
+                    conceptos: seleccion.size,
+                    estado: 'SIMULADO'
+                };
+                let guardado = false;
+                try {
+                    const registros = JSON.parse(localStorage.getItem(LLAVE_DEMO) || '[]');
+                    const lista = Array.isArray(registros) ? registros.slice(-99) : [];
+                    lista.push(registro);
+                    localStorage.setItem(LLAVE_DEMO, JSON.stringify(lista));
+                    guardado = true;
+                } catch (e) { console.warn('No se pudo guardar la simulación en el navegador.', e); }
+                pintarComprobanteDemo(registro, guardado);
+                procesando = false;
+                btn.innerHTML = '<i class="fa-solid fa-flask me-1"></i><span id="textoBoton"></span>';
+                actualizarTotal();
+            }, 650);
         }
-
-        // Muestra el recibo y limpia los datos de la tarjeta de la pantalla
-        function mostrarComprobante(hechos) {
-            limpiarDatosTarjeta();
+        function pintarComprobanteDemo(registro, guardado) {
             document.getElementById('vistaPago').classList.add('d-none');
-            const total = hechos.reduce((s, r) => s + Number(r.monto), 0);
-            document.getElementById('comprobanteMensaje').innerText = hechos.length === 1
-                ? hechos[0].mensaje
-                : `${hechos.length} multas pagadas correctamente.`;
-            document.getElementById('comprobanteLineas').innerHTML = `
-                <div class="linea-recibo"><span>Comprobante</span><span>${hechos.map(r => SEMSAD.esc(r.comprobante)).join('<br>')}</span></div>
-                <div class="linea-recibo"><span>Método</span><span>${SEMSAD.esc(hechos[0].metodo)}</span></div>
-                <div class="linea-recibo"><span>Fecha</span><span>${new Date().toLocaleString('es-BO')}</span></div>
-                <div class="linea-recibo" style="border-bottom:0"><span>Total</span><span class="text-success">Bs ${total.toFixed(2)}</span></div>`;
             document.getElementById('vistaComprobante').classList.remove('d-none');
-            // Quita las multas pagadas de la lista, por si el estudiante vuelve atrás
-            multas = multas.filter(m => !hechos.some(h => h.id === m.id_multa));
-            seleccion = new Set([...seleccion].filter(id => multas.some(m => m.id_multa === id)));
+            const mensaje = document.getElementById('comprobanteMensaje');
+            mensaje.textContent = 'DEMOSTRACIÓN SIN COBRO REAL: no se modificaron multas, cuentas ni reportes oficiales.'
+                + (guardado ? ' El resultado está disponible en Reportes DEMO de este navegador.' : ' Tu navegador no permitió guardar la prueba.');
+            const cont = document.getElementById('comprobanteLineas');
+            cont.replaceChildren();
+            function fila(nombre, valor) {
+                const div = document.createElement('div'); div.className = 'linea-recibo';
+                const a = document.createElement('span'); a.textContent = nombre;
+                const b = document.createElement('span'); b.textContent = String(valor);
+                div.append(a,b); cont.appendChild(div);
+            }
+            fila('Identificador',registro.codigo);
+            fila('Método',registro.metodo);
+            fila('Fecha',new Date(registro.fecha).toLocaleString('es-BO'));
+            fila('Estado','SIMULADO · no pagado');
+            fila('Total de prueba',bs(registro.monto));
+        }
+        function volverADemostracion() {
+            document.getElementById('vistaComprobante').classList.add('d-none');
+            document.getElementById('vistaPago').classList.remove('d-none');
+            paypalAprobado = false;
+            validarFormulario();
         }
 
-        // Borra todo lo escrito en la tarjeta (seguridad: no queda en pantalla ni en memoria del formulario)
-        function limpiarDatosTarjeta() {
-            ['inNumero', 'inNombre', 'inVence', 'inCvv'].forEach(id => { document.getElementById(id).value = ''; });
-            document.getElementById('vistaNumero').innerText = '•••• •••• •••• ••••';
-            document.getElementById('vistaCvv').innerText = '•••';
-            document.getElementById('vistaVence').innerText = 'MM/AA';
-            document.getElementById('vistaNombre').innerText = 'Nombre del titular';
-            pintarMarca('', null);
-        }
     </script>
 </body>
 </html>

@@ -72,8 +72,15 @@ try {
     }
 
     // Marca la multa como Pagado y guarda el método usado.
-    $conexion->prepare("UPDATE multa SET estado_pago = 'Pagado', metodo_pago = :mp WHERE id_multa = :m")
-             ->execute([':mp' => $metodo, ':m' => $idMulta]);
+    // Guarda también la fecha, quién cobró y el dinero recibido (para comprobantes y cierre de caja).
+    $conexion->prepare("UPDATE multa SET estado_pago = 'Pagado', metodo_pago = :mp, fecha_pago = NOW(), id_cobrador = :c, monto_recibido = :r, cambio = :ch WHERE id_multa = :m")
+             ->execute([
+                 ':mp' => $metodo,
+                 ':c'  => (int)($_SESSION['id_usuario'] ?? 0) ?: null,
+                 ':r'  => $metodo === 'Efectivo' ? $recibido : null,
+                 ':ch' => $metodo === 'Efectivo' ? $cambio : null,
+                 ':m'  => $idMulta,
+             ]);
 
     // Cuenta las multas que todavía debe este usuario.
     $q = $conexion->prepare(

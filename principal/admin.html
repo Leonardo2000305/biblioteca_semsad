@@ -109,6 +109,9 @@
             <a href="#" class="nav-link" onclick="verModulo('inventario', this)"><i class="fa-solid fa-boxes-stacked"></i> Inventario</a>
             <a href="#" class="nav-link" onclick="verModulo('ventanilla', this)"><i class="fa-solid fa-right-left"></i> Ventanilla</a>
             <a href="#" class="nav-link" onclick="verModulo('multas', this)"><i class="fa-solid fa-hand-holding-dollar"></i> Multas y Sanciones</a>
+            <a href="#" class="nav-link" onclick="verModulo('caja', this)"><i class="fa-solid fa-cash-register"></i> Cierre de caja</a>
+            <a href="#" class="nav-link" onclick="verModulo('comprobantes', this)"><i class="fa-solid fa-receipt"></i> Comprobantes</a>
+            <a href="#" class="nav-link" onclick="verModulo('avisos', this)"><i class="fa-solid fa-envelope-circle-check"></i> Avisos de vencimiento</a>
             <a href="#" class="nav-link" onclick="verModulo('reportes', this)"><i class="fa-solid fa-chart-pie"></i> Reportes</a>
             <a href="#" class="nav-link" onclick="verModulo('bitacora', this)"><i class="fa-solid fa-clipboard-list"></i> Bitácora</a>
             <a href="#" class="nav-link" onclick="verModulo('usuarios', this)"><i class="fa-solid fa-users"></i> Usuarios Registrados</a>
@@ -367,6 +370,93 @@
             </div>
         </div>
 
+        <!-- MÓDULO AVISOS DE VENCIMIENTO: préstamos por vencer (2 días) o vencidos; envío de correo sin repetir. -->
+        <div id="secAvisos" class="modulo-vista d-none">
+            <div class="row g-3 mb-3">
+                <div class="col-md-6"><div class="card shadow-sm border-0 h-100 p-3 border-start border-4 border-primary"><div class="small text-muted fw-bold">Próximos a vencer (2 días)</div><div class="fs-2 fw-bold" id="avisoCntProximos">0</div></div></div>
+                <div class="col-md-6"><div class="card shadow-sm border-0 h-100 p-3 border-start border-4 border-danger"><div class="small text-muted fw-bold">Vencidos</div><div class="fs-2 fw-bold text-danger" id="avisoCntVencidos">0</div></div></div>
+            </div>
+            <div class="card table-card shadow-sm bg-white">
+                <div class="card-header bg-white py-3 d-flex flex-wrap justify-content-between align-items-center gap-2 border-bottom">
+                    <h5 class="fw-bold mb-0"><i class="fa-solid fa-envelope-circle-check text-primary me-2"></i>Avisos de vencimiento</h5>
+                    <div class="d-flex flex-wrap gap-2 align-items-center no-print">
+                        <select class="form-select form-select-sm w-auto" id="avisoFiltro" onchange="renderAvisos()">
+                            <option value="todos">Todos</option>
+                            <option value="proximo">Próximos a vencer</option>
+                            <option value="vencido">Vencidos</option>
+                        </select>
+                        <div class="form-check mb-0"><input class="form-check-input" type="checkbox" id="avisoReenviar"><label class="form-check-label small" for="avisoReenviar">Reenviar a los ya avisados</label></div>
+                        <button class="btn btn-sm btn-primary fw-bold" id="avisoBtnEnviar" onclick="enviarAvisos()"><i class="fa-solid fa-paper-plane me-1"></i>Enviar aviso (seleccionados)</button>
+                        <button class="btn btn-sm btn-outline-primary" onclick="cargarAvisos()"><i class="fa-solid fa-rotate me-1"></i>Actualizar</button>
+                    </div>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light"><tr>
+                            <th style="width:40px"><input class="form-check-input" type="checkbox" id="avisoTodos" onchange="marcarTodosAvisos(this.checked)" aria-label="Seleccionar todos"></th>
+                            <th>Usuario</th><th>Libro</th><th>Fecha de préstamo</th><th>Fecha límite</th><th>Estado del préstamo</th><th>Aviso</th>
+                        </tr></thead>
+                        <tbody id="avisoTbody"><tr><td colspan="7" class="text-center py-4 text-muted">Cargando...</td></tr></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- MÓDULO CIERRE DE CAJA: cobros del día por QR y efectivo, y cierre con diferencia. -->
+        <div id="secCaja" class="modulo-vista d-none">
+            <div class="card shadow-sm bg-white mb-3 p-3">
+                <div class="d-flex flex-wrap gap-2 align-items-end no-print">
+                    <div><label class="form-label small fw-bold mb-1" for="cajaFecha">Día</label><input type="date" class="form-control form-control-sm" id="cajaFecha"></div>
+                    <button class="btn btn-sm btn-primary fw-bold" onclick="cargarCaja()"><i class="fa-solid fa-magnifying-glass me-1"></i>Ver día</button>
+                    <span class="small text-muted ms-auto">El QR no cuenta como efectivo físico.</span>
+                </div>
+            </div>
+            <div class="row g-3 mb-3">
+                <div class="col-6 col-lg-3"><div class="card shadow-sm border-0 h-100 p-3"><div class="small text-muted fw-bold">Total cobrado</div><div class="fs-4 fw-bold" id="cajaTotal">Bs. 0,00</div><small class="text-muted" id="cajaNTotal"></small></div></div>
+                <div class="col-6 col-lg-3"><div class="card shadow-sm border-0 h-100 p-3 border-start border-4 border-info"><div class="small text-muted fw-bold">Cobrado por QR</div><div class="fs-4 fw-bold" id="cajaQR">Bs. 0,00</div><small class="text-muted" id="cajaNQR"></small></div></div>
+                <div class="col-6 col-lg-3"><div class="card shadow-sm border-0 h-100 p-3 border-start border-4 border-success"><div class="small text-muted fw-bold">Efectivo que debe haber</div><div class="fs-4 fw-bold" id="cajaEf">Bs. 0,00</div><small class="text-muted" id="cajaNEf"></small></div></div>
+                <div class="col-6 col-lg-3"><div class="card shadow-sm border-0 h-100 p-3"><div class="small text-muted fw-bold">Diferencia del cierre</div><div class="fs-4 fw-bold" id="cajaDif">—</div><small class="text-muted" id="cajaDifTxt"></small></div></div>
+            </div>
+            <div class="card table-card shadow-sm bg-white mb-3">
+                <div class="card-header bg-white py-3 border-bottom fw-bold">Cobros del día</div>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light"><tr><th>Hora</th><th>Usuario</th><th>Concepto</th><th>Método</th><th>Responsable</th><th class="text-end">Importe</th></tr></thead>
+                        <tbody id="cajaTbody"></tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="card shadow-sm bg-white mb-3 p-3" id="cajaPanelCierre"></div>
+            <div class="card table-card shadow-sm bg-white">
+                <div class="card-header bg-white py-3 border-bottom fw-bold">Cierres anteriores</div>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light"><tr><th>Día</th><th>Total</th><th>QR</th><th>Efectivo esperado</th><th>Contado</th><th>Diferencia</th><th>Corrección</th></tr></thead>
+                        <tbody id="cajaHistorial"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- MÓDULO COMPROBANTES: pagos de multas y préstamos entregados; se imprimen o guardan como PDF. -->
+        <div id="secComprobantes" class="modulo-vista d-none">
+            <div class="card table-card shadow-sm bg-white">
+                <div class="card-header bg-white py-3 d-flex flex-wrap justify-content-between align-items-center gap-2 border-bottom">
+                    <div class="btn-group" role="group">
+                        <button class="btn btn-sm btn-primary fw-bold" id="comprobBtnPago" onclick="cargarComprobantes('pago')"><i class="fa-solid fa-credit-card me-1"></i>Pagos de multas</button>
+                        <button class="btn btn-sm btn-outline-primary fw-bold" id="comprobBtnPrestamo" onclick="cargarComprobantes('prestamo')"><i class="fa-solid fa-book me-1"></i>Préstamos entregados</button>
+                    </div>
+                    <button class="btn btn-sm btn-outline-primary" onclick="cargarComprobantes(comprobTipo)"><i class="fa-solid fa-rotate me-1"></i>Actualizar</button>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light"><tr><th>Código</th><th>Usuario</th><th id="comprobColDetalle">Detalle</th><th>Fecha</th><th>Importe / Estado</th><th class="text-center">Comprobante</th></tr></thead>
+                        <tbody id="comprobTbody"><tr><td colspan="6" class="text-center py-4 text-muted">Cargando...</td></tr></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
         <!-- MÓDULO REPORTES E INDICADORES -->
         <!-- Módulo Reportes: arriba las tarjetas de resumen y abajo las tablas. Todo lo llena cargarReportes(). -->
         <div id="secReportes" class="modulo-vista d-none">
@@ -381,6 +471,28 @@
                     <button class="btn btn-sm btn-outline-success" onclick="exportarReporteCSV()"><i class="fa-solid fa-file-csv me-1"></i>Exportar CSV</button>
                     <!-- Imprime el reporte o lo guarda como PDF (window.print). -->
                     <button class="btn btn-sm btn-danger" onclick="window.print()"><i class="fa-solid fa-file-pdf me-1"></i>Imprimir / PDF</button>
+                </div>
+            </div>
+            <!-- Estadísticas por período: tarjetas, gráficos y comparación con el período anterior. Datos reales de la base. -->
+            <div class="card shadow-sm bg-white mb-3">
+                <div class="card-header bg-white py-3 d-flex flex-wrap justify-content-between align-items-center gap-2 border-bottom">
+                    <h5 class="fw-bold mb-0"><i class="fa-solid fa-chart-column text-primary me-2"></i>Estadísticas del período</h5>
+                    <div class="d-flex flex-wrap gap-2 align-items-end no-print">
+                        <div><label class="form-label small fw-bold mb-1" for="estDesde">Desde</label><input type="date" class="form-control form-control-sm" id="estDesde"></div>
+                        <div><label class="form-label small fw-bold mb-1" for="estHasta">Hasta</label><input type="date" class="form-control form-control-sm" id="estHasta"></div>
+                        <button class="btn btn-sm btn-primary fw-bold" onclick="cargarEstadisticas()"><i class="fa-solid fa-filter me-1"></i>Aplicar</button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3 mb-3" id="estCards"></div>
+                    <div class="row g-3 mb-3">
+                        <div class="col-lg-8"><div class="border rounded-3 p-3 h-100"><div class="fw-bold mb-2">Préstamos y devoluciones por día</div><canvas id="estChartDias" height="110"></canvas></div></div>
+                        <div class="col-lg-4"><div class="border rounded-3 p-3 h-100"><div class="fw-bold mb-2">Recaudación por método</div><canvas id="estChartRecaudacion" height="160"></canvas><div class="small text-muted mt-2" id="estRecaudacionTxt"></div></div></div>
+                        <div class="col-lg-6"><div class="border rounded-3 p-3 h-100"><div class="fw-bold mb-2">Multas cobradas por día (Bs.)</div><canvas id="estChartMultas" height="120"></canvas></div></div>
+                        <div class="col-lg-6"><div class="border rounded-3 p-3 h-100"><div class="fw-bold mb-2">Libros más solicitados en el período</div><canvas id="estChartLibros" height="150"></canvas></div></div>
+                    </div>
+                    <div class="fw-bold mb-2">Comparación con el período anterior</div>
+                    <div class="table-responsive"><table class="table table-sm align-middle mb-0"><thead class="table-light"><tr><th>Indicador</th><th>Período actual</th><th>Período anterior</th><th>Variación</th></tr></thead><tbody id="estComparacion"></tbody></table></div>
                 </div>
             </div>
             <!-- Tarjetas de resumen: préstamos y devoluciones de hoy, activos, multas pendientes y cobradas, y usuarios bloqueados. -->
@@ -738,6 +850,7 @@
 
     <!-- Bootstrap JS Bundle -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
     <script src="../js/config.js"></script>
     <!-- Guarda de página: si no hay sesión manda al login; si es estudiante o docente manda al portal. -->
     <script>SEMSAD.exigirSesion(true);</script>
@@ -781,6 +894,9 @@
                 'inventario': 'Inventario de Libros',
                 'ventanilla': 'Ventanilla de Atención',
                 'multas': 'Control de Multas y Sanciones',
+                'caja': 'Cierre de caja',
+                'comprobantes': 'Comprobantes',
+                'avisos': 'Avisos de vencimiento',
                 'reportes': 'Reportes e Indicadores',
                 'bitacora': 'Bitácora de Actividades',
                 'usuarios': 'Padrón de Usuarios Registrados'
@@ -797,6 +913,7 @@
             } else if (nombreModulo === 'reportes') {
                 document.getElementById('secReportes').classList.remove('d-none');
                 cargarReportes();
+                cargarEstadisticas();
             } else if (nombreModulo === 'bitacora') {
                 document.getElementById('secBitacora').classList.remove('d-none');
                 cargarBitacora();
@@ -807,6 +924,15 @@
                 document.getElementById('secVentanilla').classList.remove('d-none');
                 cargarVentanilla();
                 cargarFormularioVentanilla();
+            } else if (nombreModulo === 'caja') {
+                document.getElementById('secCaja').classList.remove('d-none');
+                cargarCaja();
+            } else if (nombreModulo === 'comprobantes') {
+                document.getElementById('secComprobantes').classList.remove('d-none');
+                cargarComprobantes(comprobTipo);
+            } else if (nombreModulo === 'avisos') {
+                document.getElementById('secAvisos').classList.remove('d-none');
+                cargarAvisos();
             } else {
                 // Si no coincide ningún módulo (o es el dashboard), muestra el Dashboard.
                 document.getElementById('secDashboard').classList.remove('d-none');
@@ -1119,6 +1245,327 @@
             } catch (e) {
                 console.error("Error de red al cargar multas:", e);
                 tbody.innerHTML = `<tr><td colspan="6" class="text-center py-4 text-danger"><i class="fa-solid fa-plug-circle-xmark me-2"></i>Error de conexión: ${SEMSAD.esc(e.message)}</td></tr>`;
+            }
+        }
+
+        // ===== Utilidades de estas secciones =====
+        // "AAAA-MM-DD hh:mm:ss" -> "DD/MM/AAAA hh:mm"
+        function fechaHoraES(v) {
+            if (!v) return '—';
+            const [f, h] = String(v).split(' ');
+            const [y, m, d] = f.split('-');
+            return `${d}/${m}/${y}` + (h ? ' ' + h.slice(0, 5) : '');
+        }
+        // Fecha de hoy en hora local (no en UTC), formato AAAA-MM-DD.
+        function hoyLocalISO() {
+            const d = new Date();
+            return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        }
+
+        // ===== Avisos de vencimiento =====
+        let avisosLista = [];
+        async function cargarAvisos() {
+            try {
+                const resp = await fetch(window.SEMSAD_API + '/avisos_sirve_para_vencimiento_y_correo.php', { credentials: 'include', cache: 'no-store' });
+                const res = await resp.json();
+                if (res.status !== 'success') { SEMSAD.toast(res.mensaje || 'No se pudieron cargar los avisos.', 'error'); return; }
+                avisosLista = [...res.proximos, ...res.vencidos];
+                document.getElementById('avisoCntProximos').innerText = res.proximos.length;
+                document.getElementById('avisoCntVencidos').innerText = res.vencidos.length;
+                renderAvisos();
+            } catch (e) {
+                console.error('Avisos:', e);
+                SEMSAD.toast('Error de conexión al cargar los avisos.', 'error');
+            }
+        }
+        function renderAvisos() {
+            const filtro = document.getElementById('avisoFiltro').value;
+            const tbody = document.getElementById('avisoTbody');
+            const filas = avisosLista.filter(a => filtro === 'todos' || a.grupo === filtro);
+            document.getElementById('avisoTodos').checked = false;
+            if (!filas.length) {
+                tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4 text-muted"><i class="fa-solid fa-circle-check text-success me-2"></i>No hay préstamos en este grupo.</td></tr>';
+                return;
+            }
+            tbody.innerHTML = filas.map(a => {
+                const estadoBadge = a.grupo === 'vencido'
+                    ? `<span class="badge bg-danger">Vencido</span>`
+                    : `<span class="badge bg-warning text-dark">Vence en ${a.dias} día(s)</span>`;
+                const aviso = a.aviso_enviado
+                    ? `<span class="badge bg-success-subtle text-success border border-success-subtle"><i class="fa-solid fa-check me-1"></i>Enviado ${SEMSAD.esc(fechaHoraES(a.aviso_enviado))}</span>`
+                    : `<span class="badge bg-light text-secondary border">Pendiente</span>`;
+                return `<tr>
+                    <td><input class="form-check-input avisoCheck" type="checkbox" value="${Number(a.id)}"></td>
+                    <td><div class="fw-bold">${SEMSAD.esc(a.usuario)}</div><small class="text-muted">${SEMSAD.esc(a.correo || 'Sin correo')}</small></td>
+                    <td>${SEMSAD.esc(a.libro)}</td>
+                    <td>${SEMSAD.esc(fechaHoraES(a.fecha_salida))}</td>
+                    <td class="fw-bold">${SEMSAD.esc(fechaHoraES(a.fecha_limite))}</td>
+                    <td>${estadoBadge}</td>
+                    <td>${aviso}</td>
+                </tr>`;
+            }).join('');
+        }
+        function marcarTodosAvisos(marcar) {
+            document.querySelectorAll('.avisoCheck').forEach(c => c.checked = marcar);
+        }
+        async function enviarAvisos() {
+            const ids = [...document.querySelectorAll('.avisoCheck:checked')].map(c => Number(c.value));
+            if (!ids.length) { SEMSAD.toast('Marca al menos un préstamo.', 'warning'); return; }
+            const reenviar = document.getElementById('avisoReenviar').checked;
+            const btn = document.getElementById('avisoBtnEnviar');
+            btn.disabled = true;
+            try {
+                const resp = await fetch(window.SEMSAD_API + '/avisos_sirve_para_vencimiento_y_correo.php', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+                    body: JSON.stringify({ ids, reenviar })
+                });
+                const res = await resp.json();
+                SEMSAD.toast(res.mensaje || 'Proceso terminado.', res.status === 'success' ? 'success' : 'error');
+                cargarAvisos();
+            } catch (e) {
+                console.error('Enviar avisos:', e);
+                SEMSAD.toast('Error de conexión al enviar los avisos.', 'error');
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
+        // ===== Cierre de caja =====
+        async function cargarCaja() {
+            const input = document.getElementById('cajaFecha');
+            if (!input.value) input.value = hoyLocalISO();
+            try {
+                const resp = await fetch(`${window.SEMSAD_API}/caja_sirve_para_cierre_diario.php?fecha=${encodeURIComponent(input.value)}`, { credentials: 'include', cache: 'no-store' });
+                const res = await resp.json();
+                if (res.status !== 'success') { SEMSAD.toast(res.mensaje || 'No se pudo cargar la caja.', 'error'); return; }
+                renderCaja(res);
+                cargarHistorialCaja();
+            } catch (e) {
+                console.error('Caja:', e);
+                SEMSAD.toast('Error de conexión al cargar la caja.', 'error');
+            }
+        }
+        function renderCaja(r) {
+            document.getElementById('cajaTotal').innerText = formatoBs(r.total_general);
+            document.getElementById('cajaNTotal').innerText = `${r.operaciones.length} cobro(s)`;
+            document.getElementById('cajaQR').innerText = formatoBs(r.total_qr);
+            document.getElementById('cajaNQR').innerText = `${r.num_qr} operación(es)`;
+            document.getElementById('cajaEf').innerText = formatoBs(r.total_efectivo);
+            document.getElementById('cajaNEf').innerText = `${r.num_efectivo} operación(es) en efectivo`;
+
+            const tbody = document.getElementById('cajaTbody');
+            tbody.innerHTML = r.operaciones.length
+                ? r.operaciones.map(o => `<tr>
+                    <td>${SEMSAD.esc(o.hora)}</td>
+                    <td class="fw-bold">${SEMSAD.esc(o.usuario)}</td>
+                    <td>${SEMSAD.esc(o.concepto)}</td>
+                    <td><span class="badge ${o.metodo === 'QR' ? 'bg-info text-dark' : (o.metodo === 'Efectivo' ? 'bg-success' : 'bg-secondary')}">${SEMSAD.esc(o.metodo)}</span></td>
+                    <td>${SEMSAD.esc(o.responsable)}</td>
+                    <td class="text-end fw-bold">${formatoBs(o.monto)}</td></tr>`).join('')
+                : '<tr><td colspan="6" class="text-center py-4 text-muted">No hubo cobros este día.</td></tr>';
+
+            const panel = document.getElementById('cajaPanelCierre');
+            const c = r.cierre;
+            if (!c) {
+                document.getElementById('cajaDif').innerText = '—';
+                document.getElementById('cajaDifTxt').innerText = 'Sin cierre registrado';
+                panel.innerHTML = `
+                    <div class="fw-bold mb-2"><i class="fa-solid fa-lock me-1 text-primary"></i>Cierre del día ${SEMSAD.esc(fechaHoraES(r.fecha).slice(0, 10))}</div>
+                    <p class="small text-muted mb-2">Cuenta el efectivo físico de la caja (sin el QR) y regístralo. El sistema calcula la diferencia.</p>
+                    <div class="d-flex flex-wrap gap-2 align-items-end">
+                        <div><label class="form-label small fw-bold mb-1" for="cajaFisico">Efectivo contado (Bs.)</label><input type="number" min="0" step="0.01" class="form-control" id="cajaFisico" style="max-width:220px"></div>
+                        <button class="btn btn-primary fw-bold" onclick="cerrarCaja('${SEMSAD.esc(r.fecha)}')"><i class="fa-solid fa-lock me-1"></i>Cerrar caja</button>
+                    </div>`;
+            } else {
+                const dif = Number(c.diferencia);
+                const etiqueta = dif === 0 ? 'Cuadra' : (dif < 0 ? 'Faltante' : 'Sobrante');
+                const color = dif === 0 ? 'text-success' : 'text-danger';
+                document.getElementById('cajaDif').innerHTML = `<span class="${color}">${formatoBs(dif)}</span>`;
+                document.getElementById('cajaDifTxt').innerText = etiqueta;
+                panel.innerHTML = `
+                    <div class="d-flex flex-wrap justify-content-between gap-2 align-items-start">
+                        <div>
+                            <div class="fw-bold mb-1"><i class="fa-solid fa-circle-check text-success me-1"></i>Cierre registrado</div>
+                            <div class="small">Efectivo contado: <b>${formatoBs(c.efectivo_fisico)}</b> · Efectivo esperado: <b>${formatoBs(c.total_efectivo)}</b> · Resultado: <b class="${color}">${etiqueta} ${dif !== 0 ? formatoBs(Math.abs(dif)) : ''}</b></div>
+                            <div class="small text-muted">Registrado el ${SEMSAD.esc(fechaHoraES(c.fecha_registro))} por ${SEMSAD.esc(((c.nombres || '') + ' ' + (c.apellidos || '')).trim() || '—')}</div>
+                            ${c.motivo_correccion ? `<div class="small text-warning-emphasis mt-1"><i class="fa-solid fa-pen me-1"></i>Corregido el ${SEMSAD.esc(fechaHoraES(c.fecha_correccion))}: ${SEMSAD.esc(c.motivo_correccion)}</div>` : ''}
+                        </div>
+                        <button class="btn btn-sm btn-outline-warning fw-bold no-print" onclick="mostrarCorreccionCaja(${Number(c.id_cierre)}, ${Number(c.efectivo_fisico)})"><i class="fa-solid fa-pen me-1"></i>Corregir</button>
+                    </div>
+                    <div id="cajaCorreccion" class="d-none mt-3 border-top pt-3">
+                        <div class="d-flex flex-wrap gap-2 align-items-end">
+                            <div><label class="form-label small fw-bold mb-1" for="cajaNuevoFisico">Nuevo efectivo contado (Bs.)</label><input type="number" min="0" step="0.01" class="form-control" id="cajaNuevoFisico" style="max-width:220px"></div>
+                            <div class="flex-grow-1"><label class="form-label small fw-bold mb-1" for="cajaMotivo">Motivo de la corrección</label><input type="text" class="form-control" id="cajaMotivo" maxlength="255" placeholder="Ej.: se contó mal un billete"></div>
+                            <button class="btn btn-warning fw-bold" onclick="corregirCierre(${Number(c.id_cierre)})">Guardar corrección</button>
+                        </div>
+                        <div class="small text-muted mt-1">La corrección queda registrada en la bitácora con el valor anterior y el nuevo.</div>
+                    </div>`;
+            }
+        }
+        async function cerrarCaja(fecha) {
+            const fisico = document.getElementById('cajaFisico').value.replace(',', '.');
+            if (fisico === '') { SEMSAD.toast('Escribe el efectivo contado.', 'warning'); return; }
+            if (!confirm('¿Registrar el cierre de caja de este día? Después solo se puede corregir con motivo.')) return;
+            try {
+                const resp = await fetch(window.SEMSAD_API + '/caja_sirve_para_cierre_diario.php', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+                    body: JSON.stringify({ accion: 'cerrar', fecha, efectivo_fisico: fisico })
+                });
+                const res = await resp.json();
+                SEMSAD.toast(res.mensaje || 'Cierre procesado.', res.status === 'success' ? 'success' : 'error');
+                cargarCaja();
+            } catch (e) {
+                console.error('Cierre:', e);
+                SEMSAD.toast('Error de conexión al cerrar la caja.', 'error');
+            }
+        }
+        function mostrarCorreccionCaja(idCierre, fisicoActual) {
+            const box = document.getElementById('cajaCorreccion');
+            box.classList.remove('d-none');
+            document.getElementById('cajaNuevoFisico').value = fisicoActual;
+            box.dataset.id = idCierre;
+        }
+        async function corregirCierre(idCierre) {
+            const fisico = document.getElementById('cajaNuevoFisico').value.replace(',', '.');
+            const motivo = document.getElementById('cajaMotivo').value.trim();
+            if (fisico === '') { SEMSAD.toast('Escribe el nuevo efectivo contado.', 'warning'); return; }
+            if (motivo.length < 5) { SEMSAD.toast('Escribe el motivo de la corrección.', 'warning'); return; }
+            try {
+                const resp = await fetch(window.SEMSAD_API + '/caja_sirve_para_cierre_diario.php', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+                    body: JSON.stringify({ accion: 'corregir', id_cierre: idCierre, efectivo_fisico: fisico, motivo })
+                });
+                const res = await resp.json();
+                SEMSAD.toast(res.mensaje || 'Corrección procesada.', res.status === 'success' ? 'success' : 'error');
+                cargarCaja();
+            } catch (e) {
+                console.error('Corrección:', e);
+                SEMSAD.toast('Error de conexión al corregir el cierre.', 'error');
+            }
+        }
+        async function cargarHistorialCaja() {
+            const tbody = document.getElementById('cajaHistorial');
+            try {
+                const resp = await fetch(window.SEMSAD_API + '/caja_sirve_para_cierre_diario.php?listar=1', { credentials: 'include', cache: 'no-store' });
+                const res = await resp.json();
+                if (res.status !== 'success') return;
+                tbody.innerHTML = res.cierres.length ? res.cierres.map(c => {
+                    const dif = Number(c.diferencia);
+                    return `<tr>
+                        <td class="fw-bold">${SEMSAD.esc(c.fecha)}</td>
+                        <td>${formatoBs(c.total_general)}</td>
+                        <td>${formatoBs(c.total_qr)}</td>
+                        <td>${formatoBs(c.total_efectivo)}</td>
+                        <td>${formatoBs(c.efectivo_fisico)}</td>
+                        <td class="${dif === 0 ? 'text-success' : 'text-danger'} fw-bold">${formatoBs(dif)}</td>
+                        <td class="small">${c.motivo_correccion ? SEMSAD.esc(c.motivo_correccion) : '—'}</td></tr>`;
+                }).join('') : '<tr><td colspan="7" class="text-center py-3 text-muted">Todavía no hay cierres.</td></tr>';
+            } catch (e) { console.error('Historial de caja:', e); }
+        }
+
+        // ===== Comprobantes =====
+        let comprobTipo = 'pago';
+        async function cargarComprobantes(tipo) {
+            comprobTipo = tipo;
+            document.getElementById('comprobBtnPago').className = 'btn btn-sm fw-bold ' + (tipo === 'pago' ? 'btn-primary' : 'btn-outline-primary');
+            document.getElementById('comprobBtnPrestamo').className = 'btn btn-sm fw-bold ' + (tipo === 'prestamo' ? 'btn-primary' : 'btn-outline-primary');
+            document.getElementById('comprobColDetalle').innerText = tipo === 'pago' ? 'Método' : 'Libro';
+            const tbody = document.getElementById('comprobTbody');
+            tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-muted">Cargando...</td></tr>';
+            try {
+                const resp = await fetch(`${window.SEMSAD_API}/comprobantes_sirve_para_consultar.php?tipo=${tipo}&listar=1`, { credentials: 'include', cache: 'no-store' });
+                const res = await resp.json();
+                if (res.status !== 'success') { tbody.innerHTML = `<tr><td colspan="6" class="text-center py-4 text-danger">${SEMSAD.esc(res.mensaje || 'No se pudieron cargar.')}</td></tr>`; return; }
+                tbody.innerHTML = res.lista.length ? res.lista.map(c => `<tr>
+                    <td class="fw-bold">${SEMSAD.esc(c.codigo)}</td>
+                    <td>${SEMSAD.esc(c.usuario)}</td>
+                    <td>${SEMSAD.esc(tipo === 'pago' ? c.metodo : c.libro)}</td>
+                    <td>${SEMSAD.esc(fechaHoraES(c.fecha))}</td>
+                    <td>${tipo === 'pago' ? formatoBs(c.monto) : SEMSAD.esc(c.estado)}</td>
+                    <td class="text-center"><button class="btn btn-sm btn-outline-primary fw-bold" onclick="verComprobante('${tipo}', ${Number(c.id)})"><i class="fa-solid fa-print me-1"></i>Ver / Imprimir</button></td>
+                </tr>`).join('') : '<tr><td colspan="6" class="text-center py-4 text-muted">No hay comprobantes todavía.</td></tr>';
+            } catch (e) {
+                console.error('Comprobantes:', e);
+                tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-danger">Error de conexión.</td></tr>';
+            }
+        }
+        function verComprobante(tipo, id) {
+            window.open(`comprobante.html?tipo=${encodeURIComponent(tipo)}&id=${encodeURIComponent(id)}`, '_blank');
+        }
+
+        // ===== Estadísticas del período (Reportes) =====
+        let estGraficos = {};
+        function pct(actual, anterior) {
+            if (!anterior) return actual ? '<span class="text-success">nuevo</span>' : '<span class="text-muted">0%</span>';
+            const v = ((actual - anterior) / anterior) * 100;
+            const color = v >= 0 ? 'text-success' : 'text-danger';
+            return `<span class="${color} fw-bold">${v >= 0 ? '+' : ''}${v.toFixed(1)}%</span>`;
+        }
+        function tarjetaEst(titulo, valor, extra) {
+            return `<div class="col-6 col-lg-4 col-xl-2"><div class="border rounded-3 p-3 h-100"><div class="small text-muted fw-bold">${titulo}</div><div class="fs-5 fw-bold">${valor}</div><div class="small">${extra || ''}</div></div></div>`;
+        }
+        async function cargarEstadisticas() {
+            const desdeInput = document.getElementById('estDesde');
+            const hastaInput = document.getElementById('estHasta');
+            if (!hastaInput.value) hastaInput.value = hoyLocalISO();
+            if (!desdeInput.value) {
+                const d = new Date(); d.setDate(d.getDate() - 29);
+                desdeInput.value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+            }
+            try {
+                const url = `${window.SEMSAD_API}/estadisticas_sirve_para_graficos.php?desde=${desdeInput.value}&hasta=${hastaInput.value}`;
+                const resp = await fetch(url, { credentials: 'include', cache: 'no-store' });
+                const res = await resp.json();
+                if (res.status !== 'success') { SEMSAD.toast(res.mensaje || 'No se pudieron calcular las estadísticas.', 'error'); return; }
+                const a = res.actual, b = res.anterior;
+                document.getElementById('estCards').innerHTML =
+                    tarjetaEst('Préstamos', a.prestamos, pct(a.prestamos, b.prestamos)) +
+                    tarjetaEst('Devoluciones', a.devoluciones, pct(a.devoluciones, b.devoluciones)) +
+                    tarjetaEst('Multas cobradas', formatoBs(a.multas_cobradas), pct(a.multas_cobradas, b.multas_cobradas)) +
+                    tarjetaEst('Usuarios activos', a.usuarios_activos, pct(a.usuarios_activos, b.usuarios_activos)) +
+                    tarjetaEst('Vencidos ahora', res.vencidos_ahora, '<span class="text-muted">estado actual</span>') +
+                    tarjetaEst('Multas pendientes', res.multas_pendientes.cantidad, formatoBs(res.multas_pendientes.monto));
+
+                const etiquetas = res.prestamos_por_dia.map(x => x.fecha.slice(8, 10) + '/' + x.fecha.slice(5, 7));
+                // Si la librería de gráficos no cargó, las tarjetas y la tabla igual se muestran.
+                if (typeof Chart === 'undefined') SEMSAD.toast('No se cargó la librería de gráficos. Revisa la conexión.', 'warning');
+                const dibujar = (id, cfg) => {
+                    if (typeof Chart === 'undefined') return;
+                    if (estGraficos[id]) estGraficos[id].destroy();
+                    estGraficos[id] = new Chart(document.getElementById(id), cfg);
+                };
+                dibujar('estChartDias', { type: 'bar', data: { labels: etiquetas, datasets: [
+                    { label: 'Préstamos', data: res.prestamos_por_dia.map(x => x.valor), backgroundColor: '#2563eb' },
+                    { label: 'Devoluciones', data: res.devoluciones_por_dia.map(x => x.valor), backgroundColor: '#93c5fd' }] },
+                    options: { responsive: true, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } } });
+                dibujar('estChartMultas', { type: 'line', data: { labels: etiquetas, datasets: [
+                    { label: 'Monto cobrado (Bs.)', data: res.multas_por_dia.map(x => x.valor), borderColor: '#dc2626', backgroundColor: 'rgba(220,38,38,.12)', fill: true, tension: .3 }] },
+                    options: { responsive: true, scales: { y: { beginAtZero: true } } } });
+                const r = res.recaudacion;
+                const totalRec = r.qr + r.efectivo + r.otros;
+                dibujar('estChartRecaudacion', { type: 'doughnut', data: { labels: ['QR', 'Efectivo', 'Otros'], datasets: [
+                    { data: [r.qr, r.efectivo, r.otros], backgroundColor: ['#0ea5e9', '#16a34a', '#94a3b8'] }] },
+                    options: { responsive: true, plugins: { legend: { position: 'bottom' } } } });
+                document.getElementById('estRecaudacionTxt').innerText = totalRec
+                    ? `QR: ${formatoBs(r.qr)} · Efectivo: ${formatoBs(r.efectivo)}${r.otros ? ' · Otros: ' + formatoBs(r.otros) : ''}`
+                    : 'Sin cobros en el período.';
+                dibujar('estChartLibros', { type: 'bar', data: { labels: res.mas_solicitados.map(x => x.titulo), datasets: [
+                    { label: 'Préstamos', data: res.mas_solicitados.map(x => x.veces), backgroundColor: '#6366f1' }] },
+                    options: { indexAxis: 'y', responsive: true, scales: { x: { beginAtZero: true, ticks: { precision: 0 } } } } });
+
+                const filas = [
+                    ['Préstamos', a.prestamos, b.prestamos],
+                    ['Devoluciones', a.devoluciones, b.devoluciones],
+                    ['Multas cobradas (Bs.)', formatoBs(a.multas_cobradas), formatoBs(b.multas_cobradas), a.multas_cobradas, b.multas_cobradas],
+                    ['Usuarios activos', a.usuarios_activos, b.usuarios_activos],
+                ];
+                document.getElementById('estComparacion').innerHTML = filas.map(f => `<tr>
+                    <td>${f[0]}</td><td class="fw-bold">${f[1]}</td><td>${f[2]}</td>
+                    <td>${pct(f[3] ?? f[1], f[4] ?? f[2])}</td></tr>`).join('') +
+                    `<tr><td colspan="4" class="small text-muted">Período actual: ${SEMSAD.esc(res.desde)} a ${SEMSAD.esc(res.hasta)} · Anterior: ${SEMSAD.esc(res.periodo_anterior.desde)} a ${SEMSAD.esc(res.periodo_anterior.hasta)}</td></tr>`;
+            } catch (e) {
+                console.error('Estadísticas:', e);
+                SEMSAD.toast('Error de conexión al calcular las estadísticas.', 'error');
             }
         }
 

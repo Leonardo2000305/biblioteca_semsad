@@ -44,13 +44,21 @@ if ($metodoHttp === 'GET') {
         $sql = "SELECT d.id_pago_demo AS id, d.codigo, d.id_usuario, d.metodo, d.monto,
                     d.estado, d.fecha, CONCAT_WS(' ', u.nombres, u.apellidos) AS usuario,
                     (SELECT GROUP_CONCAT(x.titulo ORDER BY x.id_pago_demo_detalle SEPARATOR ', ')
-                       FROM pago_demo_detalle x WHERE x.id_pago_demo=d.id_pago_demo) AS libros
+                       FROM pago_demo_detalle x WHERE x.id_pago_demo=d.id_pago_demo) AS libros,
+                    (SELECT GROUP_CONCAT(x.id_multa ORDER BY x.id_pago_demo_detalle SEPARATOR ',')
+                       FROM pago_demo_detalle x WHERE x.id_pago_demo=d.id_pago_demo) AS ids_csv
                    FROM pago_demo d JOIN usuario u ON u.id_usuario=d.id_usuario";
         if (!$esPersonal) $sql .= ' WHERE d.id_usuario=:u';
         $sql .= ' ORDER BY d.id_pago_demo DESC LIMIT 200';
         $q=$conexion->prepare($sql);
         $q->execute($esPersonal ? [] : [':u'=>$usuarioId]);
-        semsad_responder(['status'=>'success','lista'=>$q->fetchAll(PDO::FETCH_ASSOC),'demo'=>true]);
+        $lista=$q->fetchAll(PDO::FETCH_ASSOC);
+        foreach ($lista as &$fila) {
+            $fila['multa_ids'] = empty($fila['ids_csv']) ? [] : array_map('intval', explode(',', $fila['ids_csv']));
+            unset($fila['ids_csv']);
+        }
+        unset($fila);
+        semsad_responder(['status'=>'success','lista'=>$lista,'demo'=>true]);
     } catch (Throwable $e) {
         error_log('[SEMSAD] listar pagos DEMO: '.$e->getMessage());
         semsad_responder(['status'=>'error','mensaje'=>'No se pudieron consultar las operaciones de prueba.'],500);

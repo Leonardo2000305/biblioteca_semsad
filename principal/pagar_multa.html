@@ -157,13 +157,7 @@
 
             <!-- Columna derecha: método de pago -->
             <div class="col-12 col-lg-7">
-                <section class="panel p-4 p-md-5 text-center">
-                    <i class="fa-solid fa-store fa-2x text-warning mb-3"></i>
-                    <h2 class="h5 fw-bold">Paga en ventanilla</h2>
-                    <p class="text-secondary mb-0">El pago en línea no está disponible por ahora. Acércate a la biblioteca y paga tus multas con QR o en efectivo.</p>
-                </section>
-                <!-- Sección de pago en línea: DESACTIVADA. No se muestra ni se envía nada hasta contar con una pasarela bancaria real. -->
-                <section class="panel p-3 p-md-4 d-none" id="seccionPagoEnLinea">
+                <section class="panel p-3 p-md-4">
                     <div class="etiqueta mb-3"><i class="fa-solid fa-wallet me-1"></i>Método de pago</div>
                     <div class="metodos mb-4" role="radiogroup" aria-label="Método de pago">
                         <button type="button" class="metodo activo" id="btnMetodoTarjeta" role="radio" aria-checked="true" onclick="elegirMetodo('tarjeta')">
@@ -313,7 +307,8 @@
                 const res = await resp.json();
                 if (res.codigo === 'sin_sesion') { window.location.href = '../login/index.html'; return; }
                 if (res.status !== 'success') { mostrarError(res.mensaje || 'No se pudieron cargar tus multas.'); return; }
-                document.getElementById('saludo').innerText = res.nombre ? `Hola, ${res.nombre}. Revisa tus multas pendientes.` : 'Revisa tus multas pendientes.';
+                if (res.demo) document.getElementById('avisoDemo').classList.remove('d-none');
+                document.getElementById('saludo').innerText = res.nombre ? `Hola, ${res.nombre}. Elige qué multas pagar.` : 'Elige qué multas pagar.';
                 multas = res.multas || [];
                 if (!multas.length) { document.getElementById('vistaSinMultas').classList.remove('d-none'); return; }
                 multas.forEach(m => seleccion.add(m.id_multa));

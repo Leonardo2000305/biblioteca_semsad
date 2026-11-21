@@ -177,7 +177,7 @@
                             <div class="fw-bold"><i class="fa-solid fa-flask text-info me-2"></i>Mis pruebas de pago en línea <span class="badge bg-info text-dark">DEMO</span></div>
                             <a href="reportes_demo.html" target="_blank" rel="noopener" class="btn btn-sm btn-outline-primary fw-bold">Ver reporte DEMO</a>
                         </div>
-                        <p class="text-muted small mb-2">Simulaciones guardadas solo en este navegador. No son pagos reales ni desbloquean cuentas.</p>
+                        <p class="text-muted small mb-2">Los registros del servidor pueden consultarse desde otras sesiones autorizadas. No son cobros bancarios ni desbloquean cuentas reales.</p>
                         <div id="listaMisPruebasPago" class="small" aria-live="polite"><div class="text-muted">Cargando pruebas...</div></div>
                     </div>
                 </div>
@@ -262,10 +262,10 @@
                     const titulo = banner.querySelector('.fw-bold');
                     const texto = document.getElementById('bannerMultasTexto');
                     if (cubiertas && !pendientes.length) {
-                        titulo.textContent = 'DEMOSTRACIÓN: multas cubiertas';
-                        texto.textContent = 'Las simulaciones están completas en este navegador. Las multas reales siguen pendientes hasta su pago verdadero.';
+                        titulo.textContent = 'Multas cubiertas en pruebas';
+                        texto.textContent = 'Las operaciones de prueba están registradas. Las deudas reales siguen pendientes hasta un pago auténtico.';
                     } else if (cubiertas) {
-                        titulo.textContent = 'DEMOSTRACIÓN: multas pendientes';
+                        titulo.textContent = 'Multas pendientes en pruebas';
                         texto.textContent = pendientes.length + ' faltan por simular; ' + cubiertas +
                             ' cubiertas solo en DEMO. La deuda real no ha cambiado.';
                     } else {
@@ -634,7 +634,7 @@
                 monto.textContent = 'Bs. ' + Number(p.monto).toFixed(2).replace('.', ',');
                 const estado = document.createElement('span');
                 estado.className = 'badge bg-info text-dark';
-                estado.textContent = 'SIMULADO · sin cobro';
+                estado.textContent = 'PRUEBA · sin cobro';
                 detalle.append(monto, estado);
                 if (Number.isInteger(Number(p.id)) && Number(p.id) > 0) {
                     const abrir = document.createElement('a');

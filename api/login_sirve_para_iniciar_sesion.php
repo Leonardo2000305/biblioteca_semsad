@@ -91,6 +91,7 @@ try {
     if (!$usuario || !$valida) {
         semsad_limite_fallo($conexion, $claveCuenta, 5, 900, 900);
         semsad_limite_fallo($conexion, $claveIp, 50, 900, 600);
+        semsad_bitacora('Inicio de sesión fallido', 'Autenticación', "Credenciales incorrectas para " . ($identificador !== '' ? $identificador : '(vacío)'), true, $usuario ? (int)$usuario['id_usuario'] : null, $usuario ? (string)$usuario['correo'] : null);
 
         $_SESSION['intentos_login'] = ($_SESSION['intentos_login'] ?? 0) + 1;
         $intentosHechos = $_SESSION['intentos_login'];
@@ -136,6 +137,7 @@ try {
     $_SESSION['nombre']     = $nombreCompleto;
     $_SESSION['rol']        = $usuario['rol'];
     $_SESSION['ci']         = $usuario['codigo_empleado'] ?? '';
+    semsad_bitacora('Inicio de sesión', 'Autenticación', 'Inicio de sesión exitoso (' . $usuario['rol'] . ')', false, (int)$usuario['id_usuario'], (string)$usuario['correo']);
 
     // El personal (Administrador o Bibliotecario) va al panel de administración. El resto va a la página principal.
     $esPersonal = in_array($usuario['rol'], ['Administrador', 'Bibliotecario'], true);

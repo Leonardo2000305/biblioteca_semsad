@@ -107,7 +107,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             SELECT COUNT(*) FROM prestamo p
             INNER JOIN detalle_prestamo dp ON p.id_prestamo = dp.id_prestamo
             INNER JOIN ejemplar e ON dp.id_ejemplar = e.id_ejemplar
-            WHERE p.id_usuario = :u AND e.id_material = :m AND p.estado IN ('Activo', 'Vencido', 'Con Mora')
+            WHERE p.id_usuario = :u AND e.id_material = :m AND p.estado IN ('Solicitado', 'Activo', 'Vencido', 'Con Mora')
         ");
         $stmtYaPrestado->execute([':u' => $id_usuario, ':m' => $id_material]);
         if ((int)$stmtYaPrestado->fetchColumn() > 0) {
@@ -118,7 +118,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         // Límite máximo de 5 préstamos activos
-        $stmtCount = $conexion->prepare("SELECT COUNT(*) FROM prestamo WHERE id_usuario = :u AND estado IN ('Activo', 'Vencido', 'Con Mora')");
+        $stmtCount = $conexion->prepare("SELECT COUNT(*) FROM prestamo WHERE id_usuario = :u AND estado IN ('Solicitado', 'Activo', 'Vencido', 'Con Mora')");
         $stmtCount->execute([':u' => $id_usuario]);
         if ((int)$stmtCount->fetchColumn() >= 5) {
             semsad_responder([
@@ -149,8 +149,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $fecha_salida = date('Y-m-d H:i:s');
         $fecha_limite = date('Y-m-d H:i:s', strtotime("+$dias_prestamo days"));
 
-        // Insertar préstamo
-        $stmtP = $conexion->prepare("INSERT INTO prestamo (id_usuario, id_bibliotecario_entrega, fecha_salida, fecha_limite, estado) VALUES (:u, :b, :salida, :limite, 'Activo')");
+        // Insertar la SOLICITUD. Queda en estado 'Solicitado' hasta que el personal entregue el libro y lo confirme
+        // (confirmar_entrega_prestamo_sirve_para_confirmar_recogida.php). Mientras tanto la copia queda reservada para este usuario.
+        $stmtP = $conexion->prepare("INSERT INTO prestamo (id_usuario, id_bibliotecario_entrega, fecha_salida, fecha_limite, estado) VALUES (:u, :b, :salida, :limite, 'Solicitado')");
         $stmtP->execute([
             ':u'      => $id_usuario,
             ':b'      => $id_bibliotecario,
@@ -163,7 +164,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmtD = $conexion->prepare("INSERT INTO detalle_prestamo (id_prestamo, id_ejemplar) VALUES (:p, :e)");
         $stmtD->execute([':p' => $id_prestamo, ':e' => $id_ejemplar]);
 
-        $stmtE = $conexion->prepare("UPDATE ejemplar SET estado_ejemplar = 'Prestado' WHERE id_ejemplar = :e");
+        $stmtE = $conexion->prepare("UPDATE ejemplar SET estado_ejemplar = 'Reservado' WHERE id_ejemplar = :e");
         $stmtE->execute([':e' => $id_ejemplar]);
 
         // Confirma la transacción: el préstamo y el cambio de la copia se guardan juntos.
@@ -172,11 +173,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         semsad_atender_reserva($conexion, $id_usuario, $id_material);
 
         $fecha_fmt = date('d/m/Y', strtotime("+$dias_prestamo days"));
+        $stmtT = $conexion->prepare('SELECT titulo FROM materialbibliografico WHERE id_material = :m');
+        $stmtT->execute([':m' => $id_material]);
+        $tituloLibro = (string)($stmtT->fetchColumn() ?: "material #$id_material");
+        semsad_bitacora('Solicitud de préstamo', 'Préstamos', "Solicitó «$tituloLibro» (préstamo #$id_prestamo). Pendiente de entrega en ventanilla.", false, $id_usuario, $usuario['correo'] ?? null);
 
-        // Respuesta JSON de éxito con el id del préstamo y la fecha de devolución.
+        // Respuesta JSON de éxito: la solicitud queda pendiente hasta que se entregue el libro.
         semsad_responder([
             'status'           => 'success',
-            'mensaje'          => "¡Préstamo registrado exitosamente a nombre de $nombreCompleto! Tienes hasta el $fecha_fmt (7 días) para devolverlo.",
+            'mensaje'          => "Solicitud enviada, $nombreCompleto. Pasa por la biblioteca para recoger el libro; el personal confirmará el préstamo al entregártelo. Puedes cancelar la solicitud desde tu historial.",
             'id_prestamo'      => $id_prestamo,
             'usuario'          => $nombreCompleto,
             'fecha_devolucion' => $fecha_fmt

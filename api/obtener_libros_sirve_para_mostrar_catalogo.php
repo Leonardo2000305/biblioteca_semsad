@@ -24,7 +24,7 @@ try {
                 SELECT DISTINCT dp.id_ejemplar 
                 FROM detalle_prestamo dp 
                 INNER JOIN prestamo p ON dp.id_prestamo = p.id_prestamo 
-                WHERE p.estado IN ('Activo', 'Vencido', 'Con Mora')
+                WHERE p.estado IN ('Solicitado', 'Activo', 'Vencido', 'Con Mora')
             )
         ");
     } catch (Exception $ex) {}
@@ -62,6 +62,7 @@ try {
 
     // 4. Obtener préstamos activos del usuario logueado
     $prestadosPorUsuario = [];
+    $solicitudesPorUsuario = [];
     if ($id_usuario > 0) {
         $stmtP = $conexion->prepare("
             SELECT DISTINCT e.id_material 
@@ -72,6 +73,18 @@ try {
         ");
         $stmtP->execute([':u' => $id_usuario]);
         $prestadosPorUsuario = $stmtP->fetchAll(PDO::FETCH_COLUMN);
+
+        // Solicitudes pendientes de entrega (estado 'Solicitado'): libro => id del préstamo, para poder cancelarlas.
+        $stmtS = $conexion->prepare("
+            SELECT e.id_material, MAX(p.id_prestamo) AS id_prestamo
+            FROM prestamo p
+            INNER JOIN detalle_prestamo dp ON p.id_prestamo = dp.id_prestamo
+            INNER JOIN ejemplar e ON dp.id_ejemplar = e.id_ejemplar
+            WHERE p.id_usuario = :u AND p.estado = 'Solicitado'
+            GROUP BY e.id_material
+        ");
+        $stmtS->execute([':u' => $id_usuario]);
+        $solicitudesPorUsuario = $stmtS->fetchAll(PDO::FETCH_KEY_PAIR);
     }
 
     // 4b. Datos extra (no obligatorios: si la tabla no existe, simplemente no se muestran)
@@ -131,7 +144,8 @@ try {
             'reservado_por_mi' => $reservado,
             'categoria'        => $categoriaPorMaterial[$mId] ?? '',
             'en_cola'          => $colaPorMaterial[$mId] ?? 0,
-            'mi_turno'         => $miTurno[$mId] ?? 0
+            'mi_turno'         => $miTurno[$mId] ?? 0,
+            'mi_solicitud'     => (int)($solicitudesPorUsuario[$mId] ?? 0)   // id del préstamo pendiente de entrega (0 = ninguna)
         ];
     }
 

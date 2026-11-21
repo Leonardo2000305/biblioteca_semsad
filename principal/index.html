@@ -164,10 +164,18 @@
                             </tbody>
                         </table>
                     </div>
-                    <!-- Comprobantes de multas pagadas: solo los del propio estudiante (la API filtra por sesión). -->
+                    <!-- Los pagos reales salen de la API. Las demostraciones, separadas, solo del navegador local. -->
                     <div class="p-3 border-top">
-                        <div class="fw-bold mb-2"><i class="fa-solid fa-receipt text-success me-2"></i>Mis comprobantes de pago</div>
+                        <div class="fw-bold mb-2"><i class="fa-solid fa-receipt text-success me-2"></i>Mis comprobantes de pago real</div>
                         <div id="listaMisComprobantes" class="small"><div class="text-muted">Cargando comprobantes...</div></div>
+                    </div>
+                    <div class="p-3 border-top bg-light">
+                        <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2">
+                            <div class="fw-bold"><i class="fa-solid fa-flask text-info me-2"></i>Mis pruebas de pago en línea <span class="badge bg-info text-dark">DEMO</span></div>
+                            <a href="reportes_demo.html" target="_blank" rel="noopener" class="btn btn-sm btn-outline-primary fw-bold">Ver reporte DEMO</a>
+                        </div>
+                        <p class="text-muted small mb-2">Simulaciones guardadas solo en este navegador. No son pagos reales ni desbloquean cuentas.</p>
+                        <div id="listaMisPruebasPago" class="small" aria-live="polite"><div class="text-muted">Cargando pruebas...</div></div>
                     </div>
                 </div>
             </div>
@@ -501,8 +509,58 @@
             }
         }
 
-        // Lista los comprobantes de multas pagadas del estudiante. Abre cada uno en una pestaña para verlo o imprimirlo.
+        // Las simulaciones son independientes de los pagos reales: la API nunca registra estos cobros.
+        // Incluye las pruebas antiguas creadas con la PR #32 en este mismo navegador.
+        function cargarMisPruebasPago() {
+            const cont = document.getElementById('listaMisPruebasPago');
+            if (!cont) return;
+            cont.replaceChildren();
+            let pruebas = [];
+            try {
+                const datos = JSON.parse(localStorage.getItem('semsad_pagos_prueba_v1') || '[]');
+                if (Array.isArray(datos)) pruebas = datos;
+            } catch (e) {
+                console.warn('No fue posible leer el historial de pruebas.', e);
+            }
+            pruebas = pruebas.filter(p => p && p.estado === 'SIMULADO'
+                && Number.isFinite(Number(p.monto)) && Number(p.monto) >= 0);
+            if (!pruebas.length) {
+                const msg = document.createElement('div');
+                msg.className = 'text-muted';
+                msg.textContent = 'Todavía no hay pagos simulados guardados en este navegador.';
+                cont.appendChild(msg);
+                return;
+            }
+            pruebas.slice().reverse().forEach(p => {
+                const fila = document.createElement('div');
+                fila.className = 'd-flex flex-wrap justify-content-between align-items-center gap-2 bg-white border rounded-3 p-2 mb-2';
+                const info = document.createElement('div');
+                const codigo = document.createElement('div');
+                codigo.className = 'fw-bold';
+                codigo.textContent = String(p.codigo || 'DEMO');
+                const fecha = document.createElement('div');
+                fecha.className = 'text-muted';
+                const f = new Date(p.fecha);
+                const cuando = Number.isFinite(f.getTime()) ? f.toLocaleString('es-BO') : 'Fecha no disponible';
+                fecha.textContent = cuando + ' · ' + String(p.metodo || 'Método de prueba');
+                info.append(codigo, fecha);
+                const detalle = document.createElement('div');
+                detalle.className = 'd-flex flex-wrap gap-2 align-items-center';
+                const monto = document.createElement('span');
+                monto.className = 'fw-bold';
+                monto.textContent = 'Bs. ' + Number(p.monto).toFixed(2).replace('.', ',');
+                const estado = document.createElement('span');
+                estado.className = 'badge bg-info text-dark';
+                estado.textContent = 'SIMULADO · sin cobro';
+                detalle.append(monto, estado);
+                fila.append(info, detalle);
+                cont.appendChild(fila);
+            });
+        }
+
+        // Lista los comprobantes reales de multas pagadas del estudiante.
         async function cargarMisComprobantesPago() {
+            cargarMisPruebasPago();
             const cont = document.getElementById('listaMisComprobantes');
             try {
                 const resp = await fetch(window.SEMSAD_API + '/comprobantes_sirve_para_consultar.php?tipo=pago&listar=1', { credentials: 'include', cache: 'no-store' });

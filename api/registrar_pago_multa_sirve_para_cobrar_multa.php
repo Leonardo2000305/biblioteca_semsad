@@ -75,6 +75,7 @@ try {
     // Confirma la transacción: se guardan el pago y la reactivación.
     $conexion->commit();
     // Respuesta JSON de éxito. Avisa si la cuenta fue reactivada.
+    semsad_bitacora('Cobro de multa', 'Multas', "Multa #$idMulta cobrada en ventanilla" . ($reactivado ? '; cuenta reactivada' : ''), true, $duenio);
     semsad_responder([
         'status'  => 'success',
         'mensaje' => 'Pago de multa registrado correctamente.' . ($reactivado ? ' La cuenta del usuario fue reactivada.' : ''),

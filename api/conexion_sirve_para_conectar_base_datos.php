@@ -27,6 +27,7 @@ $cfg = [
     'allowed_origins' => [],     // dominios extra permitidos para CORS, ej. 'https://mi-dominio.com'
     'frontend_url'    => 'https://bibliotecasemsad.vercel.app', // dominio de la web (para el enlace del correo de recuperación)
     'mail_from'       => 'no-reply@semsad.edu.bo',               // remitente de los correos (usa uno de tu dominio verificado)
+    'pagos_demo'      => true,   // true = la pasarela de pago es de DEMOSTRACIÓN: no cobra dinero real (ver pagar_multa_en_linea)
     'app_secret'      => '',     // opcional: clave para firmar enlaces. Si está vacía se crea sola en api/.secreto
 ];
 
@@ -94,7 +95,7 @@ function semsad_sql_ejemplar_libre(string $a = 'e'): string
     return "$a.estado_ejemplar NOT IN ('En Mantenimiento', 'Baja') AND NOT EXISTS (
                 SELECT 1 FROM detalle_prestamo dpx
                 INNER JOIN prestamo px ON px.id_prestamo = dpx.id_prestamo
-                WHERE dpx.id_ejemplar = $a.id_ejemplar AND px.estado IN ('Activo', 'Vencido', 'Con Mora'))";
+                WHERE dpx.id_ejemplar = $a.id_ejemplar AND px.estado IN ('Solicitado', 'Activo', 'Vencido', 'Con Mora'))";
 }
 
 /* ── Esquema: la base puede tener o no ciertas columnas; el código se adapta en vez de fallar ── */
@@ -281,6 +282,7 @@ function semsad_auditar(PDO $conexion, string $correo, ?int $idUsuario, string $
             'INSERT INTO auditoria_recuperacion (correo_ingresado, id_usuario, estado, ip_origen, fecha_hora)
              VALUES (:c, :u, :e, :ip, :f)'
         )->execute([':c' => $correo, ':u' => $idUsuario, ':e' => $estado, ':ip' => semsad_ip(), ':f' => date('Y-m-d H:i:s')]);
+        // La bitácora lee estos intentos desde esta tabla (obtener_bitacora_sirve_para_ver_todo.php): no se duplican.
     } catch (Throwable $e) {
         error_log('[SEMSAD] No se pudo registrar la auditoría (' . $estado . '): ' . $e->getMessage());
     }
@@ -424,6 +426,45 @@ function semsad_detalle_error(Throwable $e): string
 {
     global $cfg;
     return !empty($cfg['debug']) ? ' (' . $e->getMessage() . ')' : '';
+}
+
+/* ── Bitácora: registro de actividades (la ve el personal en el módulo Bitácora) ─────────── */
+/**
+ * Guarda una fila en la tabla bitacora. Nunca interrumpe la operación principal si falla.
+ * $clave = true marca una «auditoría clave» (seguridad o cambio sensible).
+ * Si no se pasa usuario, toma el de la sesión del servidor.
+ */
+function semsad_bitacora(string $accion, string $modulo, string $descripcion, bool $clave = false, ?int $idUsuario = null, ?string $correo = null): void
+{
+    global $conexion;
+    try {
+        if (!($conexion instanceof PDO)) {
+            return;
+        }
+        if ($idUsuario === null && session_status() === PHP_SESSION_ACTIVE && !empty($_SESSION['id_usuario'])) {
+            $idUsuario = (int)$_SESSION['id_usuario'];
+        }
+        if ($correo === null && $idUsuario) {
+            $q = $conexion->prepare('SELECT correo FROM usuario WHERE id_usuario = :u LIMIT 1');
+            $q->execute([':u' => $idUsuario]);
+            $correo = (string)($q->fetchColumn() ?: '');
+        }
+        $conexion->prepare(
+            'INSERT INTO bitacora (fecha_hora, id_usuario, correo, accion, modulo, descripcion, ip_origen, clave)
+             VALUES (:f, :u, :c, :a, :m, :d, :ip, :k)'
+        )->execute([
+            ':f'  => date('Y-m-d H:i:s'),
+            ':u'  => $idUsuario ?: null,
+            ':c'  => $correo !== '' ? $correo : null,
+            ':a'  => mb_substr($accion, 0, 60),
+            ':m'  => mb_substr($modulo, 0, 60),
+            ':d'  => mb_substr($descripcion, 0, 500),
+            ':ip' => semsad_ip(),
+            ':k'  => $clave ? 1 : 0,
+        ]);
+    } catch (Throwable $e) {
+        error_log('[SEMSAD] No se pudo registrar la bitácora: ' . $e->getMessage());
+    }
 }
 
 /* ── Conexión ─────────────────────────────────────────────────────────────── */

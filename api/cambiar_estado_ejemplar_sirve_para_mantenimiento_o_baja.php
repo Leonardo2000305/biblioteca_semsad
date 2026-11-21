@@ -85,6 +85,7 @@ try {
         'Baja' => 'El ejemplar fue dado de baja.',
     ];
     // Respuesta de éxito con el mensaje correspondiente.
+    semsad_bitacora('Cambio de estado de copia', 'Inventario', "Ejemplar #$idEjemplar pasa a $nuevo", false);
     echo json_encode(['status' => 'success', 'mensaje' => $mensajes[$nuevo]]);
 } catch (PDOException $e) {
     // Si hubo un error con la base de datos y la transacción sigue abierta, se deshace.

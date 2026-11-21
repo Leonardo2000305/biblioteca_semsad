@@ -42,7 +42,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             semsad_responder(['status' => 'error', 'mensaje' => 'La base de datos no tiene un estado de baja para usuarios.'], 500);
         }
         // Guarda el nuevo estado en la cuenta del usuario.
-        $stmt = $conexion->prepare("UPDATE usuario SET estado = :e WHERE id_usuario = :id");
+        // Cualquier cambio manual del administrador quita la marca de bloqueo por mora: esa cuenta ya no se reactiva sola al pagar.
+        $stmt = $conexion->prepare("UPDATE usuario SET estado = :e, bloqueo_por_mora = 0 WHERE id_usuario = :id");
         $stmt->execute([':e' => $valor, ':id' => $id_usuario]);
 
         semsad_bitacora('Cambio de estado de cuenta', 'Usuarios', "Usuario #$id_usuario pasa a $nuevo_estado (estado en base: $valor)", true, $id_usuario);

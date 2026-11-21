@@ -112,13 +112,13 @@
 
     <main class="container py-4 py-md-5">
         <div class="text-center mb-4">
-            <div class="etiqueta mb-2"><i class="fa-solid fa-flask me-1"></i>Pago en línea · demostración</div>
+            <div class="etiqueta mb-2"><i class="fa-solid fa-flask me-1"></i>Pago en línea · entorno de pruebas</div>
             <h1 class="fw-bold h2 mb-1">Pagar multas</h1>
             <p class="text-secondary mb-0" id="saludo">Cargando tus multas...</p>
         </div>
 
         <div class="aviso-demo p-3 mb-4" id="avisoDemo" role="note">
-            <i class="fa-solid fa-flask me-2"></i><strong>DEMOSTRACIÓN · SIN COBRO REAL:</strong> usa únicamente los ejemplos predefinidos. No ingreses tarjetas ni credenciales personales. Las multas reales no se modificarán.
+            <i class="fa-solid fa-flask me-2"></i><strong>ENTORNO DE PRUEBAS · sin cobro bancario:</strong> usa únicamente los ejemplos predefinidos. No ingreses tarjetas ni credenciales personales. Las multas reales no se modificarán.
         </div>
 
         <!-- Publicación voluntaria de pruebas anteriores que solo estaban en este navegador. -->
@@ -130,15 +130,15 @@
         <!-- Estado: sin multas -->
         <div id="vistaSinMultas" class="panel p-4 p-md-5 text-center d-none">
             <i class="fa-solid fa-circle-check fa-3x text-success mb-3"></i>
-            <h2 class="h4 fw-bold">No quedan multas pendientes en la demostración</h2>
-            <p class="text-secondary">Todas las multas de esta prueba figuran cubiertas. En la base real siguen pendientes hasta recibir un pago verdadero.</p>
-            <a href="reportes_demo.html" class="btn btn-pagar px-4">Ver comprobantes DEMO</a> <a href="index.html" class="btn btn-outline-light px-4">Volver al catálogo</a>
+            <h2 class="h4 fw-bold">No quedan multas pendientes en las pruebas</h2>
+            <p class="text-secondary">La lista de pruebas está completa. Las multas reales siguen pendientes hasta recibir un pago auténtico.</p>
+            <a href="reportes_demo.html" class="btn btn-pagar px-4">Consultar comprobantes</a> <a href="index.html" class="btn btn-outline-light px-4">Volver al catálogo</a>
         </div>
 
         <!-- Estado: pago y recibo -->
         <div id="vistaComprobante" class="panel p-4 p-md-5 d-none comprobante">
             <div class="check-anim"><i class="fa-solid fa-check"></i></div>
-            <h2 class="h4 fw-bold">¡Simulación completada!</h2>
+            <h2 class="h4 fw-bold">¡Operación registrada!</h2>
             <p class="text-secondary" id="comprobanteMensaje"></p>
             <div class="text-start mx-auto" style="max-width: 420px" id="comprobanteLineas"></div>
             <a id="reciboCompartido" href="#" class="btn btn-outline-info fw-bold mt-3 d-none" target="_blank" rel="noopener">
@@ -147,7 +147,7 @@
             <div class="d-flex flex-wrap gap-2 justify-content-center mt-4">
                 <a href="index.html" class="btn btn-outline-light px-4">Volver al catálogo</a>
                 <button type="button" class="btn btn-pagar px-4" onclick="volverADemostracion()">Nueva prueba</button>
-                <a href="reportes_demo.html" class="btn btn-outline-info fw-bold px-4">Ver reportes DEMO</a>
+                <a href="reportes_demo.html" class="btn btn-outline-info fw-bold px-4">Consultar reportes de prueba</a>
                 <button class="btn btn-outline-light fw-bold px-4" onclick="window.print()"><i class="fa-solid fa-print me-1"></i>Imprimir</button>
             </div>
         </div>
@@ -184,7 +184,7 @@
                         <button type="button" class="metodo" id="btnMetodoPaypal" role="radio" aria-checked="false" onclick="elegirMetodo('paypal')">
                             <i class="fa-brands fa-paypal icono" style="color:#38bdf8"></i>
                             <div class="fw-bold mt-1">PayPal</div>
-                            <small>Autorización simulada, sin iniciar sesión</small>
+                            <small>Confirmación de prueba, sin iniciar sesión</small>
                         </button>
                     </div>
 
@@ -238,7 +238,7 @@
                         <button type="button" class="btn btn-pagar" id="btnPagar" onclick="simularPago()" disabled>
                             <i class="fa-solid fa-flask me-1"></i><span id="textoBoton">Simular Bs 0.00</span>
                         </button>
-                        <small class="text-center text-secondary mt-2">No se enviarán datos de pago ni se liquidarán multas. Resultados guardados solo en este navegador.</small>
+                        <small class="text-center text-secondary mt-2">No se solicitan tarjetas reales. El resultado se guarda en el registro académico compartido.</small>
                     </div>
                 </section>
             </div>
@@ -252,9 +252,9 @@
                 <div class="modal-body text-center p-4">
                     <i class="fa-brands fa-paypal fa-2x mb-2" style="color:#0070ba"></i>
                     <h2 class="h6 fw-bold" id="tituloPaypal">Simular autorización PayPal</h2>
-                    <p class="small text-secondary">Demostración: no se conecta con una cuenta real.</p>
+                    <p class="small text-secondary">Entorno de pruebas: no se conecta con cuentas personales.</p>
                     <div class="d-grid gap-2">
-                        <button type="button" class="btn btn-primary fw-bold" data-bs-dismiss="modal" onclick="confirmarPaypalDemo()">Aprobar simulación</button>
+                        <button type="button" class="btn btn-primary fw-bold" data-bs-dismiss="modal" onclick="confirmarPaypalDemo()">Confirmar prueba</button>
                         <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
                     </div>
                 </div>
@@ -390,8 +390,8 @@
                     id_multa: Number(m.id_multa), titulo: String(m.titulo || 'Multa'), monto: Number(m.monto) || 0
                 }));
                 document.getElementById('saludo').textContent = res.nombre
-                    ? 'Hola, ' + res.nombre + '. Prueba el recorrido sin realizar un cobro.'
-                    : 'Prueba un recorrido de pago ficticio.';
+                    ? 'Hola, ' + res.nombre + '. Selecciona las multas para registrar una operación de prueba.'
+                    : 'Selecciona una multa para registrar una operación de prueba.';
                 if (!originales.length) {
                     originales = [{id_multa: -1, titulo:'Multa ficticia de presentación', monto:120}];
                     document.getElementById('saludo').textContent = 'No tienes multas pendientes. Se muestra un ejemplo de Bs 120 para la presentación.';

@@ -1078,7 +1078,15 @@
             if (bitacoraVista === 'claves') params.set('solo_claves', '1');
             try {
                 const resp = await fetch(window.SEMSAD_API + '/obtener_bitacora_sirve_para_ver_todo.php?' + params.toString(), { credentials: 'include', cache: 'no-store' });
-                const res = await resp.json();
+                const texto = await resp.text();
+                let res;
+                try { res = JSON.parse(texto); }
+                catch (e) {
+                    // El servidor respondió algo que no es JSON (suele ser un error de PHP o de la base de datos)
+                    console.error('Bitácora: respuesta no JSON', resp.status, texto.slice(0, 500));
+                    tbody.innerHTML = `<tr><td colspan="6" class="text-center py-4 text-danger">Error ${resp.status} del servidor (respuesta no válida). Detalle en la consola del navegador.</td></tr>`;
+                    return;
+                }
                 if (res.status !== 'success') {
                     tbody.innerHTML = `<tr><td colspan="6" class="text-center py-4 text-danger">${SEMSAD.esc(res.mensaje || 'No se pudo cargar la bitácora.')}</td></tr>`;
                     return;
@@ -1099,7 +1107,8 @@
                 document.getElementById('bitUsuario').value = seleccion;
                 renderBitacora();
             } catch (e) {
-                tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-danger">Error al cargar la bitácora.</td></tr>';
+                console.error('Bitácora:', e);
+                tbody.innerHTML = `<tr><td colspan="6" class="text-center py-4 text-danger">Error al cargar la bitácora: ${SEMSAD.esc(e && e.message ? e.message : 'sin detalle')}</td></tr>`;
             }
         }
 

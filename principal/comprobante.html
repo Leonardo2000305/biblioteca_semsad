@@ -88,17 +88,38 @@
             }
         }
 
+        function pintarRegistroPrueba(c) {
+            document.getElementById('compCodigo').textContent = c.codigo || 'PRUEBA';
+            document.title = String(c.codigo || 'Comprobante de prueba') + ' - Biblioteca SEMSAD';
+            const detalles = Array.isArray(c.detalle) ? c.detalle : [];
+            document.getElementById('compCuerpo').innerHTML =
+                '<div class="comp-titulo">Constancia de operación de prueba</div>' +
+                '<div class="alert alert-info"><strong>ENTORNO DE PRUEBAS.</strong> No hubo transferencia de dinero ni confirmación bancaria. Este documento no acredita un pago real.</div>' +
+                fila('Usuario', esc(c.usuario || 'Estudiante')) +
+                fila('Método de prueba', esc(c.metodo || 'Tarjeta')) +
+                fila('Fecha y hora', esc(fecha(c.fecha))) +
+                detalles.map(d => fila('Concepto', esc(d.titulo || 'Multa') + ' — ' + bs(d.monto))).join('') +
+                '<div class="comp-fila"><span>Importe de prueba</span><span class="comp-total">' + bs(c.monto) + '</span></div>' +
+                '<div class="comp-ok"><strong>Operación registrada en el entorno de pruebas.</strong> Disponible para consulta del administrador. No cambia las multas, la caja ni los préstamos reales.</div>';
+        }
         async function cargar() {
             const cuerpo = document.getElementById('compCuerpo');
-            if (!['pago', 'prestamo'].includes(tipo) || !id) {
+            if (!['pago', 'prestamo', 'demo'].includes(tipo) || !id) {
                 cuerpo.innerHTML = '<p class="text-center text-danger mb-0">Comprobante no válido.</p>';
                 return;
             }
             try {
-                const resp = await fetch(`${window.SEMSAD_API}/comprobantes_sirve_para_consultar.php?tipo=${encodeURIComponent(tipo)}&id=${encodeURIComponent(id)}`, { credentials: 'include', cache: 'no-store' });
+                const url = tipo === 'demo'
+                    ? window.SEMSAD_API + '/pagos_demo_sirve_para_registrar_y_listar.php?id=' + encodeURIComponent(id)
+                    : window.SEMSAD_API + '/comprobantes_sirve_para_consultar.php?tipo=' +
+                        encodeURIComponent(tipo) + '&id=' + encodeURIComponent(id);
+                const resp = await fetch(url, { credentials: 'include', cache: 'no-store' });
                 const res = await resp.json();
-                if (res.status === 'success') pintar(res.comprobante);
-                else cuerpo.innerHTML = `<p class="text-center text-danger mb-0">${esc(res.mensaje || 'No se pudo cargar el comprobante.')}</p>`;
+                if (res.status === 'success') {
+                    if (tipo === 'demo') pintarRegistroPrueba(res.comprobante);
+                    else pintar(res.comprobante);
+                } else cuerpo.innerHTML = '<p class="text-center text-danger mb-0">' +
+                    esc(res.mensaje || 'No se pudo cargar el comprobante.') + '</p>';
             } catch (e) {
                 cuerpo.innerHTML = '<p class="text-center text-danger mb-0">Error de conexión al cargar el comprobante.</p>';
             }

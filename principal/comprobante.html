@@ -141,6 +141,20 @@
                 if (r && r.estado === 'SIMULADO' && String(r.usuario_id || '') === String(usuario.id)
                     && Array.isArray(r.multa_ids)) r.multa_ids.forEach(n => cubiertos.add(Number(n)));
             });
+            try {
+                const dResp = await fetch(window.SEMSAD_API + '/pagos_demo_sirve_para_registrar_y_listar.php',
+                    { credentials:'include', cache:'no-store' });
+                const dRes = await dResp.json();
+                if (dRes.status === 'success' && Array.isArray(dRes.lista)) {
+                    dRes.lista.forEach(r => {
+                        if (r && r.estado === 'SIMULADO'
+                            && String(r.id_usuario || '') === String(usuario.id)
+                            && Array.isArray(r.multa_ids)) {
+                            r.multa_ids.forEach(n => cubiertos.add(Number(n)));
+                        }
+                    });
+                }
+            } catch (e) { /* Se conserva el estado local si el servidor de pruebas no responde. */ }
             if (!cubiertos.size) return;
             try {
                 const res = await fetch(window.SEMSAD_API + '/mis_prestamos_sirve_para_historial_del_estudiante.php',

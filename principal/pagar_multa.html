@@ -298,10 +298,13 @@
         function antiguasSinCompartir() {
             if (!usuarioDemo) return [];
             const compartidas = new Set(pruebasCompartidas.map(r => String(r.codigo || '')));
+            const multasYaCompartidas = new Set(pruebasCompartidas.flatMap(r =>
+                Array.isArray(r.multa_ids) ? r.multa_ids.map(Number) : []));
             return historialDemo().filter(r => r && r.estado === 'SIMULADO'
                 && String(r.usuario_id || '') === usuarioDemo
                 && Array.isArray(r.multa_ids) && r.multa_ids.length > 0
-                && !compartidas.has(String(r.codigo || '')));
+                && !compartidas.has(String(r.codigo || ''))
+                && !r.multa_ids.some(id => multasYaCompartidas.has(Number(id))));
         }
         function actualizarAvisoSincronizacion() {
             const aviso = document.getElementById('migrarPruebas');

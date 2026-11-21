@@ -124,9 +124,9 @@
         <!-- Estado: sin multas -->
         <div id="vistaSinMultas" class="panel p-4 p-md-5 text-center d-none">
             <i class="fa-solid fa-circle-check fa-3x text-success mb-3"></i>
-            <h2 class="h4 fw-bold">No tienes multas pendientes</h2>
-            <p class="text-secondary">Puedes seguir pidiendo libros desde el catálogo.</p>
-            <a href="index.html" class="btn btn-pagar px-4">Ir al catálogo</a>
+            <h2 class="h4 fw-bold">No quedan multas pendientes en la demostración</h2>
+            <p class="text-secondary">Todas las multas de esta prueba figuran cubiertas. En la base real siguen pendientes hasta recibir un pago verdadero.</p>
+            <a href="reportes_demo.html" class="btn btn-pagar px-4">Ver comprobantes DEMO</a> <a href="index.html" class="btn btn-outline-light px-4">Volver al catálogo</a>
         </div>
 
         <!-- Estado: pago y recibo -->
@@ -148,10 +148,15 @@
             <!-- Columna izquierda: multas -->
             <div class="col-12 col-lg-5">
                 <section class="panel p-3 p-md-4 h-100">
-                    <div class="etiqueta mb-3"><i class="fa-solid fa-receipt me-1"></i>Multas pendientes</div>
+                    <div class="etiqueta mb-3"><i class="fa-solid fa-receipt me-1"></i>Multas pendientes en DEMO</div>
                     <div id="listaMultas" class="d-grid gap-2"></div>
+                    <div class="aviso-demo p-3 mt-3 d-none" id="pruebasSinRelacion">
+                        <div class="fw-bold small mb-2">Pruebas anteriores sin multa identificada</div>
+                        <p class="small mb-2">Esas pruebas guardaron el importe, pero no el libro. Puedes vincularlas por monto tras revisar y confirmar la asociación propuesta.</p>
+                        <button class="btn btn-outline-warning btn-sm fw-bold" type="button" onclick="vincularAnteriores()">Vincular pagos DEMO anteriores</button>
+                    </div>
                     <div class="d-flex justify-content-between align-items-center mt-3 pt-3 border-top" style="border-color: var(--borde) !important">
-                        <span class="text-secondary">Total a pagar</span>
+                        <span class="text-secondary">Total pendiente en DEMO</span>
                         <span class="h4 fw-bold mb-0 text-warning" id="totalPagar">Bs 0.00</span>
                     </div>
                 </section>
@@ -254,7 +259,7 @@
 
         // Prueba exclusivamente visual. Nunca llama a la API POST de pagos ni altera los datos reales.
         const LLAVE_DEMO = 'semsad_pagos_prueba_v1';
-        let multas = [], seleccion = new Set(), metodo = 'tarjeta';
+        let multas = [], originales = [], seleccion = new Set(), metodo = 'tarjeta';
         let tarjetaDemo = 'visa', paypalAprobado = false, procesando = false;
         const TARJETAS = {
             visa: { nombre: 'VISA · DEMO', css: 'marca-visa', numero: '•••• •••• •••• DEMO', boton: 'demoVisa' },
@@ -262,6 +267,53 @@
             amex: { nombre: 'AMEX · DEMO', css: 'marca-amex', numero: '•••• •••• •••• DEMO', boton: 'demoAmex' }
         };
         const bs = n => 'Bs ' + Number(n || 0).toFixed(2);
+
+        // Se usa el mismo localStorage que el historial y los reportes DEMO.
+        // IMPORTANTE: no se modifican ni se liquidan las multas de la API.
+        const usuarioDemo = String(SEMSAD.getUser()?.id || '');
+        function historialDemo() {
+            try { const list = JSON.parse(localStorage.getItem(LLAVE_DEMO) || '[]'); return Array.isArray(list) ? list : []; }
+            catch (e) { return []; }
+        }
+        function idsCubiertos() {
+            const ids = new Set();
+            if (!usuarioDemo) return ids;
+            historialDemo().forEach(r => {
+                if (r && r.estado === 'SIMULADO' && String(r.usuario_id || '') === usuarioDemo && Array.isArray(r.multa_ids))
+                    r.multa_ids.forEach(id => ids.add(Number(id)));
+            });
+            return ids;
+        }
+        function actualizarPendientesDemo() {
+            const ids = idsCubiertos();
+            multas = originales.filter(m => !ids.has(m.id_multa));
+            seleccion = new Set(multas.map(m => m.id_multa));
+            const vacio = multas.length === 0;
+            document.getElementById('vistaPago').classList.toggle('d-none', vacio);
+            document.getElementById('vistaSinMultas').classList.toggle('d-none', !vacio);
+            if (!vacio) { dibujarMultas(); actualizarTotal(); }
+            const antiguas = historialDemo().some(r => r && r.estado === 'SIMULADO' && !r.usuario_id &&
+                (!Array.isArray(r.multa_ids) || !r.multa_ids.length));
+            document.getElementById('pruebasSinRelacion').classList.toggle('d-none', vacio || !antiguas);
+        }
+        function vincularAnteriores() {
+            if (!usuarioDemo) { alert('Es necesario iniciar sesión para asociar las pruebas.'); return; }
+            const data = historialDemo(), disponibles = multas.slice(), matches = [];
+            data.forEach((r, i) => {
+                if (!r || r.estado !== 'SIMULADO' || r.usuario_id || (Array.isArray(r.multa_ids) && r.multa_ids.length)) return;
+                const centavos = Math.round(Number(r.monto) * 100);
+                const j = disponibles.findIndex(m => Math.round(m.monto * 100) === centavos);
+                if (j >= 0) matches.push({i, m: disponibles.splice(j, 1)[0]});
+            });
+            if (!matches.length) { alert('Las pruebas anteriores no tienen importes coincidentes con multas pendientes.'); return; }
+            const preview = matches.map(x => String(data[x.i].codigo || 'DEMO') + ' → ' + x.m.titulo + ' (' + bs(x.m.monto) + ')').join('\n');
+            if (!confirm('Asociaciones sugeridas por importe (revisa bien los libros):\n\n' + preview +
+                '\n\n¿Confirmas que estas son las multas que simulaste? Sólo se cambian registros DEMO locales.')) return;
+            matches.forEach(x => { data[x.i].usuario_id=usuarioDemo; data[x.i].multa_ids=[x.m.id_multa]; data[x.i].detalle_multas=[x.m.titulo]; });
+            try { localStorage.setItem(LLAVE_DEMO, JSON.stringify(data)); actualizarPendientesDemo();
+                SEMSAD.toast('Pruebas anteriores asociadas; ya no aparecen pendientes en DEMO.','success');
+            } catch(e) { SEMSAD.toast('No se pudieron guardar las asociaciones.','error'); }
+        }
         document.addEventListener('DOMContentLoaded', async () => {
             seleccionarTarjetaDemo('visa');
             try {
@@ -269,20 +321,17 @@
                 const res = await resp.json();
                 if (res.codigo === 'sin_sesion') { window.location.href = '../login/index.html'; return; }
                 if (res.status !== 'success') { mostrarError(res.mensaje || 'No se pudieron cargar las multas.'); return; }
-                multas = (res.multas || []).map(m => ({
+                originales = (res.multas || []).map(m => ({
                     id_multa: Number(m.id_multa), titulo: String(m.titulo || 'Multa'), monto: Number(m.monto) || 0
                 }));
                 document.getElementById('saludo').textContent = res.nombre
                     ? 'Hola, ' + res.nombre + '. Prueba el recorrido sin realizar un cobro.'
                     : 'Prueba un recorrido de pago ficticio.';
-                if (!multas.length) {
-                    multas = [{id_multa: -1, titulo:'Multa ficticia de presentación', monto:120}];
+                if (!originales.length) {
+                    originales = [{id_multa: -1, titulo:'Multa ficticia de presentación', monto:120}];
                     document.getElementById('saludo').textContent = 'No tienes multas pendientes. Se muestra un ejemplo de Bs 120 para la presentación.';
                 }
-                seleccion = new Set(multas.map(m => m.id_multa));
-                document.getElementById('vistaPago').classList.remove('d-none');
-                dibujarMultas();
-                actualizarTotal();
+                actualizarPendientesDemo();
             } catch (err) {
                 mostrarError('No se pudo cargar la información. Inténtalo de nuevo.');
             }
@@ -379,6 +428,9 @@
         }
         function simularPago() {
             if (procesando || seleccion.size === 0 || totalSeleccionado() <= 0 || (metodo === 'paypal' && !paypalAprobado)) return;
+            if (!usuarioDemo) { SEMSAD.toast('Debes iniciar sesión para guardar el pago DEMO.','error'); return; }
+            const conceptosElegidos = multas.filter(m => seleccion.has(m.id_multa));
+            const montoElegido = conceptosElegidos.reduce((s,m) => s + m.monto, 0);
             procesando = true;
             validarFormulario();
             const btn = document.getElementById('btnPagar');
@@ -386,23 +438,29 @@
             // Retardo solo para mostrar el recorrido: no se realiza ninguna petición de cobro.
             setTimeout(() => {
                 const ahora = new Date();
-                const total = totalSeleccionado();
                 const registro = {
                     codigo: 'DEMO-' + String(ahora.getTime()),
                     fecha: ahora.toISOString(),
                     metodo: metodo === 'tarjeta' ? TARJETAS[tarjetaDemo].nombre : 'PayPal · DEMO',
-                    monto: Number(total.toFixed(2)),
-                    conceptos: seleccion.size,
+                    monto: Number(montoElegido.toFixed(2)),
+                    conceptos: conceptosElegidos.length,
+                    usuario_id: usuarioDemo,
+                    multa_ids: conceptosElegidos.map(m=>m.id_multa),
+                    detalle_multas: conceptosElegidos.map(m=>m.titulo),
                     estado: 'SIMULADO'
                 };
                 let guardado = false;
                 try {
-                    const registros = JSON.parse(localStorage.getItem(LLAVE_DEMO) || '[]');
-                    const lista = Array.isArray(registros) ? registros.slice(-99) : [];
+                    const lista = historialDemo().slice(-99);
                     lista.push(registro);
                     localStorage.setItem(LLAVE_DEMO, JSON.stringify(lista));
                     guardado = true;
                 } catch (e) { console.warn('No se pudo guardar la simulación en el navegador.', e); }
+                if (guardado) {
+                    const ids = new Set(registro.multa_ids);
+                    multas = multas.filter(m=>!ids.has(m.id_multa));
+                    seleccion = new Set(multas.map(m=>m.id_multa));
+                }
                 pintarComprobanteDemo(registro, guardado);
                 procesando = false;
                 btn.innerHTML = '<i class="fa-solid fa-flask me-1"></i><span id="textoBoton"></span>';
@@ -424,6 +482,7 @@
                 div.append(a,b); cont.appendChild(div);
             }
             fila('Identificador',registro.codigo);
+            fila('Multas incluidas', (registro.detalle_multas || []).join(', '));
             fila('Método',registro.metodo);
             fila('Fecha',new Date(registro.fecha).toLocaleString('es-BO'));
             fila('Estado','SIMULADO · no pagado');
@@ -431,9 +490,8 @@
         }
         function volverADemostracion() {
             document.getElementById('vistaComprobante').classList.add('d-none');
-            document.getElementById('vistaPago').classList.remove('d-none');
             paypalAprobado = false;
-            validarFormulario();
+            actualizarPendientesDemo();
         }
 
     </script>

@@ -73,9 +73,9 @@
                 <button class="btn btn-outline-info btn-sm fw-bold me-2" data-bs-toggle="modal" data-bs-target="#modalMisPrestamos" onclick="cargarMisPrestamos()">
                     <i class="fa-solid fa-clock-rotate-left me-1"></i>Mis Préstamos
                 </button>
-                <!-- Ver multas pendientes (el pago se hace en ventanilla con QR o efectivo). -->
+                <!-- Pagar multas en línea (tarjeta o PayPal): siempre visible en el menú. -->
                 <a href="pagar_multa.html" class="btn btn-outline-warning btn-sm fw-bold me-2">
-                    <i class="fa-solid fa-receipt me-1"></i>Mis multas
+                    <i class="fa-solid fa-credit-card me-1"></i>Pagar multas
                 </a>
                 <!-- Muestra el nombre de quien inició sesión; el texto lo pone JavaScript al cargar la página. -->
                 <span class="badge bg-primary px-3 py-2 fs-6 shadow-sm" id="badgeUsuario">
@@ -101,7 +101,7 @@
                         <small class="opacity-75" id="bannerMultasTexto"></small>
                     </div>
                 </div>
-                <a href="pagar_multa.html" class="btn btn-light fw-bold btn-pagar-banner"><i class="fa-solid fa-receipt me-1"></i>Ver multas</a>
+                <a href="pagar_multa.html" class="btn btn-light fw-bold btn-pagar-banner"><i class="fa-solid fa-credit-card me-1"></i>Pagar ahora</a>
             </div>
         </div>
 
@@ -114,7 +114,7 @@
                     <div class="input-group input-group-lg">
                         <span class="input-group-text bg-white border-0 text-muted"><i class="fa-solid fa-magnifying-glass"></i></span>
                         <!-- Buscador: cada tecla llama a filtrarLibros(), que filtra la lista sin recargar la página. -->
-                        <input type="text" id="inputBuscar" class="form-control border-0 px-3" placeholder="Buscar libro o autor..." onkeyup="filtrarLibros()">
+                        <input type="text" id="inputBuscar" class="form-control border-0 px-3" placeholder="Buscar por título, autor o código..." onkeyup="filtrarLibros()">
                     </div>
                     <!-- Selector de categorías: JavaScript lo llena con las categorías de los libros (poblarCategorias). Empieza oculto. -->
                     <select id="selCategoria" class="form-select border-0 mt-2 d-none" onchange="filtrarLibros()" aria-label="Filtrar por categoría">
@@ -202,7 +202,7 @@
                 const res = await resp.json();
                 if (res.status === 'success' && res.multas.length > 0) {
                     document.getElementById('bannerMultasTexto').innerText =
-                        `${res.multas.length} multa(s) por un total de Bs ${Number(res.total).toFixed(2)}. Mientras tengas multas no podrás pedir libros. Paga en ventanilla con QR o efectivo.`;
+                        `${res.multas.length} multa(s) por un total de Bs ${Number(res.total).toFixed(2)}. Mientras tengas multas no podrás pedir libros.`;
                     document.getElementById('bannerMultas').classList.remove('d-none');
                 }
             } catch (e) { console.error('Multas:', e); }

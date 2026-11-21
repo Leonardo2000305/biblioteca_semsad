@@ -1,9 +1,10 @@
 <?php
 // ARCHIVO: estadisticas_sirve_para_graficos.php
 // CAPA: BACKEND (API del servidor)
-// SIRVE PARA: dar los números de las estadísticas de Reportes (gráficos y tarjetas) para un rango de fechas.
-// QUÉ HACE: GET ?desde=AAAA-MM-DD&hasta=AAAA-MM-DD. Calcula el período anterior de igual longitud para comparar.
-//   Todo sale de la base de datos real. Solo personal.
+// SIRVE PARA: dar los números de Reportes > Estadísticas (tarjetas, gráficos, comparación) para un período.
+// QUÉ HACE: GET ?desde&hasta[&ant_desde&ant_hasta]. El período es el que se elige; el anterior se compara
+//   (si no se envía, es el período de igual longitud justo antes). Los gráficos muestran los últimos 6 meses
+//   terminando en el mes de "hasta". Todo sale de la base de datos real. Solo personal.
 // CONECTA CON: principal/admin.html (sección Estadísticas de Reportes)
 require_once __DIR__ . '/conexion_sirve_para_conectar_base_datos.php';
 semsad_requerir_rol(['Administrador', 'Bibliotecario']);
@@ -15,56 +16,19 @@ if (!$valida($desde) || !$valida($hasta) || $desde > $hasta) {
     semsad_responder(['status' => 'error', 'mensaje' => 'Revisa las fechas: "desde" debe ser anterior o igual a "hasta".'], 400);
 }
 $dias = (int)((strtotime($hasta) - strtotime($desde)) / 86400) + 1;
-if ($dias > 730) semsad_responder(['status' => 'error', 'mensaje' => 'El rango máximo es de 2 años.'], 400);
-$prevHasta = date('Y-m-d', strtotime($desde . ' -1 day'));
-$prevDesde = date('Y-m-d', strtotime($desde . ' -' . $dias . ' days'));
+if ($dias > 740) semsad_responder(['status' => 'error', 'mensaje' => 'El rango máximo es de 2 años.'], 400);
+
+// Período anterior: el que envíe la página, o el de igual longitud justo antes.
+if (!empty($_GET['ant_desde']) && !empty($_GET['ant_hasta']) && $valida($_GET['ant_desde']) && $valida($_GET['ant_hasta'])) {
+    $prevDesde = $_GET['ant_desde'];
+    $prevHasta = $_GET['ant_hasta'];
+} else {
+    $prevHasta = date('Y-m-d', strtotime($desde . ' -1 day'));
+    $prevDesde = date('Y-m-d', strtotime($desde . ' -' . $dias . ' days'));
+}
 
 try {
-    // Préstamos entregados: se excluyen solicitudes pendientes y canceladas.
     $entregados = "p.estado NOT IN ('Solicitado', 'Cancelado')";
-
-    $serie = function (string $sql, string $d1, string $d2) use ($conexion) {
-        $q = $conexion->prepare($sql);
-        $q->execute([':d1' => $d1, ':d2' => $d2]);
-        return $q->fetchAll(PDO::FETCH_KEY_PAIR);
-    };
-    // Rellena con cero los días sin movimiento, para que el gráfico tenga todos los días.
-    $rellenar = function (array $datos, string $d1, int $n) {
-        $out = [];
-        for ($i = 0; $i < $n; $i++) {
-            $d = date('Y-m-d', strtotime("$d1 +$i days"));
-            $out[] = ['fecha' => $d, 'valor' => round((float)($datos[$d] ?? 0), 2)];
-        }
-        return $out;
-    };
-
-    $prestamosDia = $serie("SELECT DATE(p.fecha_salida) d, COUNT(*) FROM prestamo p WHERE $entregados AND DATE(p.fecha_salida) BETWEEN :d1 AND :d2 GROUP BY d", $desde, $hasta);
-    $devolDia     = $serie("SELECT DATE(p.fecha_devolucion_real) d, COUNT(*) FROM prestamo p WHERE p.fecha_devolucion_real IS NOT NULL AND DATE(p.fecha_devolucion_real) BETWEEN :d1 AND :d2 GROUP BY d", $desde, $hasta);
-    $multasDia    = $serie("SELECT DATE(m.fecha_pago) d, SUM(m.monto) FROM multa m WHERE m.estado_pago = 'Pagado' AND DATE(m.fecha_pago) BETWEEN :d1 AND :d2 GROUP BY d", $desde, $hasta);
-
-    // Recaudación por método en el rango.
-    $q = $conexion->prepare("SELECT
-            COALESCE(SUM(CASE WHEN metodo_pago = 'QR' THEN monto END), 0) AS qr,
-            COALESCE(SUM(CASE WHEN metodo_pago = 'Efectivo' THEN monto END), 0) AS efectivo,
-            COALESCE(SUM(CASE WHEN metodo_pago IS NULL OR metodo_pago NOT IN ('QR','Efectivo') THEN monto END), 0) AS otros,
-            COUNT(*) AS cobros
-        FROM multa WHERE estado_pago = 'Pagado' AND DATE(fecha_pago) BETWEEN :d1 AND :d2");
-    $q->execute([':d1' => $desde, ':d2' => $hasta]);
-    $cob = $q->fetch(PDO::FETCH_ASSOC);
-
-    // Multas pendientes hoy (no depende del rango).
-    $pend = $conexion->query("SELECT COUNT(*) n, COALESCE(SUM(monto),0) total FROM multa WHERE estado_pago = 'Pendiente'")->fetch(PDO::FETCH_ASSOC);
-
-    // Libros más solicitados en el rango.
-    $q = $conexion->prepare("SELECT mb.titulo, COUNT(*) veces
-                               FROM detalle_prestamo dp
-                               INNER JOIN prestamo p ON p.id_prestamo = dp.id_prestamo
-                               INNER JOIN ejemplar e ON e.id_ejemplar = dp.id_ejemplar
-                               INNER JOIN materialbibliografico mb ON mb.id_material = e.id_material
-                              WHERE $entregados AND DATE(p.fecha_salida) BETWEEN :d1 AND :d2
-                              GROUP BY mb.id_material, mb.titulo ORDER BY veces DESC LIMIT 10");
-    $q->execute([':d1' => $desde, ':d2' => $hasta]);
-    $top = $q->fetchAll(PDO::FETCH_ASSOC);
 
     // Totales de un período: préstamos, devoluciones, multas cobradas y usuarios que pidieron libros.
     $totales = function (string $d1, string $d2) use ($conexion, $entregados) {
@@ -82,24 +46,64 @@ try {
     $actual = $totales($desde, $hasta);
     $anterior = $totales($prevDesde, $prevHasta);
 
-    // Préstamos vencidos ahora mismo (estado actual, no depende del rango).
-    $vencidos = (int)$conexion->query("SELECT COUNT(*) FROM prestamo WHERE estado IN ('Vencido', 'Con Mora')")->fetchColumn();
+    // Serie mensual: últimos 6 meses terminando en el mes de "hasta" (meses sin datos quedan en 0).
+    $mesFin = substr($hasta, 0, 7);
+    $inicioSerie = date('Y-m-01', strtotime($mesFin . '-01 -5 months'));
+    $finSerie = date('Y-m-t', strtotime($mesFin . '-01'));
+    $agrupa = function (string $sql) use ($conexion, $inicioSerie, $finSerie) {
+        $q = $conexion->prepare($sql);
+        $q->execute([':d1' => $inicioSerie, ':d2' => $finSerie]);
+        return $q->fetchAll(PDO::FETCH_KEY_PAIR);
+    };
+    $prest = $agrupa("SELECT DATE_FORMAT(p.fecha_salida,'%Y-%m') m, COUNT(*) FROM prestamo p WHERE $entregados AND DATE(p.fecha_salida) BETWEEN :d1 AND :d2 GROUP BY m");
+    $devol = $agrupa("SELECT DATE_FORMAT(p.fecha_devolucion_real,'%Y-%m') m, COUNT(*) FROM prestamo p WHERE p.fecha_devolucion_real IS NOT NULL AND DATE(p.fecha_devolucion_real) BETWEEN :d1 AND :d2 GROUP BY m");
+    $multa = $agrupa("SELECT DATE_FORMAT(fecha_pago,'%Y-%m') m, SUM(monto) FROM multa WHERE estado_pago = 'Pagado' AND DATE(fecha_pago) BETWEEN :d1 AND :d2 GROUP BY m");
+    $meses = [];
+    for ($i = 5; $i >= 0; $i--) {
+        $m = date('Y-m', strtotime($mesFin . '-01 -' . $i . ' months'));
+        $meses[] = ['mes' => $m, 'prestamos' => (int)($prest[$m] ?? 0), 'devoluciones' => (int)($devol[$m] ?? 0), 'multas' => round((float)($multa[$m] ?? 0), 2)];
+    }
+
+    // Recaudación por método en el período.
+    $q = $conexion->prepare("SELECT
+            COALESCE(SUM(CASE WHEN metodo_pago = 'QR' THEN monto END), 0) AS qr,
+            COALESCE(SUM(CASE WHEN metodo_pago = 'Efectivo' THEN monto END), 0) AS efectivo,
+            COALESCE(SUM(CASE WHEN metodo_pago IS NULL OR metodo_pago NOT IN ('QR','Efectivo') THEN monto END), 0) AS otros,
+            COUNT(*) AS cobros
+        FROM multa WHERE estado_pago = 'Pagado' AND DATE(fecha_pago) BETWEEN :d1 AND :d2");
+    $q->execute([':d1' => $desde, ':d2' => $hasta]);
+    $cob = $q->fetch(PDO::FETCH_ASSOC);
+
+    // Multas pendientes ahora (no depende del período).
+    $pend = $conexion->query("SELECT COUNT(*) n, COALESCE(SUM(monto),0) total FROM multa WHERE estado_pago = 'Pendiente'")->fetch(PDO::FETCH_ASSOC);
+
+    // Libros más solicitados en el período.
+    $q = $conexion->prepare("SELECT mb.titulo, COUNT(*) veces
+                               FROM detalle_prestamo dp
+                               INNER JOIN prestamo p ON p.id_prestamo = dp.id_prestamo
+                               INNER JOIN ejemplar e ON e.id_ejemplar = dp.id_ejemplar
+                               INNER JOIN materialbibliografico mb ON mb.id_material = e.id_material
+                              WHERE $entregados AND DATE(p.fecha_salida) BETWEEN :d1 AND :d2
+                              GROUP BY mb.id_material, mb.titulo ORDER BY veces DESC LIMIT 10");
+    $q->execute([':d1' => $desde, ':d2' => $hasta]);
+    $top = $q->fetchAll(PDO::FETCH_ASSOC);
+
+    // Vencidos según la fecha límite (no solo el estado): un préstamo Activo con fecha pasada también cuenta.
+    $vencidos = (int)$conexion->query("SELECT COUNT(*) FROM prestamo WHERE estado IN ('Activo', 'Vencido', 'Con Mora') AND fecha_limite < NOW() AND fecha_devolucion_real IS NULL")->fetchColumn();
 
     semsad_responder([
-        'status'            => 'success',
-        'desde'             => $desde,
-        'hasta'             => $hasta,
-        'periodo_anterior'  => ['desde' => $prevDesde, 'hasta' => $prevHasta],
-        'actual'            => $actual,
-        'anterior'          => $anterior,
-        'vencidos_ahora'    => $vencidos,
-        'prestamos_por_dia' => $rellenar($prestamosDia, $desde, $dias),
-        'devoluciones_por_dia' => $rellenar($devolDia, $desde, $dias),
-        'multas_por_dia'    => $rellenar($multasDia, $desde, $dias),
-        'recaudacion'       => ['qr' => round((float)$cob['qr'], 2), 'efectivo' => round((float)$cob['efectivo'], 2),
-                                'otros' => round((float)$cob['otros'], 2), 'cobros' => (int)$cob['cobros']],
-        'multas_pendientes' => ['cantidad' => (int)$pend['n'], 'monto' => round((float)$pend['total'], 2)],
-        'mas_solicitados'   => array_map(fn($r) => ['titulo' => $r['titulo'], 'veces' => (int)$r['veces']], $top),
+        'status'           => 'success',
+        'desde'            => $desde,
+        'hasta'            => $hasta,
+        'periodo_anterior' => ['desde' => $prevDesde, 'hasta' => $prevHasta],
+        'actual'           => $actual,
+        'anterior'         => $anterior,
+        'vencidos_ahora'   => $vencidos,
+        'meses'            => $meses,
+        'recaudacion'      => ['qr' => round((float)$cob['qr'], 2), 'efectivo' => round((float)$cob['efectivo'], 2),
+                               'otros' => round((float)$cob['otros'], 2), 'cobros' => (int)$cob['cobros']],
+        'multas_pendientes'=> ['cantidad' => (int)$pend['n'], 'monto' => round((float)$pend['total'], 2)],
+        'mas_solicitados'  => array_map(fn($r) => ['titulo' => $r['titulo'], 'veces' => (int)$r['veces']], $top),
     ]);
 } catch (Throwable $e) {
     error_log('[SEMSAD] estadisticas: ' . $e->getMessage());

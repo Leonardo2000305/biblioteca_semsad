@@ -370,34 +370,45 @@
             </div>
         </div>
 
-        <!-- MÓDULO AVISOS DE VENCIMIENTO: préstamos por vencer (2 días) o vencidos; envío de correo sin repetir. -->
+        <!-- MÓDULO AVISOS DE VENCIMIENTO: pestañas con contador, tabla paginada y envío manual por correo. -->
         <div id="secAvisos" class="modulo-vista d-none">
-            <div class="row g-3 mb-3">
-                <div class="col-md-6"><div class="card shadow-sm border-0 h-100 p-3 border-start border-4 border-primary"><div class="small text-muted fw-bold">Próximos a vencer (2 días)</div><div class="fs-2 fw-bold" id="avisoCntProximos">0</div></div></div>
-                <div class="col-md-6"><div class="card shadow-sm border-0 h-100 p-3 border-start border-4 border-danger"><div class="small text-muted fw-bold">Vencidos</div><div class="fs-2 fw-bold text-danger" id="avisoCntVencidos">0</div></div></div>
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+                <div>
+                    <h4 class="fw-bold mb-0"><i class="fa-solid fa-envelope-circle-check text-primary me-2"></i>Avisos de vencimiento</h4>
+                    <small class="text-muted">Gestiona y envía recordatorios de devolución a los usuarios.</small>
+                </div>
+                <span class="badge bg-light text-secondary border px-3 py-2"><i class="fa-solid fa-circle-info me-1"></i>Envío manual por correo</span>
+            </div>
+            <div class="d-flex flex-wrap gap-2 mb-3">
+                <button class="btn fw-bold" id="avisoTabProximo" onclick="cambiarTabAviso('proximo')"><i class="fa-solid fa-bell me-1"></i>Próximos a vencer (<span id="avisoCntProximos">0</span>)</button>
+                <button class="btn fw-bold" id="avisoTabVencido" onclick="cambiarTabAviso('vencido')"><i class="fa-solid fa-triangle-exclamation me-1"></i>Vencidos (<span id="avisoCntVencidos">0</span>)</button>
             </div>
             <div class="card table-card shadow-sm bg-white">
                 <div class="card-header bg-white py-3 d-flex flex-wrap justify-content-between align-items-center gap-2 border-bottom">
-                    <h5 class="fw-bold mb-0"><i class="fa-solid fa-envelope-circle-check text-primary me-2"></i>Avisos de vencimiento</h5>
                     <div class="d-flex flex-wrap gap-2 align-items-center no-print">
-                        <select class="form-select form-select-sm w-auto" id="avisoFiltro" onchange="renderAvisos()">
-                            <option value="todos">Todos</option>
-                            <option value="proximo">Próximos a vencer</option>
-                            <option value="vencido">Vencidos</option>
-                        </select>
+                        <button class="btn btn-sm btn-primary fw-bold" id="avisoBtnEnviar" onclick="enviarAvisos()"><i class="fa-solid fa-envelope me-1"></i>Enviar aviso por correo (seleccionados)</button>
                         <div class="form-check mb-0"><input class="form-check-input" type="checkbox" id="avisoReenviar"><label class="form-check-label small" for="avisoReenviar">Reenviar a los ya avisados</label></div>
-                        <button class="btn btn-sm btn-primary fw-bold" id="avisoBtnEnviar" onclick="enviarAvisos()"><i class="fa-solid fa-paper-plane me-1"></i>Enviar aviso (seleccionados)</button>
-                        <button class="btn btn-sm btn-outline-primary" onclick="cargarAvisos()"><i class="fa-solid fa-rotate me-1"></i>Actualizar</button>
+                    </div>
+                    <div class="d-flex gap-2 align-items-center no-print">
+                        <label class="small text-muted fw-bold mb-0" for="avisoPorPagina">Mostrar:</label>
+                        <select class="form-select form-select-sm w-auto" id="avisoPorPagina" onchange="cambiarPorPaginaAviso(this.value)">
+                            <option value="5">5</option><option value="10" selected>10</option><option value="20">20</option>
+                        </select>
+                        <button class="btn btn-sm btn-outline-primary" onclick="cargarAvisos()" title="Actualizar"><i class="fa-solid fa-rotate"></i></button>
                     </div>
                 </div>
                 <div class="table-responsive">
                     <table class="table table-hover align-middle mb-0">
                         <thead class="table-light"><tr>
                             <th style="width:40px"><input class="form-check-input" type="checkbox" id="avisoTodos" onchange="marcarTodosAvisos(this.checked)" aria-label="Seleccionar todos"></th>
-                            <th>Usuario</th><th>Libro</th><th>Fecha de préstamo</th><th>Fecha límite</th><th>Estado del préstamo</th><th>Aviso</th>
+                            <th>Usuario</th><th>Libro</th><th>Fecha de préstamo</th><th>Fecha de devolución</th><th>Estado del aviso</th>
                         </tr></thead>
-                        <tbody id="avisoTbody"><tr><td colspan="7" class="text-center py-4 text-muted">Cargando...</td></tr></tbody>
+                        <tbody id="avisoTbody"><tr><td colspan="6" class="text-center py-4 text-muted">Cargando...</td></tr></tbody>
                     </table>
+                </div>
+                <div class="card-footer bg-white d-flex flex-wrap justify-content-between align-items-center gap-2">
+                    <small class="text-muted" id="avisoResumen"></small>
+                    <nav><ul class="pagination pagination-sm mb-0" id="avisoPaginacion"></ul></nav>
                 </div>
             </div>
         </div>
@@ -438,21 +449,40 @@
             </div>
         </div>
 
-        <!-- MÓDULO COMPROBANTES: pagos de multas y préstamos entregados; se imprimen o guardan como PDF. -->
+        <!-- MÓDULO COMPROBANTES: lista a la izquierda y vista previa a la derecha; se imprime o guarda como PDF. -->
         <div id="secComprobantes" class="modulo-vista d-none">
-            <div class="card table-card shadow-sm bg-white">
-                <div class="card-header bg-white py-3 d-flex flex-wrap justify-content-between align-items-center gap-2 border-bottom">
-                    <div class="btn-group" role="group">
-                        <button class="btn btn-sm btn-primary fw-bold" id="comprobBtnPago" onclick="cargarComprobantes('pago')"><i class="fa-solid fa-credit-card me-1"></i>Pagos de multas</button>
-                        <button class="btn btn-sm btn-outline-primary fw-bold" id="comprobBtnPrestamo" onclick="cargarComprobantes('prestamo')"><i class="fa-solid fa-book me-1"></i>Préstamos entregados</button>
+            <div class="row g-3">
+                <div class="col-lg-7">
+                    <div class="card table-card shadow-sm bg-white h-100">
+                        <div class="card-header bg-white py-3 d-flex flex-wrap justify-content-between align-items-center gap-2 border-bottom">
+                            <div class="btn-group" role="group">
+                                <button class="btn btn-sm btn-primary fw-bold" id="comprobBtnPago" onclick="cargarComprobantes('pago')"><i class="fa-solid fa-credit-card me-1"></i>Pagos de multas</button>
+                                <button class="btn btn-sm btn-outline-primary fw-bold" id="comprobBtnPrestamo" onclick="cargarComprobantes('prestamo')"><i class="fa-solid fa-book me-1"></i>Préstamos entregados</button>
+                            </div>
+                            <button class="btn btn-sm btn-outline-primary" onclick="cargarComprobantes(comprobTipo)" title="Actualizar"><i class="fa-solid fa-rotate"></i></button>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle mb-0">
+                                <thead class="table-light"><tr><th>Código</th><th>Usuario</th><th id="comprobColDetalle">Detalle</th><th>Fecha</th><th>Importe / Estado</th></tr></thead>
+                                <tbody id="comprobTbody"><tr><td colspan="5" class="text-center py-4 text-muted">Cargando...</td></tr></tbody>
+                            </table>
+                        </div>
                     </div>
-                    <button class="btn btn-sm btn-outline-primary" onclick="cargarComprobantes(comprobTipo)"><i class="fa-solid fa-rotate me-1"></i>Actualizar</button>
                 </div>
-                <div class="table-responsive">
-                    <table class="table table-hover align-middle mb-0">
-                        <thead class="table-light"><tr><th>Código</th><th>Usuario</th><th id="comprobColDetalle">Detalle</th><th>Fecha</th><th>Importe / Estado</th><th class="text-center">Comprobante</th></tr></thead>
-                        <tbody id="comprobTbody"><tr><td colspan="6" class="text-center py-4 text-muted">Cargando...</td></tr></tbody>
-                    </table>
+                <div class="col-lg-5">
+                    <div class="card shadow-sm bg-white h-100">
+                        <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center gap-2 border-bottom">
+                            <span class="fw-bold"><i class="fa-solid fa-eye text-primary me-1"></i>Vista previa</span>
+                            <div class="d-flex gap-2 no-print">
+                                <button class="btn btn-sm btn-outline-secondary" id="comprobAbrir" onclick="abrirComprobanteNuevo()" disabled title="Abrir en una pestaña"><i class="fa-solid fa-arrow-up-right-from-square"></i></button>
+                                <button class="btn btn-sm btn-danger fw-bold" id="comprobImprimir" onclick="imprimirComprobantePreview()" disabled><i class="fa-solid fa-print me-1"></i>Imprimir</button>
+                            </div>
+                        </div>
+                        <div class="card-body p-2">
+                            <div id="comprobVacio" class="text-center text-muted py-5"><i class="fa-solid fa-receipt fs-1 mb-2 d-block"></i>Selecciona un comprobante de la lista para verlo aquí.</div>
+                            <iframe id="comprobPreview" title="Vista previa del comprobante" class="d-none w-100 border rounded-3" style="height:560px;background:#f1f5f9"></iframe>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -473,26 +503,42 @@
                     <button class="btn btn-sm btn-danger" onclick="window.print()"><i class="fa-solid fa-file-pdf me-1"></i>Imprimir / PDF</button>
                 </div>
             </div>
-            <!-- Estadísticas por período: tarjetas, gráficos y comparación con el período anterior. Datos reales de la base. -->
+            <!-- Estadísticas ampliadas: filtros por período, tarjetas con variación, gráficos y comparación. Datos reales. -->
             <div class="card shadow-sm bg-white mb-3">
-                <div class="card-header bg-white py-3 d-flex flex-wrap justify-content-between align-items-center gap-2 border-bottom">
-                    <h5 class="fw-bold mb-0"><i class="fa-solid fa-chart-column text-primary me-2"></i>Estadísticas del período</h5>
-                    <div class="d-flex flex-wrap gap-2 align-items-end no-print">
-                        <div><label class="form-label small fw-bold mb-1" for="estDesde">Desde</label><input type="date" class="form-control form-control-sm" id="estDesde"></div>
-                        <div><label class="form-label small fw-bold mb-1" for="estHasta">Hasta</label><input type="date" class="form-control form-control-sm" id="estHasta"></div>
-                        <button class="btn btn-sm btn-primary fw-bold" onclick="cargarEstadisticas()"><i class="fa-solid fa-filter me-1"></i>Aplicar</button>
+                <div class="card-header bg-white py-3 border-bottom">
+                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+                        <div>
+                            <h5 class="fw-bold mb-0"><i class="fa-solid fa-chart-column text-primary me-2"></i>Estadísticas ampliadas</h5>
+                            <small class="text-muted">Análisis completo de la actividad de la biblioteca.</small>
+                        </div>
+                        <div class="d-flex flex-wrap gap-2 align-items-end no-print">
+                            <div><label class="form-label small fw-bold mb-1" for="estPeriodo">Período</label>
+                                <select class="form-select form-select-sm" id="estPeriodo" onchange="cambiarPeriodoEst()">
+                                    <option value="mensual" selected>Mensual</option><option value="anual">Anual</option><option value="personalizado">Personalizado</option>
+                                </select></div>
+                            <div id="estBoxMes"><label class="form-label small fw-bold mb-1" for="estMes">Mes</label><select class="form-select form-select-sm" id="estMes"></select></div>
+                            <div id="estBoxAnio"><label class="form-label small fw-bold mb-1" for="estAnio">Año</label><select class="form-select form-select-sm" id="estAnio"></select></div>
+                            <div class="d-none" id="estBoxRango"><label class="form-label small fw-bold mb-1" for="estDesde">Desde</label><input type="date" class="form-control form-control-sm" id="estDesde"></div>
+                            <div class="d-none" id="estBoxRango2"><label class="form-label small fw-bold mb-1" for="estHasta">Hasta</label><input type="date" class="form-control form-control-sm" id="estHasta"></div>
+                            <button class="btn btn-sm btn-primary fw-bold" onclick="cargarEstadisticas()"><i class="fa-solid fa-filter me-1"></i>Aplicar</button>
+                        </div>
                     </div>
                 </div>
                 <div class="card-body">
                     <div class="row g-3 mb-3" id="estCards"></div>
                     <div class="row g-3 mb-3">
-                        <div class="col-lg-8"><div class="border rounded-3 p-3 h-100"><div class="fw-bold mb-2">Préstamos y devoluciones por día</div><canvas id="estChartDias" height="110"></canvas></div></div>
-                        <div class="col-lg-4"><div class="border rounded-3 p-3 h-100"><div class="fw-bold mb-2">Recaudación por método</div><canvas id="estChartRecaudacion" height="160"></canvas><div class="small text-muted mt-2" id="estRecaudacionTxt"></div></div></div>
-                        <div class="col-lg-6"><div class="border rounded-3 p-3 h-100"><div class="fw-bold mb-2">Multas cobradas por día (Bs.)</div><canvas id="estChartMultas" height="120"></canvas></div></div>
-                        <div class="col-lg-6"><div class="border rounded-3 p-3 h-100"><div class="fw-bold mb-2">Libros más solicitados en el período</div><canvas id="estChartLibros" height="150"></canvas></div></div>
+                        <div class="col-lg-8"><div class="border rounded-3 p-3 h-100"><div class="fw-bold mb-2">Préstamos y devoluciones por mes</div><canvas id="estChartDias" height="120"></canvas></div></div>
+                        <div class="col-lg-4"><div class="border rounded-3 p-3 h-100"><div class="fw-bold mb-2">Distribución de cobros</div>
+                            <div class="position-relative" style="height:190px"><canvas id="estChartRecaudacion"></canvas>
+                                <div class="position-absolute top-50 start-50 translate-middle text-center" style="pointer-events:none"><div class="small text-muted">Total</div><div class="fw-bold" id="estDonaTotal">Bs. 0,00</div></div></div>
+                            <div class="small mt-2" id="estRecaudacionLeyenda"></div></div></div>
+                        <div class="col-lg-6"><div class="border rounded-3 p-3 h-100"><div class="fw-bold mb-2">Multas cobradas por mes (Bs.)</div><canvas id="estChartMultas" height="130"></canvas></div></div>
+                        <div class="col-lg-6"><div class="border rounded-3 p-3 h-100"><div class="fw-bold mb-2" id="estTopTitulo">Libros más solicitados</div>
+                            <div class="table-responsive"><table class="table table-sm align-middle mb-0"><thead class="table-light"><tr><th style="width:40px">#</th><th>Libro</th><th class="text-end">Préstamos</th></tr></thead><tbody id="estTop"></tbody></table></div></div></div>
                     </div>
                     <div class="fw-bold mb-2">Comparación con el período anterior</div>
-                    <div class="table-responsive"><table class="table table-sm align-middle mb-0"><thead class="table-light"><tr><th>Indicador</th><th>Período actual</th><th>Período anterior</th><th>Variación</th></tr></thead><tbody id="estComparacion"></tbody></table></div>
+                    <div class="table-responsive"><table class="table table-sm align-middle mb-0 small"><thead class="table-light"><tr><th>Indicador</th><th>Actual</th><th>Previo</th><th>Var.</th></tr></thead><tbody id="estComparacion"></tbody></table></div>
+                    <div class="small text-muted mt-2" id="estPeriodoTxt"></div>
                 </div>
             </div>
             <!-- Tarjetas de resumen: préstamos y devoluciones de hoy, activos, multas pendientes y cobradas, y usuarios bloqueados. -->
@@ -1262,8 +1308,19 @@
             return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
         }
 
-        // ===== Avisos de vencimiento =====
+        // ===== Avisos de vencimiento: pestañas con contador, paginación y envío manual =====
         let avisosLista = [];
+        let avisoTab = 'proximo';
+        let avisoPagina = 1;
+        function cambiarTabAviso(tab) {
+            avisoTab = tab;
+            avisoPagina = 1;
+            document.getElementById('avisoTabProximo').className = 'btn fw-bold ' + (tab === 'proximo' ? 'btn-warning text-dark' : 'btn-outline-secondary');
+            document.getElementById('avisoTabVencido').className = 'btn fw-bold ' + (tab === 'vencido' ? 'btn-danger' : 'btn-outline-secondary');
+            renderAvisos();
+        }
+        function cambiarPorPaginaAviso() { avisoPagina = 1; renderAvisos(); }
+        function irPaginaAviso(p) { avisoPagina = p; renderAvisos(); }
         async function cargarAvisos() {
             try {
                 const resp = await fetch(window.SEMSAD_API + '/avisos_sirve_para_vencimiento_y_correo.php', { credentials: 'include', cache: 'no-store' });
@@ -1272,38 +1329,52 @@
                 avisosLista = [...res.proximos, ...res.vencidos];
                 document.getElementById('avisoCntProximos').innerText = res.proximos.length;
                 document.getElementById('avisoCntVencidos').innerText = res.vencidos.length;
-                renderAvisos();
+                cambiarTabAviso(avisoTab);
             } catch (e) {
                 console.error('Avisos:', e);
                 SEMSAD.toast('Error de conexión al cargar los avisos.', 'error');
             }
         }
         function renderAvisos() {
-            const filtro = document.getElementById('avisoFiltro').value;
             const tbody = document.getElementById('avisoTbody');
-            const filas = avisosLista.filter(a => filtro === 'todos' || a.grupo === filtro);
+            const porPagina = Number(document.getElementById('avisoPorPagina').value) || 10;
+            const filas = avisosLista.filter(a => a.grupo === avisoTab);
+            const totalPaginas = Math.max(1, Math.ceil(filas.length / porPagina));
+            if (avisoPagina > totalPaginas) avisoPagina = totalPaginas;
+            const inicio = (avisoPagina - 1) * porPagina;
+            const pagina = filas.slice(inicio, inicio + porPagina);
             document.getElementById('avisoTodos').checked = false;
-            if (!filas.length) {
-                tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4 text-muted"><i class="fa-solid fa-circle-check text-success me-2"></i>No hay préstamos en este grupo.</td></tr>';
-                return;
+
+            if (!pagina.length) {
+                tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-muted"><i class="fa-solid fa-circle-check text-success me-2"></i>No hay préstamos en esta pestaña.</td></tr>';
+            } else {
+                tbody.innerHTML = pagina.map(a => {
+                    const estadoBadge = a.grupo === 'vencido'
+                        ? `<span class="badge bg-danger">Vencido</span>`
+                        : `<span class="badge bg-warning text-dark">Vence en ${Number(a.dias)} día(s)</span>`;
+                    const aviso = a.aviso_enviado
+                        ? `<div class="small text-success mt-1"><i class="fa-solid fa-check me-1"></i>Aviso enviado ${SEMSAD.esc(fechaHoraES(a.aviso_enviado))}</div>`
+                        : `<div class="small text-muted mt-1">Aviso pendiente</div>`;
+                    return `<tr>
+                        <td><input class="form-check-input avisoCheck" type="checkbox" value="${Number(a.id)}"></td>
+                        <td><div class="fw-bold">${SEMSAD.esc(a.usuario)}</div><small class="text-muted">${SEMSAD.esc(a.correo || 'Sin correo')}</small></td>
+                        <td>${SEMSAD.esc(a.libro)}</td>
+                        <td>${SEMSAD.esc(fechaHoraES(a.fecha_salida))}</td>
+                        <td class="fw-bold">${SEMSAD.esc(fechaHoraES(a.fecha_limite))}</td>
+                        <td>${estadoBadge}${aviso}</td>
+                    </tr>`;
+                }).join('');
             }
-            tbody.innerHTML = filas.map(a => {
-                const estadoBadge = a.grupo === 'vencido'
-                    ? `<span class="badge bg-danger">Vencido</span>`
-                    : `<span class="badge bg-warning text-dark">Vence en ${a.dias} día(s)</span>`;
-                const aviso = a.aviso_enviado
-                    ? `<span class="badge bg-success-subtle text-success border border-success-subtle"><i class="fa-solid fa-check me-1"></i>Enviado ${SEMSAD.esc(fechaHoraES(a.aviso_enviado))}</span>`
-                    : `<span class="badge bg-light text-secondary border">Pendiente</span>`;
-                return `<tr>
-                    <td><input class="form-check-input avisoCheck" type="checkbox" value="${Number(a.id)}"></td>
-                    <td><div class="fw-bold">${SEMSAD.esc(a.usuario)}</div><small class="text-muted">${SEMSAD.esc(a.correo || 'Sin correo')}</small></td>
-                    <td>${SEMSAD.esc(a.libro)}</td>
-                    <td>${SEMSAD.esc(fechaHoraES(a.fecha_salida))}</td>
-                    <td class="fw-bold">${SEMSAD.esc(fechaHoraES(a.fecha_limite))}</td>
-                    <td>${estadoBadge}</td>
-                    <td>${aviso}</td>
-                </tr>`;
-            }).join('');
+
+            const desde = filas.length ? inicio + 1 : 0;
+            const hasta = Math.min(inicio + porPagina, filas.length);
+            document.getElementById('avisoResumen').innerText = filas.length ? `Mostrando ${desde}–${hasta} de ${filas.length}` : 'Sin registros';
+            let nav = `<li class="page-item ${avisoPagina <= 1 ? 'disabled' : ''}"><button class="page-link" onclick="irPaginaAviso(${avisoPagina - 1})">Anterior</button></li>`;
+            for (let i = 1; i <= totalPaginas; i++) {
+                nav += `<li class="page-item ${i === avisoPagina ? 'active' : ''}"><button class="page-link" onclick="irPaginaAviso(${i})">${i}</button></li>`;
+            }
+            nav += `<li class="page-item ${avisoPagina >= totalPaginas ? 'disabled' : ''}"><button class="page-link" onclick="irPaginaAviso(${avisoPagina + 1})">Siguiente</button></li>`;
+            document.getElementById('avisoPaginacion').innerHTML = nav;
         }
         function marcarTodosAvisos(marcar) {
             document.querySelectorAll('.avisoCheck').forEach(c => c.checked = marcar);
@@ -1463,106 +1534,195 @@
             } catch (e) { console.error('Historial de caja:', e); }
         }
 
-        // ===== Comprobantes =====
+        // ===== Comprobantes: lista a la izquierda, vista previa a la derecha =====
         let comprobTipo = 'pago';
+        let comprobUrlActual = null;
         async function cargarComprobantes(tipo) {
             comprobTipo = tipo;
             document.getElementById('comprobBtnPago').className = 'btn btn-sm fw-bold ' + (tipo === 'pago' ? 'btn-primary' : 'btn-outline-primary');
             document.getElementById('comprobBtnPrestamo').className = 'btn btn-sm fw-bold ' + (tipo === 'prestamo' ? 'btn-primary' : 'btn-outline-primary');
             document.getElementById('comprobColDetalle').innerText = tipo === 'pago' ? 'Método' : 'Libro';
             const tbody = document.getElementById('comprobTbody');
-            tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-muted">Cargando...</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-muted">Cargando...</td></tr>';
             try {
                 const resp = await fetch(`${window.SEMSAD_API}/comprobantes_sirve_para_consultar.php?tipo=${tipo}&listar=1`, { credentials: 'include', cache: 'no-store' });
                 const res = await resp.json();
-                if (res.status !== 'success') { tbody.innerHTML = `<tr><td colspan="6" class="text-center py-4 text-danger">${SEMSAD.esc(res.mensaje || 'No se pudieron cargar.')}</td></tr>`; return; }
+                if (res.status !== 'success') { tbody.innerHTML = `<tr><td colspan="5" class="text-center py-4 text-danger">${SEMSAD.esc(res.mensaje || 'No se pudieron cargar.')}</td></tr>`; return; }
                 tbody.innerHTML = res.lista.length ? res.lista.map(c => `<tr>
                     <td class="fw-bold">${SEMSAD.esc(c.codigo)}</td>
                     <td>${SEMSAD.esc(c.usuario)}</td>
                     <td>${SEMSAD.esc(tipo === 'pago' ? c.metodo : c.libro)}</td>
                     <td>${SEMSAD.esc(fechaHoraES(c.fecha))}</td>
-                    <td>${tipo === 'pago' ? formatoBs(c.monto) : SEMSAD.esc(c.estado)}</td>
-                    <td class="text-center"><button class="btn btn-sm btn-outline-primary fw-bold" onclick="verComprobante('${tipo}', ${Number(c.id)})"><i class="fa-solid fa-print me-1"></i>Ver / Imprimir</button></td>
-                </tr>`).join('') : '<tr><td colspan="6" class="text-center py-4 text-muted">No hay comprobantes todavía.</td></tr>';
+                    <td>${tipo === 'pago' ? formatoBs(c.monto) : SEMSAD.esc(c.estado)}
+                        <div><button class="btn btn-sm btn-outline-primary fw-bold mt-1" onclick="verComprobantePreview('${tipo}', ${Number(c.id)}, this)"><i class="fa-solid fa-eye me-1"></i>Vista previa</button></div></td>
+                </tr>`).join('') : '<tr><td colspan="5" class="text-center py-4 text-muted">No hay comprobantes todavía.</td></tr>';
             } catch (e) {
                 console.error('Comprobantes:', e);
-                tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-danger">Error de conexión.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-danger">Error de conexión.</td></tr>';
             }
         }
-        function verComprobante(tipo, id) {
-            window.open(`comprobante.html?tipo=${encodeURIComponent(tipo)}&id=${encodeURIComponent(id)}`, '_blank');
+        function verComprobantePreview(tipo, id, boton) {
+            document.querySelectorAll('#comprobTbody tr').forEach(tr => tr.classList.remove('table-primary'));
+            if (boton && boton.closest) boton.closest('tr')?.classList.add('table-primary');
+            comprobUrlActual = `comprobante.html?tipo=${encodeURIComponent(tipo)}&id=${encodeURIComponent(id)}`;
+            const frame = document.getElementById('comprobPreview');
+            document.getElementById('comprobVacio').classList.add('d-none');
+            frame.classList.remove('d-none');
+            frame.src = comprobUrlActual;
+            document.getElementById('comprobAbrir').disabled = false;
+            document.getElementById('comprobImprimir').disabled = false;
+        }
+        function abrirComprobanteNuevo() {
+            if (comprobUrlActual) window.open(comprobUrlActual, '_blank');
+        }
+        function imprimirComprobantePreview() {
+            try {
+                const frame = document.getElementById('comprobPreview');
+                frame.contentWindow.focus();
+                frame.contentWindow.print();
+            } catch (e) {
+                SEMSAD.toast('No se pudo imprimir desde la vista previa. Usa "Abrir" y luego imprime.', 'warning');
+            }
         }
 
-        // ===== Estadísticas del período (Reportes) =====
+        // ===== Estadísticas ampliadas (Reportes): período mensual, anual o personalizado =====
+        const MESES_ES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+        const MESES_CORTO = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+        const COLORES_COBRO = { qr: '#0ea5e9', efectivo: '#16a34a', otros: '#94a3b8' };
         let estGraficos = {};
-        function pct(actual, anterior) {
-            if (!anterior) return actual ? '<span class="text-success">nuevo</span>' : '<span class="text-muted">0%</span>';
-            const v = ((actual - anterior) / anterior) * 100;
-            const color = v >= 0 ? 'text-success' : 'text-danger';
-            return `<span class="${color} fw-bold">${v >= 0 ? '+' : ''}${v.toFixed(1)}%</span>`;
+        let estIniciado = false;
+
+        function iniciarFiltrosEst() {
+            if (estIniciado) return;
+            estIniciado = true;
+            const hoy = new Date();
+            document.getElementById('estMes').innerHTML = MESES_ES.map((m, i) => `<option value="${i + 1}">${m}</option>`).join('');
+            document.getElementById('estMes').value = hoy.getMonth() + 1;
+            let anios = '';
+            for (let y = hoy.getFullYear(); y >= 2024; y--) anios += `<option value="${y}">${y}</option>`;
+            document.getElementById('estAnio').innerHTML = anios;
+            document.getElementById('estAnio').value = hoy.getFullYear();
         }
-        function tarjetaEst(titulo, valor, extra) {
-            return `<div class="col-6 col-lg-4 col-xl-2"><div class="border rounded-3 p-3 h-100"><div class="small text-muted fw-bold">${titulo}</div><div class="fs-5 fw-bold">${valor}</div><div class="small">${extra || ''}</div></div></div>`;
+        function cambiarPeriodoEst() {
+            const tipo = document.getElementById('estPeriodo').value;
+            document.getElementById('estBoxMes').classList.toggle('d-none', tipo !== 'mensual');
+            document.getElementById('estBoxAnio').classList.toggle('d-none', tipo === 'personalizado');
+            document.getElementById('estBoxRango').classList.toggle('d-none', tipo !== 'personalizado');
+            document.getElementById('estBoxRango2').classList.toggle('d-none', tipo !== 'personalizado');
+            cargarEstadisticas();
         }
-        async function cargarEstadisticas() {
+        function fechaISO(y, m, d) {
+            return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+        }
+        function rangoEstadistico() {
+            const tipo = document.getElementById('estPeriodo').value;
+            const anio = Number(document.getElementById('estAnio').value);
+            const mes = Number(document.getElementById('estMes').value);
+            if (tipo === 'mensual') {
+                const ultimo = new Date(anio, mes, 0).getDate();
+                return { desde: fechaISO(anio, mes, 1), hasta: fechaISO(anio, mes, ultimo), etiqueta: `${MESES_ES[mes - 1]} ${anio}` };
+            }
+            if (tipo === 'anual') {
+                return { desde: fechaISO(anio, 1, 1), hasta: fechaISO(anio, 12, 31), etiqueta: `${anio}` };
+            }
             const desdeInput = document.getElementById('estDesde');
             const hastaInput = document.getElementById('estHasta');
             if (!hastaInput.value) hastaInput.value = hoyLocalISO();
             if (!desdeInput.value) {
                 const d = new Date(); d.setDate(d.getDate() - 29);
-                desdeInput.value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                desdeInput.value = fechaISO(d.getFullYear(), d.getMonth() + 1, d.getDate());
             }
+            return { desde: desdeInput.value, hasta: hastaInput.value, etiqueta: `${desdeInput.value} a ${hastaInput.value}` };
+        }
+        function pctHtml(actual, anterior) {
+            if (!anterior && !actual) return '<span class="text-muted"><i class="fa-solid fa-minus me-1"></i>Sin cambio</span>';
+            if (!anterior) return '<span class="text-nowrap text-success fw-bold"><i class="fa-solid fa-arrow-up me-1"></i>Nuevo</span>';
+            const v = ((actual - anterior) / anterior) * 100;
+            if (Math.abs(v) < 0.05) return '<span class="text-muted"><i class="fa-solid fa-minus me-1"></i>Sin cambio</span>';
+            const subio = v > 0;
+            return `<span class="text-nowrap ${subio ? 'text-success' : 'text-danger'} fw-bold"><i class="fa-solid ${subio ? 'fa-arrow-up' : 'fa-arrow-down'} me-1"></i>${Math.abs(v).toFixed(1).replace('.', ',')} %</span>`;
+        }
+        function tarjetaEst(icono, color, titulo, valor, comparacion, ancho) {
+            return `<div class="${ancho || 'col-6 col-lg'}">
+                <div class="border rounded-3 p-3 h-100 bg-white">
+                    <div class="d-flex justify-content-between align-items-start gap-2">
+                        <div class="small text-muted fw-bold">${titulo}</div>
+                        <span class="rounded-circle d-inline-flex align-items-center justify-content-center flex-shrink-0" style="width:36px;height:36px;background:${color}1a;color:${color}"><i class="fa-solid ${icono}"></i></span>
+                    </div>
+                    <div class="fs-4 fw-bold mt-1">${valor}</div>
+                    <div class="small">${comparacion || ''}</div>
+                </div></div>`;
+        }
+        async function cargarEstadisticas() {
+            iniciarFiltrosEst();
+            const rango = rangoEstadistico();
             try {
-                const url = `${window.SEMSAD_API}/estadisticas_sirve_para_graficos.php?desde=${desdeInput.value}&hasta=${hastaInput.value}`;
+                const url = `${window.SEMSAD_API}/estadisticas_sirve_para_graficos.php?desde=${rango.desde}&hasta=${rango.hasta}`;
                 const resp = await fetch(url, { credentials: 'include', cache: 'no-store' });
                 const res = await resp.json();
                 if (res.status !== 'success') { SEMSAD.toast(res.mensaje || 'No se pudieron calcular las estadísticas.', 'error'); return; }
-                const a = res.actual, b = res.anterior;
-                document.getElementById('estCards').innerHTML =
-                    tarjetaEst('Préstamos', a.prestamos, pct(a.prestamos, b.prestamos)) +
-                    tarjetaEst('Devoluciones', a.devoluciones, pct(a.devoluciones, b.devoluciones)) +
-                    tarjetaEst('Multas cobradas', formatoBs(a.multas_cobradas), pct(a.multas_cobradas, b.multas_cobradas)) +
-                    tarjetaEst('Usuarios activos', a.usuarios_activos, pct(a.usuarios_activos, b.usuarios_activos)) +
-                    tarjetaEst('Vencidos ahora', res.vencidos_ahora, '<span class="text-muted">estado actual</span>') +
-                    tarjetaEst('Multas pendientes', res.multas_pendientes.cantidad, formatoBs(res.multas_pendientes.monto));
 
-                const etiquetas = res.prestamos_por_dia.map(x => x.fecha.slice(8, 10) + '/' + x.fecha.slice(5, 7));
-                // Si la librería de gráficos no cargó, las tarjetas y la tabla igual se muestran.
-                if (typeof Chart === 'undefined') SEMSAD.toast('No se cargó la librería de gráficos. Revisa la conexión.', 'warning');
+                const a = res.actual, b = res.anterior;
+                const tipoPeriodo = document.getElementById('estPeriodo').value;
+                const antDesde = res.periodo_anterior.desde, antHasta = res.periodo_anterior.hasta;
+                const etiquetaAnt = tipoPeriodo === 'mensual' ? `${MESES_ES[Number(antDesde.slice(5, 7)) - 1]} ${antDesde.slice(0, 4)}`
+                    : tipoPeriodo === 'anual' ? antDesde.slice(0, 4)
+                    : `${antDesde} a ${antHasta}`;
+                const vs = (valorAnt) => `<span class="text-muted">vs. ${SEMSAD.esc(etiquetaAnt)} (${valorAnt})</span>`;
+
+                document.getElementById('estCards').innerHTML =
+                    tarjetaEst('fa-book-open', '#2563eb', 'Préstamos', a.prestamos, pctHtml(a.prestamos, b.prestamos) + ' ' + vs(b.prestamos)) +
+                    tarjetaEst('fa-rotate-left', '#16a34a', 'Devoluciones', a.devoluciones, pctHtml(a.devoluciones, b.devoluciones) + ' ' + vs(b.devoluciones)) +
+                    tarjetaEst('fa-sack-dollar', '#d97706', 'Multas cobradas', formatoBs(a.multas_cobradas), pctHtml(a.multas_cobradas, b.multas_cobradas) + ' ' + vs(formatoBs(b.multas_cobradas))) +
+                    tarjetaEst('fa-users', '#7c3aed', 'Usuarios activos', a.usuarios_activos, pctHtml(a.usuarios_activos, b.usuarios_activos) + ' ' + vs(b.usuarios_activos)) +
+                    tarjetaEst('fa-triangle-exclamation', '#dc2626', 'Vencidos ahora', res.vencidos_ahora, '<span class="text-muted">Estado actual</span>', 'col-12 col-lg');
+
+                document.getElementById('estPeriodoTxt').innerText = `Período actual: ${res.desde} a ${res.hasta} · Período anterior: ${antDesde} a ${antHasta}. Multas pendientes hoy: ${res.multas_pendientes.cantidad} (${formatoBs(res.multas_pendientes.monto)}).`;
+                document.getElementById('estTopTitulo').innerText = `Libros más solicitados (${rango.etiqueta})`;
+
+                // Gráficos mensuales: últimos 6 meses terminando en el mes del período.
+                const etMeses = res.meses.map(m => `${MESES_CORTO[Number(m.mes.slice(5, 7)) - 1]} ${m.mes.slice(2, 4)}`);
                 const dibujar = (id, cfg) => {
                     if (typeof Chart === 'undefined') return;
                     if (estGraficos[id]) estGraficos[id].destroy();
                     estGraficos[id] = new Chart(document.getElementById(id), cfg);
                 };
-                dibujar('estChartDias', { type: 'bar', data: { labels: etiquetas, datasets: [
-                    { label: 'Préstamos', data: res.prestamos_por_dia.map(x => x.valor), backgroundColor: '#2563eb' },
-                    { label: 'Devoluciones', data: res.devoluciones_por_dia.map(x => x.valor), backgroundColor: '#93c5fd' }] },
-                    options: { responsive: true, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } } });
-                dibujar('estChartMultas', { type: 'line', data: { labels: etiquetas, datasets: [
-                    { label: 'Monto cobrado (Bs.)', data: res.multas_por_dia.map(x => x.valor), borderColor: '#dc2626', backgroundColor: 'rgba(220,38,38,.12)', fill: true, tension: .3 }] },
-                    options: { responsive: true, scales: { y: { beginAtZero: true } } } });
-                const r = res.recaudacion;
-                const totalRec = r.qr + r.efectivo + r.otros;
-                dibujar('estChartRecaudacion', { type: 'doughnut', data: { labels: ['QR', 'Efectivo', 'Otros'], datasets: [
-                    { data: [r.qr, r.efectivo, r.otros], backgroundColor: ['#0ea5e9', '#16a34a', '#94a3b8'] }] },
-                    options: { responsive: true, plugins: { legend: { position: 'bottom' } } } });
-                document.getElementById('estRecaudacionTxt').innerText = totalRec
-                    ? `QR: ${formatoBs(r.qr)} · Efectivo: ${formatoBs(r.efectivo)}${r.otros ? ' · Otros: ' + formatoBs(r.otros) : ''}`
-                    : 'Sin cobros en el período.';
-                dibujar('estChartLibros', { type: 'bar', data: { labels: res.mas_solicitados.map(x => x.titulo), datasets: [
-                    { label: 'Préstamos', data: res.mas_solicitados.map(x => x.veces), backgroundColor: '#6366f1' }] },
-                    options: { indexAxis: 'y', responsive: true, scales: { x: { beginAtZero: true, ticks: { precision: 0 } } } } });
+                if (typeof Chart === 'undefined') SEMSAD.toast('No se cargó la librería de gráficos; las tablas sí se muestran.', 'warning');
+                dibujar('estChartDias', { type: 'bar', data: { labels: etMeses, datasets: [
+                    { label: 'Préstamos', data: res.meses.map(m => m.prestamos), backgroundColor: '#2563eb', borderRadius: 4 },
+                    { label: 'Devoluciones', data: res.meses.map(m => m.devoluciones), backgroundColor: '#93c5fd', borderRadius: 4 }] },
+                    options: { responsive: true, plugins: { legend: { position: 'bottom' } }, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } } });
+                dibujar('estChartMultas', { type: 'line', data: { labels: etMeses, datasets: [
+                    { label: 'Monto cobrado (Bs.)', data: res.meses.map(m => m.multas), borderColor: '#d97706', backgroundColor: 'rgba(217,119,6,.12)', fill: true, tension: .3 }] },
+                    options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } } });
 
-                const filas = [
-                    ['Préstamos', a.prestamos, b.prestamos],
-                    ['Devoluciones', a.devoluciones, b.devoluciones],
-                    ['Multas cobradas (Bs.)', formatoBs(a.multas_cobradas), formatoBs(b.multas_cobradas), a.multas_cobradas, b.multas_cobradas],
-                    ['Usuarios activos', a.usuarios_activos, b.usuarios_activos],
-                ];
-                document.getElementById('estComparacion').innerHTML = filas.map(f => `<tr>
-                    <td>${f[0]}</td><td class="fw-bold">${f[1]}</td><td>${f[2]}</td>
-                    <td>${pct(f[3] ?? f[1], f[4] ?? f[2])}</td></tr>`).join('') +
-                    `<tr><td colspan="4" class="small text-muted">Período actual: ${SEMSAD.esc(res.desde)} a ${SEMSAD.esc(res.hasta)} · Anterior: ${SEMSAD.esc(res.periodo_anterior.desde)} a ${SEMSAD.esc(res.periodo_anterior.hasta)}</td></tr>`;
+                // Distribución de cobros: QR, efectivo y otros, con porcentajes reales.
+                const r = res.recaudacion;
+                const total = r.qr + r.efectivo + r.otros;
+                const pctDe = (v) => total ? ((v / total) * 100).toFixed(1).replace('.', ',') + ' %' : '0 %';
+                document.getElementById('estDonaTotal').innerText = formatoBs(total);
+                document.getElementById('estRecaudacionLeyenda').innerHTML = [
+                    ['QR', r.qr, COLORES_COBRO.qr], ['Efectivo', r.efectivo, COLORES_COBRO.efectivo], ['Otros', r.otros, COLORES_COBRO.otros]
+                ].map(([nombre, valor, color]) => `<div class="d-flex justify-content-between"><span><span class="d-inline-block rounded-circle me-2" style="width:10px;height:10px;background:${color}"></span>${nombre}</span><span class="fw-bold">${formatoBs(valor)} <span class="text-muted">(${pctDe(valor)})</span></span></div>`).join('') +
+                    `<div class="small text-muted mt-1">${r.cobros} cobro(s) en el período</div>`;
+                dibujar('estChartRecaudacion', { type: 'doughnut', data: { labels: ['QR', 'Efectivo', 'Otros'], datasets: [
+                    { data: [r.qr, r.efectivo, r.otros], backgroundColor: [COLORES_COBRO.qr, COLORES_COBRO.efectivo, COLORES_COBRO.otros], borderWidth: 0 }] },
+                    options: { responsive: true, maintainAspectRatio: false, cutout: '68%', plugins: { legend: { display: false } } } });
+
+                // Libros más solicitados del período.
+                document.getElementById('estTop').innerHTML = res.mas_solicitados.length
+                    ? res.mas_solicitados.map((x, i) => `<tr><td>${i + 1}</td><td>${SEMSAD.esc(x.titulo)}</td><td class="text-end fw-bold">${x.veces}</td></tr>`).join('')
+                    : '<tr><td colspan="3" class="text-center text-muted py-3">Sin préstamos en el período.</td></tr>';
+
+                // Comparación con el período anterior.
+                const filaCmp = (nombre, actual, anterior, formato) => `<tr>
+                    <td>${nombre}</td><td class="fw-bold">${formato(actual)}</td><td>${formato(anterior)}</td><td>${pctHtml(actual, anterior)}</td></tr>`;
+                const tal = (v) => v;
+                document.getElementById('estComparacion').innerHTML =
+                    filaCmp('Préstamos', a.prestamos, b.prestamos, tal) +
+                    filaCmp('Devoluciones', a.devoluciones, b.devoluciones, tal) +
+                    filaCmp('Multas cobradas', a.multas_cobradas, b.multas_cobradas, formatoBs) +
+                    filaCmp('Usuarios activos', a.usuarios_activos, b.usuarios_activos, tal);
             } catch (e) {
                 console.error('Estadísticas:', e);
                 SEMSAD.toast('Error de conexión al calcular las estadísticas.', 'error');

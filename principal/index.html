@@ -164,6 +164,11 @@
                             </tbody>
                         </table>
                     </div>
+                    <!-- Comprobantes de multas pagadas: solo los del propio estudiante (la API filtra por sesión). -->
+                    <div class="p-3 border-top">
+                        <div class="fw-bold mb-2"><i class="fa-solid fa-receipt text-success me-2"></i>Mis comprobantes de pago</div>
+                        <div id="listaMisComprobantes" class="small"><div class="text-muted">Cargando comprobantes...</div></div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -496,8 +501,32 @@
             }
         }
 
+        // Lista los comprobantes de multas pagadas del estudiante. Abre cada uno en una pestaña para verlo o imprimirlo.
+        async function cargarMisComprobantesPago() {
+            const cont = document.getElementById('listaMisComprobantes');
+            try {
+                const resp = await fetch(window.SEMSAD_API + '/comprobantes_sirve_para_consultar.php?tipo=pago&listar=1', { credentials: 'include', cache: 'no-store' });
+                const res = await resp.json();
+                if (res.status !== 'success') { cont.innerHTML = '<div class="text-muted">' + SEMSAD.esc(res.mensaje || 'No se pudieron cargar tus comprobantes.') + '</div>'; return; }
+                if (!res.lista.length) { cont.innerHTML = '<div class="text-muted">Aún no tienes multas pagadas.</div>'; return; }
+                cont.innerHTML = res.lista.map(c => `
+                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 border rounded-3 p-2 mb-2">
+                        <div><div class="fw-bold">${SEMSAD.esc(c.codigo)}</div>
+                            <div class="text-muted">${SEMSAD.esc(c.fecha || '')} · ${SEMSAD.esc(c.metodo || '')}</div></div>
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="fw-bold">Bs. ${Number(c.monto).toFixed(2).replace('.', ',')}</span>
+                            <a class="btn btn-sm btn-outline-primary fw-bold" target="_blank" href="comprobante.html?tipo=pago&id=${Number(c.id)}"><i class="fa-solid fa-eye me-1"></i>Ver</a>
+                        </div>
+                    </div>`).join('');
+            } catch (e) {
+                console.error('Comprobantes del estudiante:', e);
+                cont.innerHTML = '<div class="text-danger">Error de conexión al cargar tus comprobantes.</div>';
+            }
+        }
+
         // Carga el historial de préstamos del usuario en la tabla del modal.
         async function cargarMisPrestamos() {
+            cargarMisComprobantesPago();
             const userObj = obtenerUsuarioLogueado();
             const tbody = document.getElementById('tablaMisPrestamosBody');
             tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4"><i class="fa-solid fa-spinner fa-spin me-2 text-primary"></i>Cargando tus préstamos...</td></tr>';

@@ -209,7 +209,7 @@
                     <div class="card stat-card shadow-sm p-3 bg-white">
                         <div class="d-flex justify-content-between align-items-center">
                             <div>
-                                <small class="text-muted fw-bold d-block">Disponibles</small>
+                                <small class="text-muted fw-bold d-block">Títulos con copia libre</small>
                                 <span class="fs-2 fw-bold text-success" id="statDisponibles">0</span>
                             </div>
                             <div class="icon-box bg-success text-white"><i class="fa-solid fa-circle-check"></i></div>
@@ -657,7 +657,7 @@
         // Pide los indicadores del día a la API y escribe los tres números en las tarjetas.
         async function cargarDashboard() {
             try {
-                const resp = await fetch(window.SEMSAD_API + '/obtener_dashboard_sirve_para_indicadores_del_dia.php', { credentials: 'include' });
+                const resp = await fetch(window.SEMSAD_API + '/obtener_dashboard_sirve_para_indicadores_del_dia.php', { credentials: 'include', cache: 'no-store' });
                 const res = await resp.json();
                 if (res.status === 'success') {
                     document.getElementById('statTotalLibros').innerText = res.total_libros;

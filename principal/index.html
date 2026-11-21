@@ -328,7 +328,7 @@
                 if (reservadoPorMi) {
                     badgeHTML = `<span class="badge bg-warning text-dark mb-2"><i class="fa-solid fa-bookmark me-1"></i>Ya reservaste este libro</span>`;
                     botonHTML = `<button class="btn btn-warning text-dark w-100 fw-bold btn-sm mt-2" disabled>
-                                    <i class="fa-solid fa-check-double me-1"></i> Libro en tu Poder
+                                    <i class="fa-solid fa-check-double me-1"></i> Libro en tu poder
                                  </button>`;
                 // Caso 2: disponible. El botón Solicitar Préstamo llama a solicitarPrestamo().
                 } else if (estaDisponible) {
@@ -377,16 +377,10 @@
 
         // Pide un préstamo de 7 días: primero verifica la sesión, luego pide confirmación y envía la solicitud.
         async function solicitarPrestamo(idMaterial, tituloLibro) {
+            // El navegador solo muestra el nombre; quien identifica al usuario es la sesión del servidor.
+            // Si la sesión expiró, el servidor responde «sin_sesion» y se regresa al login más abajo.
             const userObj = obtenerUsuarioLogueado();
-
-            // Si no hay usuario identificado, avisa y manda al login.
-            if (!userObj || (!userObj.id_usuario && !userObj.correo)) {
-                alert("No se detectó tu sesión activa de estudiante. Redirigiendo al inicio de sesión...");
-                window.location.href = '../login/index.html';
-                return;
-            }
-
-            const nombreSolicitante = userObj.nombreCompleto || userObj.correo;
+            const nombreSolicitante = (userObj && (userObj.nombreCompleto || userObj.correo)) || 'tu cuenta';
             // Pide confirmación antes de enviar la solicitud.
             if (!confirm(`¿Confirmas que deseas solicitar el préstamo de "${tituloLibro}" a nombre de ${nombreSolicitante} por 7 días?`)) {
                 return;
@@ -400,8 +394,6 @@
                     credentials: 'include',
                     body: JSON.stringify({
                         id_material: idMaterial,
-                        id_usuario: userObj.id_usuario,
-                        correo: userObj.correo,
                         dias_prestamo: 7
                     })
                 });

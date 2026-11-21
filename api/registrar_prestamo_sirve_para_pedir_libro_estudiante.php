@@ -176,7 +176,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmtT = $conexion->prepare('SELECT titulo FROM materialbibliografico WHERE id_material = :m');
         $stmtT->execute([':m' => $id_material]);
         $tituloLibro = (string)($stmtT->fetchColumn() ?: "material #$id_material");
-        semsad_bitacora('Solicitud de préstamo', 'Préstamos', "Solicitó «$tituloLibro» (préstamo #$id_prestamo). Pendiente de entrega en ventanilla.", false, $id_usuario, $usuario['correo'] ?? null);
+        semsad_bitacora('Solicitud de préstamo', 'Préstamos', "Solicitó «{$tituloLibro}» (préstamo #{$id_prestamo}). Pendiente de entrega en ventanilla.", false, $id_usuario, $usuario['correo'] ?? null);
 
         // Respuesta JSON de éxito: la solicitud queda pendiente hasta que se entregue el libro.
         semsad_responder([

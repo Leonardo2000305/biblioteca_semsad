@@ -30,7 +30,7 @@ try {
             LEFT JOIN detalle_prestamo dp ON p.id_prestamo = dp.id_prestamo
             LEFT JOIN ejemplar e ON dp.id_ejemplar = e.id_ejemplar
             LEFT JOIN materialbibliografico m ON e.id_material = m.id_material
-            WHERE p.estado IN ('Activo', 'Vencido', 'Con Mora')
+            WHERE p.estado IN ('Solicitado', 'Activo', 'Vencido', 'Con Mora')
             ORDER BY p.id_prestamo DESC";
 
     $stmt = $conexion->query($sql);

@@ -29,7 +29,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             FROM prestamo p
             INNER JOIN detalle_prestamo dp ON p.id_prestamo = dp.id_prestamo
             INNER JOIN ejemplar e ON dp.id_ejemplar = e.id_ejemplar
-            WHERE e.id_material = :id AND p.estado IN ('Activo', 'Vencido', 'Con Mora')
+            WHERE e.id_material = :id AND p.estado IN ('Solicitado', 'Activo', 'Vencido', 'Con Mora')
         ");
         $stmtActivos->execute([':id' => $id_material]);
         if ((int)$stmtActivos->fetchColumn() > 0) {
@@ -58,6 +58,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         $conexion->commit();
 
+        semsad_bitacora('Eliminar libro', 'Inventario', "Se eliminó el material #$id_material y sus ejemplares", false);
         semsad_responder(['status' => 'success', 'mensaje' => 'El libro y sus ejemplares han sido eliminados correctamente del inventario.']);
 
     } catch (Exception $e) {

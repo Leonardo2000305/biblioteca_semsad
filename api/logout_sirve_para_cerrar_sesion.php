@@ -9,6 +9,7 @@ require_once __DIR__ . '/conexion_sirve_para_conectar_base_datos.php';   // CORS
 semsad_iniciar_sesion();
 
 // Vacía todos los datos guardados en la sesión.
+semsad_bitacora('Cierre de sesión', 'Autenticación', 'Cierre de sesión', false);
 $_SESSION = [];
 // Borra la cookie de sesión del navegador poniéndole una fecha ya pasada.
 if (ini_get('session.use_cookies')) {

@@ -45,6 +45,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmt = $conexion->prepare("UPDATE usuario SET estado = :e WHERE id_usuario = :id");
         $stmt->execute([':e' => $valor, ':id' => $id_usuario]);
 
+        semsad_bitacora('Cambio de estado de cuenta', 'Usuarios', "Usuario #$id_usuario pasa a $nuevo_estado (estado en base: $valor)", true, $id_usuario);
+
         // Respuesta de éxito con el mensaje del nuevo estado.
         semsad_responder([
             'status'  => 'success',

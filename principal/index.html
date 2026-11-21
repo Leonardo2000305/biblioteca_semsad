@@ -25,6 +25,10 @@
         .book-card { border: none; border-radius: 12px; transition: transform 0.2s, box-shadow 0.2s; }
         .book-card:hover { transform: translateY(-5px); box-shadow: 0 10px 20px rgba(0,0,0,0.08); }
         .extra-small { font-size: 12px; }
+        /* Aviso de pago: mismo degradado oscuro del buscador, con un brillo azul y celeste */
+        .pago-banner { background: linear-gradient(120deg, #1d4ed8 0%, #0f172a 60%, #0e7490 100%); color: #fff; border-radius: 14px; padding: 16px 20px; box-shadow: 0 10px 30px rgba(37,99,235,.25); }
+        .pago-banner-icono { width: 44px; height: 44px; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center; background: rgba(255,255,255,.14); font-size: 1.2rem; }
+        @media (max-width: 575.98px) { .btn-pagar-banner { width: 100%; } }
         /* Celulares y tabletas: la barra superior se ajusta al ancho de la pantalla (los botones bajan de línea, nada se sale) */
         @media (max-width: 991.98px) {
             .navbar-custom > .container { flex-wrap: wrap; row-gap: .5rem; column-gap: .5rem; min-width: 0; }
@@ -83,6 +87,20 @@
 
     <!-- CONTENIDO PRINCIPAL -->
     <div class="container my-4">
+        <!-- Aviso de multas pendientes: lo llena cargarMultasEstudiante(). Empieza oculto. -->
+        <div id="bannerMultas" class="pago-banner d-none mb-4" role="status">
+            <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+                <div class="d-flex align-items-center gap-3">
+                    <span class="pago-banner-icono"><i class="fa-solid fa-coins"></i></span>
+                    <div>
+                        <div class="fw-bold">Tienes multas pendientes</div>
+                        <small class="opacity-75" id="bannerMultasTexto"></small>
+                    </div>
+                </div>
+                <a href="pagar_multa.html" class="btn btn-light fw-bold btn-pagar-banner"><i class="fa-solid fa-credit-card me-1"></i>Pagar ahora</a>
+            </div>
+        </div>
+
         <!-- HERO / BUSCADOR -->
         <div class="hero-section text-center shadow">
             <h2 class="fw-bold mb-2">Bienvenido al Catálogo Digital</h2>
@@ -165,7 +183,43 @@
                 document.getElementById('nombreUsuarioHeader').innerText = "Estudiante";
             }
             cargarCatalogo();
+            cargarMultasEstudiante();
         });
+
+        // Pide las multas pendientes del estudiante. Si tiene, muestra el aviso con el total y el botón de pagar.
+        async function cargarMultasEstudiante() {
+            try {
+                const resp = await fetch(window.SEMSAD_API + '/mis_multas_sirve_para_pagar_en_linea.php', { credentials: 'include', cache: 'no-store' });
+                const res = await resp.json();
+                if (res.status === 'success' && res.multas.length > 0) {
+                    document.getElementById('bannerMultasTexto').innerText =
+                        `${res.multas.length} multa(s) por un total de Bs ${Number(res.total).toFixed(2)}. Mientras tengas multas no podrás pedir libros.`;
+                    document.getElementById('bannerMultas').classList.remove('d-none');
+                }
+            } catch (e) { console.error('Multas:', e); }
+        }
+
+        // Cancela una solicitud de préstamo (el estudiante cambió de opinión). Actualiza el catálogo y el historial.
+        async function cancelarSolicitudEstudiante(idPrestamo, titulo) {
+            if (!confirm(`¿Cancelar tu solicitud del libro "${titulo}"?`)) return;
+            try {
+                const resp = await fetch(window.SEMSAD_API + '/cancelar_solicitud_prestamo_sirve_para_cancelar.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ id_prestamo: idPrestamo })
+                });
+                const res = await resp.json();
+                SEMSAD.toast(res.mensaje || 'No se pudo cancelar la solicitud.', res.status === 'success' ? 'success' : 'error');
+                if (res.codigo === 'sin_sesion') { setTimeout(() => { window.location.href = '../login/index.html'; }, 2500); return; }
+                if (res.status === 'success') {
+                    cargarCatalogo();
+                    cargarMisPrestamos();
+                }
+            } catch (e) {
+                SEMSAD.toast('Error de conexión con el servidor.', 'error');
+            }
+        }
 
         // Devuelve el usuario que inició sesión con id_usuario, correo y nombreCompleto; o null si no hay sesión.
         function obtenerUsuarioLogueado() {
@@ -324,8 +378,16 @@
                 let badgeHTML = '';
                 let botonHTML = '';
 
+                // Caso 0: el usuario ya pidió el libro y todavía no lo recoge. Puede cancelar la solicitud.
+                const miSolicitud = parseInt(libro.mi_solicitud || 0);
+                if (miSolicitud > 0) {
+                    badgeHTML = `<span class="badge bg-info text-dark mb-2"><i class="fa-solid fa-hourglass-half me-1"></i>Solicitud pendiente</span>`;
+                    botonHTML = `<div class="small text-muted mt-2"><i class="fa-solid fa-store me-1"></i>Pasa por la biblioteca para recogerlo.</div>
+                                 <button class="btn btn-outline-danger w-100 fw-bold btn-sm mt-2" onclick="cancelarSolicitudEstudiante(${miSolicitud}, ${SEMSAD.jsArg(titulo)})">
+                                    <i class="fa-solid fa-xmark me-1"></i> Cancelar solicitud
+                                 </button>`;
                 // Caso 1: el usuario ya tiene el libro. El botón queda deshabilitado.
-                if (reservadoPorMi) {
+                } else if (reservadoPorMi) {
                     badgeHTML = `<span class="badge bg-warning text-dark mb-2"><i class="fa-solid fa-bookmark me-1"></i>Ya reservaste este libro</span>`;
                     botonHTML = `<button class="btn btn-warning text-dark w-100 fw-bold btn-sm mt-2" disabled>
                                     <i class="fa-solid fa-check-double me-1"></i> Libro en tu poder
@@ -447,16 +509,23 @@
                         // Etiqueta del estado: Activo (azul), Devuelto (verde) o Vencido (rojo).
                         let badge = '<span class="badge bg-primary">Activo</span>';
                         if (p.estado === 'Devuelto') badge = '<span class="badge bg-success">Devuelto</span>';
+                        if (p.estado === 'Solicitado') badge = '<span class="badge bg-info text-dark"><i class="fa-solid fa-hourglass-half me-1"></i>Solicitado</span>';
+                        if (p.estado === 'Cancelado') badge = '<span class="badge bg-secondary">Cancelado</span>';
                         if (p.estado === 'Vencido' || p.estado === 'Con Mora') badge = '<span class="badge bg-danger">Vencido (Con Mora)</span>';
+                        const accionHTML = p.estado === 'Activo'
+                            ? `<button class="btn btn-outline-primary btn-sm fw-bold" onclick="renovarPrestamo(${parseInt(p.id_prestamo)})"><i class="fa-solid fa-rotate me-1"></i>Renovar</button>`
+                            : (p.estado === 'Solicitado'
+                                ? `<button class="btn btn-outline-danger btn-sm fw-bold" onclick="cancelarSolicitudEstudiante(${parseInt(p.id_prestamo)}, ${SEMSAD.jsArg(p.titulo)})"><i class="fa-solid fa-xmark me-1"></i>Cancelar solicitud</button>`
+                                : '');
 
                         // Agrega la fila. El botón Renovar solo aparece en los préstamos Activos.
                         tbody.innerHTML += `
                             <tr>
                                 <td class="fw-bold text-dark celda-titulo">${SEMSAD.esc(p.titulo)}</td>
                                 <td class="text-muted small" data-label="Fecha solicitud">${SEMSAD.esc(p.fecha_salida)}</td>
-                                <td class="fw-bold text-primary" data-label="Fecha límite">${SEMSAD.esc(p.fecha_limite)}</td>
+                                <td class="fw-bold text-primary" data-label="Fecha límite">${p.estado === 'Solicitado' ? '<span class="text-muted fw-normal">Se fija al recoger</span>' : SEMSAD.esc(p.fecha_limite)}</td>
                                 <td data-label="Estado">${badge}</td>
-                                <td class="celda-accion">${p.estado === 'Activo' ? `<button class="btn btn-outline-primary btn-sm fw-bold" onclick="renovarPrestamo(${parseInt(p.id_prestamo)})"><i class="fa-solid fa-rotate me-1"></i>Renovar</button>` : ''}</td>
+                                <td class="celda-accion">${accionHTML}</td>
                             </tr>`;
                     });
                 } else {

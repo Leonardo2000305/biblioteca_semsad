@@ -110,7 +110,7 @@
             <a href="#" class="nav-link" onclick="verModulo('ventanilla', this)"><i class="fa-solid fa-right-left"></i> Ventanilla</a>
             <a href="#" class="nav-link" onclick="verModulo('multas', this)"><i class="fa-solid fa-hand-holding-dollar"></i> Multas y Sanciones</a>
             <a href="#" class="nav-link" onclick="verModulo('reportes', this)"><i class="fa-solid fa-chart-pie"></i> Reportes</a>
-            <a href="#" class="nav-link" onclick="verModulo('auditoria', this)"><i class="fa-solid fa-shield-halved"></i> Auditoría Claves</a>
+            <a href="#" class="nav-link" onclick="verModulo('bitacora', this)"><i class="fa-solid fa-clipboard-list"></i> Bitácora</a>
             <a href="#" class="nav-link" onclick="verModulo('usuarios', this)"><i class="fa-solid fa-users"></i> Usuarios Registrados</a>
         </div>
     </aside>
@@ -306,7 +306,7 @@
             <div class="card table-card shadow-sm bg-white">
                 <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center border-bottom">
                     <h5 class="fw-bold mb-0 text-dark">
-                        <i class="fa-solid fa-right-left text-primary me-2"></i>Ventanilla: Préstamos Activos y Reservas
+                        <i class="fa-solid fa-right-left text-primary me-2"></i>Ventanilla: Solicitudes y Préstamos
                     </h5>
                     <!-- Vuelve a cargar la lista de la ventanilla. -->
                     <button class="btn btn-sm btn-outline-primary no-print" onclick="cargarVentanilla()"><i class="fa-solid fa-rotate me-1"></i>Actualizar</button>
@@ -411,28 +411,99 @@
         </div>
 
         <!-- MÓDULO 4: AUDITORÍA -->
-        <!-- Módulo Auditoría: intentos de inicio de sesión (correo, fecha, estado e IP). -->
-        <div id="secAuditoria" class="modulo-vista d-none">
-            <div class="card table-card shadow-sm bg-white">
-                <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center border-bottom">
-                    <h5 class="fw-bold mb-0 text-dark"><i class="fa-solid fa-shield-halved text-primary me-2"></i>Auditoría de Seguridad</h5>
-                    <!-- Vuelve a cargar la auditoría desde la API. -->
-                    <button class="btn btn-sm btn-outline-secondary no-print" onclick="cargarAuditoria()"><i class="fa-solid fa-rotate me-1"></i>Actualizar</button>
+        <!-- Módulo Bitácora: todo lo que pasa en el sistema, con filtros. La llena cargarBitacora(). -->
+        <div id="secBitacora" class="modulo-vista d-none">
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3">
+                <div>
+                    <h5 class="fw-bold mb-0 text-dark"><i class="fa-solid fa-clipboard-list text-primary me-2"></i>Bitácora de Actividades</h5>
+                    <small class="text-muted">Registro cronológico de inicios y cierres de sesión, préstamos, cambios y accesos de seguridad.</small>
                 </div>
+                <div class="d-flex gap-2 no-print">
+                    <button class="btn btn-sm btn-outline-secondary fw-semibold" onclick="exportarBitacoraCSV()"><i class="fa-solid fa-file-csv me-1"></i>Exportar CSV</button>
+                    <button class="btn btn-sm btn-outline-primary fw-semibold" onclick="cargarBitacora()"><i class="fa-solid fa-rotate me-1"></i>Actualizar</button>
+                </div>
+            </div>
+
+            <!-- Tarjetas de resumen (las escribe cargarBitacora) -->
+            <div class="row g-3 mb-3">
+                <div class="col-6 col-xl-3">
+                    <div class="card stat-card shadow-sm p-3 bg-white h-100">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div><small class="text-muted fw-bold d-block">Total de eventos</small><span class="fs-2 fw-bold text-primary" id="bitTotal">0</span><small class="d-block text-muted">Registros de la clínica</small></div>
+                            <div class="icon-box bg-primary-subtle text-primary"><i class="fa-solid fa-clipboard"></i></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-6 col-xl-3">
+                    <div class="card stat-card shadow-sm p-3 bg-white h-100">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div><small class="text-muted fw-bold d-block">Inicios de sesión</small><span class="fs-2 fw-bold text-success" id="bitInicios">0</span><small class="d-block text-success">Accesos registrados</small></div>
+                            <div class="icon-box bg-success-subtle text-success"><i class="fa-solid fa-right-to-bracket"></i></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-6 col-xl-3">
+                    <div class="card stat-card shadow-sm p-3 bg-white h-100">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div><small class="text-muted fw-bold d-block">Cambios en el sistema</small><span class="fs-2 fw-bold text-info" id="bitCambios">0</span><small class="d-block text-muted">Préstamos, libros, usuarios y multas</small></div>
+                            <div class="icon-box bg-info-subtle text-info"><i class="fa-solid fa-pen-to-square"></i></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-6 col-xl-3">
+                    <div class="card stat-card shadow-sm p-3 bg-white h-100">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div><small class="text-muted fw-bold d-block">Seguridad y bloqueos</small><span class="fs-2 fw-bold text-danger" id="bitSeguridad">0</span><small class="d-block text-danger">Auditorías claves</small></div>
+                            <div class="icon-box bg-danger-subtle text-danger"><i class="fa-solid fa-shield-halved"></i></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Filtros -->
+            <div class="card shadow-sm bg-white border-0 mb-3">
+                <div class="card-body p-3">
+                    <div class="row g-2 align-items-center">
+                        <div class="col-12 col-lg-4">
+                            <div class="input-group">
+                                <span class="input-group-text bg-white"><i class="fa-solid fa-magnifying-glass text-muted"></i></span>
+                                <input type="search" id="bitBuscar" class="form-control" placeholder="Buscar usuario, correo, IP o descripción..." oninput="programarBitacora()">
+                            </div>
+                        </div>
+                        <div class="col-6 col-lg-2"><select id="bitAccion" class="form-select" onchange="cargarBitacora()"><option value="">Todas las acciones</option></select></div>
+                        <div class="col-6 col-lg-2"><select id="bitModulo" class="form-select" onchange="cargarBitacora()"><option value="">Todos los módulos</option></select></div>
+                        <div class="col-6 col-lg-2"><select id="bitUsuario" class="form-select" onchange="renderBitacora()"><option value="">Todos los usuarios</option></select></div>
+                        <div class="col-6 col-lg-2 d-flex gap-2">
+                            <button class="btn btn-outline-secondary w-100" title="Limpiar filtros" onclick="limpiarFiltrosBitacora()"><i class="fa-solid fa-rotate-left"></i></button>
+                        </div>
+                    </div>
+                    <!-- Vista: todo o solo auditorías claves -->
+                    <div class="d-flex flex-wrap align-items-center gap-2 mt-3">
+                        <div class="btn-group btn-group-sm" role="group" aria-label="Vista de la bitácora">
+                            <button type="button" class="btn btn-primary fw-semibold" id="bitBtnTodo" onclick="cambiarVistaBitacora('todo')"><i class="fa-solid fa-list me-1"></i>Todo</button>
+                            <button type="button" class="btn btn-outline-danger fw-semibold" id="bitBtnClaves" onclick="cambiarVistaBitacora('claves')"><i class="fa-solid fa-shield-halved me-1"></i>Auditorías claves</button>
+                        </div>
+                        <small class="text-muted" id="bitContador"></small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tabla de eventos (la escribe cargarBitacora / renderBitacora) -->
+            <div class="card table-card shadow-sm bg-white">
                 <div class="card-body p-0">
                     <div class="table-responsive">
                         <table class="table table-hover align-middle mb-0 tabla-tarjetas">
                             <thead class="table-light">
                                 <tr>
+                                    <th>Fecha y hora</th>
                                     <th>Usuario</th>
-                                    <th>Correo ingresado</th>
-                                    <th>Fecha y Hora</th>
-                                    <th>Estado del Intento</th>
-                                    <th>Dirección IP</th>
+                                    <th>Acción</th>
+                                    <th>Módulo</th>
+                                    <th>Descripción del evento</th>
+                                    <th>Origen / IP</th>
                                 </tr>
                             </thead>
-                            <!-- Aquí cargarAuditoria() escribe una fila por intento. -->
-                            <tbody id="tablaAuditoriaBody"></tbody>
+                            <tbody id="tablaBitacoraBody"></tbody>
                         </table>
                     </div>
                 </div>
@@ -622,7 +693,7 @@
                 'ventanilla': 'Ventanilla de Atención',
                 'multas': 'Control de Multas y Sanciones',
                 'reportes': 'Reportes e Indicadores',
-                'auditoria': 'Auditoría de Seguridad',
+                'bitacora': 'Bitácora de Actividades',
                 'usuarios': 'Padrón de Usuarios Registrados'
             };
             document.getElementById('tituloPagina').innerText = titulos[nombreModulo] || 'Dashboard';
@@ -637,9 +708,9 @@
             } else if (nombreModulo === 'reportes') {
                 document.getElementById('secReportes').classList.remove('d-none');
                 cargarReportes();
-            } else if (nombreModulo === 'auditoria') {
-                document.getElementById('secAuditoria').classList.remove('d-none');
-                cargarAuditoria();
+            } else if (nombreModulo === 'bitacora') {
+                document.getElementById('secBitacora').classList.remove('d-none');
+                cargarBitacora();
             } else if (nombreModulo === 'usuarios') {
                 document.getElementById('secUsuarios').classList.remove('d-none');
                 cargarUsuariosRegistrados();
@@ -805,11 +876,19 @@
                 if (res.status === 'success' && lista.length > 0) {
                     tbody.innerHTML = '';
                     lista.forEach(p => {
-                        // Estado: si el préstamo está vencido se muestra en rojo; si no, en azul (Activo).
-                        const estado = p.status || p.estado || 'Activo';
-                        const badge = (estado === 'Vencido') 
-                            ? `<span class="badge bg-danger py-2 px-3">Vencido</span>` 
-                            : `<span class="badge bg-primary py-2 px-3">Activo</span>`;
+                        // Estado: Solicitado (amarillo, falta entregar), Vencido/Con Mora (rojo) o Activo (azul).
+                        const estado = p.estado || 'Activo';
+                        const pendiente = estado === 'Solicitado';
+                        const badge = pendiente
+                            ? `<span class="badge bg-warning text-dark py-2 px-3"><i class="fa-solid fa-hourglass-half me-1"></i>Solicitado</span>`
+                            : (estado === 'Vencido' || estado === 'Con Mora')
+                                ? `<span class="badge bg-danger py-2 px-3">${SEMSAD.esc(estado)}</span>`
+                                : `<span class="badge bg-primary py-2 px-3">Activo</span>`;
+                        const fechaLimite = pendiente ? '<span class="text-muted">Por entregar</span>' : SEMSAD.esc(p.dueDate);
+                        const acciones = pendiente
+                            ? `<button class="btn btn-success btn-sm fw-bold px-3 mb-1" onclick="confirmarEntrega(${Number(p.id)}, ${SEMSAD.jsArg(p.bookTitle)})"><i class="fa-solid fa-check me-1"></i> Confirmar entrega</button>
+                               <button class="btn btn-outline-danger btn-sm fw-bold px-3" onclick="cancelarSolicitud(${Number(p.id)}, ${SEMSAD.jsArg(p.bookTitle)})"><i class="fa-solid fa-xmark me-1"></i> Cancelar</button>`
+                            : `<button class="btn btn-success btn-sm fw-bold px-3" onclick="registrarDevolucion(${Number(p.id)}, ${SEMSAD.jsArg(p.bookTitle)})"><i class="fa-solid fa-rotate-left me-1"></i> Devuelto</button>`;
 
                         // Agrega la fila: usuario, CI, teléfono, libro con su código, fecha límite, estado y el botón Devuelto.
                         tbody.innerHTML += `
@@ -818,11 +897,9 @@
                                 <td><span class="badge bg-light text-dark border">${SEMSAD.esc(p.userCi)}</span></td>
                                 <td>${SEMSAD.esc(p.userTelefono || 'Sin teléfono')}</td>
                                 <td class="fw-bold text-primary">${SEMSAD.esc(p.bookTitle)}<br><small class="text-muted fw-normal">Código: ${SEMSAD.esc(p.bookCodigo || '')} · Prestado: ${SEMSAD.esc(p.fechaSalida || '')}</small></td>
-                                <td class="text-muted">${SEMSAD.esc(p.dueDate)}</td>
-                                <td>${badge}</td>
-                                <td class="text-center no-print">
-                                    <button class="btn btn-success btn-sm fw-bold px-3" onclick="registrarDevolucion(${Number(p.id)}, ${SEMSAD.jsArg(p.bookTitle)})"><i class="fa-solid fa-rotate-left me-1"></i> Devuelto</button>
-                                </td>
+                                <td class="text-muted" data-label="Fecha límite">${fechaLimite}</td>
+                                <td data-label="Estado">${badge}</td>
+                                <td class="text-center no-print">${acciones}</td>
                             </tr>`;
                     });
                 } else if (res.status !== 'success') {
@@ -832,6 +909,36 @@
                     tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4 text-muted">No hay préstamos activos.</td></tr>';
                 }
             } catch (e) { tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4 text-danger">Error al cargar ventanilla.</td></tr>'; }
+        }
+
+        // Confirma que el libro SÍ fue entregado al estudiante: la solicitud pasa a préstamo activo con plazo de 7 días.
+        async function confirmarEntrega(idPrestamo, titulo) {
+            if (!confirm(`¿Confirmas que entregaste el libro "${titulo}" al estudiante?\nEl plazo de 7 días empieza hoy.`)) return;
+            await enviarAccionVentanilla('confirmar_entrega_prestamo_sirve_para_confirmar_recogida.php', idPrestamo);
+        }
+
+        // Cancela una solicitud que todavía no se entregó; el libro vuelve a quedar disponible.
+        async function cancelarSolicitud(idPrestamo, titulo) {
+            if (!confirm(`¿Cancelar la solicitud del libro "${titulo}"? El libro volverá a quedar disponible.`)) return;
+            await enviarAccionVentanilla('cancelar_solicitud_prestamo_sirve_para_cancelar.php', idPrestamo);
+        }
+
+        // Envía una acción sobre un préstamo a la API y actualiza la ventanilla y los indicadores.
+        async function enviarAccionVentanilla(archivo, idPrestamo) {
+            try {
+                const resp = await fetch(window.SEMSAD_API + '/' + archivo, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ id_prestamo: idPrestamo })
+                });
+                const res = await resp.json();
+                if (res.status === 'success') {
+                    SEMSAD.toast(res.mensaje, 'success');
+                    cargarVentanilla();
+                    cargarDashboard();
+                } else { alert(res.mensaje || 'No se pudo completar la acción.'); }
+            } catch (ex) { alert('Error de conexión con el servidor.'); }
         }
 
         // Confirma y registra la devolución de un libro desde la ventanilla.
@@ -951,28 +1058,134 @@
         }
         /* ====================================================================== */
 
-        // Pide la auditoría de intentos de inicio de sesión y dibuja una fila por intento.
-        async function cargarAuditoria() {
-            const tbody = document.getElementById('tablaAuditoriaBody');
-            tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4">Cargando auditoría...</td></tr>';
+        /* ==================== BITÁCORA ==================== */
+        // Estado de la bitácora: lista de eventos, vista (todo o solo auditorías claves) y el temporizador de la búsqueda.
+        let bitacoraEventos = [];
+        let bitacoraVista = 'todo';
+        let bitacoraTimer = null;
+
+        // Lee los filtros de la pantalla y pide los eventos a la API. Escribe las tarjetas y los filtros.
+        async function cargarBitacora() {
+            const tbody = document.getElementById('tablaBitacoraBody');
+            if (!tbody.children.length) tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4">Cargando bitácora...</td></tr>';
+            const params = new URLSearchParams();
+            const buscar = document.getElementById('bitBuscar').value.trim();
+            if (buscar) params.set('buscar', buscar);
+            const accion = document.getElementById('bitAccion').value;
+            const modulo = document.getElementById('bitModulo').value;
+            if (accion) params.set('accion', accion);
+            if (modulo) params.set('modulo', modulo);
+            if (bitacoraVista === 'claves') params.set('solo_claves', '1');
             try {
-                const resp = await fetch(window.SEMSAD_API + '/obtener_auditoria_sirve_para_ver_intentos_de_acceso.php', { credentials: 'include' });
+                const resp = await fetch(window.SEMSAD_API + '/obtener_bitacora_sirve_para_ver_todo.php?' + params.toString(), { credentials: 'include', cache: 'no-store' });
                 const res = await resp.json();
-                // Si hay registros, los dibuja; si no, muestra un mensaje.
-                if (res.status === 'success' && res.data.length > 0) {
-                    tbody.innerHTML = '';
-                    res.data.forEach(item => {
-                        tbody.innerHTML += `
-                            <tr>
-                                <td>${SEMSAD.esc((item.nombres || '') + ' ' + (item.apellidos || ''))}</td>
-                                <td class="text-primary">${SEMSAD.esc(item.correo_ingresado)}</td>
-                                <td class="text-muted">${SEMSAD.esc(item.fecha_hora)}</td>
-                                <td><span class="badge bg-secondary">${SEMSAD.esc(item.estado)}</span></td>
-                                <td class="font-monospace small">${SEMSAD.esc(item.ip_origen || '—')}</td>
-                            </tr>`;
-                    });
-                } else { tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-muted">Sin registros de auditoría.</td></tr>'; }
-            } catch (e) { tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-danger">Error auditoría.</td></tr>'; }
+                if (res.status !== 'success') {
+                    tbody.innerHTML = `<tr><td colspan="6" class="text-center py-4 text-danger">${SEMSAD.esc(res.mensaje || 'No se pudo cargar la bitácora.')}</td></tr>`;
+                    return;
+                }
+                bitacoraEventos = res.eventos || [];
+                // Tarjetas: siempre sobre el total del sistema
+                document.getElementById('bitTotal').innerText = res.resumen.total;
+                document.getElementById('bitInicios').innerText = res.resumen.inicios;
+                document.getElementById('bitCambios').innerText = res.resumen.cambios;
+                document.getElementById('bitSeguridad').innerText = res.resumen.seguridad;
+                // Opciones de los filtros (se conserva lo elegido)
+                rellenarOpciones('bitAccion', res.acciones, accion, 'Todas las acciones');
+                rellenarOpciones('bitModulo', res.modulos, modulo, 'Todos los módulos');
+                const usuarios = [...new Map(bitacoraEventos.filter(e => e.correo).map(e => [e.correo, e.nombre || e.correo])).entries()];
+                const seleccion = document.getElementById('bitUsuario').value;
+                document.getElementById('bitUsuario').innerHTML = '<option value="">Todos los usuarios</option>' +
+                    usuarios.map(([c, n]) => `<option value="${SEMSAD.esc(c)}">${SEMSAD.esc(n)} · ${SEMSAD.esc(c)}</option>`).join('');
+                document.getElementById('bitUsuario').value = seleccion;
+                renderBitacora();
+            } catch (e) {
+                tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-danger">Error al cargar la bitácora.</td></tr>';
+            }
+        }
+
+        // Pone las opciones de un <select> de filtro, manteniendo la que estaba elegida.
+        function rellenarOpciones(idSelect, valores, actual, textoTodos) {
+            const sel = document.getElementById(idSelect);
+            sel.innerHTML = `<option value="">${textoTodos}</option>` + (valores || []).map(v => `<option value="${SEMSAD.esc(v)}">${SEMSAD.esc(v)}</option>`).join('');
+            sel.value = actual || '';
+        }
+
+        // Badge de color según la acción (el color ayuda a distinguir un inicio de sesión de un cambio o un bloqueo).
+        function badgeAccionBitacora(accion, clave) {
+            const a = String(accion || '');
+            let cls = 'bg-secondary-subtle text-secondary-emphasis';
+            let icono = 'fa-circle';
+            if (clave) { cls = 'bg-danger-subtle text-danger-emphasis'; icono = 'fa-shield-halved'; }
+            else if (/Inicio de sesión/i.test(a)) { cls = 'bg-success-subtle text-success-emphasis'; icono = 'fa-right-to-bracket'; }
+            else if (/Cierre/i.test(a)) { cls = 'bg-secondary-subtle text-secondary-emphasis'; icono = 'fa-right-from-bracket'; }
+            else if (/Solicitud|Confirmación|Devoluci|Préstamo/i.test(a)) { cls = 'bg-primary-subtle text-primary-emphasis'; icono = 'fa-book'; }
+            else if (/Cobro|Pago|multa/i.test(a)) { cls = 'bg-warning-subtle text-warning-emphasis'; icono = 'fa-coins'; }
+            else if (/Nuevo|Editar|Eliminar|Cambio|estado/i.test(a)) { cls = 'bg-info-subtle text-info-emphasis'; icono = 'fa-pen-to-square'; }
+            return `<span class="badge rounded-pill ${cls} px-3 py-2"><i class="fa-solid ${icono} me-1"></i>${SEMSAD.esc(a)}</span>`;
+        }
+
+        // Dibuja la tabla con los eventos cargados, aplicando el filtro de usuario y la vista elegida.
+        function renderBitacora() {
+            const tbody = document.getElementById('tablaBitacoraBody');
+            const usuario = document.getElementById('bitUsuario').value;
+            const lista = bitacoraEventos.filter(e => !usuario || e.correo === usuario);
+            document.getElementById('bitContador').innerText = `Mostrando ${lista.length} de ${bitacoraEventos.length} eventos (máximo 300 por consulta)`;
+            if (!lista.length) {
+                tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-muted">No hay eventos con esos filtros.</td></tr>';
+                return;
+            }
+            tbody.innerHTML = lista.map(e => {
+                const fecha = e.fecha_hora ? new Date(String(e.fecha_hora).replace(' ', 'T')) : null;
+                const fechaTxt = fecha && !isNaN(fecha) ? fecha.toLocaleString('es-BO', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' }) : (e.fecha_hora || '');
+                const quien = e.nombre ? `<div class="fw-bold">${SEMSAD.esc(e.nombre)}</div><small class="text-muted">${SEMSAD.esc(e.correo || '')}</small>` : `<span class="text-muted">${SEMSAD.esc(e.correo || 'Sin usuario')}</span>`;
+                const clave = Number(e.clave) === 1 ? ' <span class="badge bg-danger ms-1" title="Auditoría clave">clave</span>' : '';
+                return `
+                    <tr>
+                        <td data-label="Fecha y hora" class="small text-nowrap"><i class="fa-regular fa-calendar me-1 text-muted"></i>${SEMSAD.esc(fechaTxt)}</td>
+                        <td data-label="Usuario">${quien}</td>
+                        <td data-label="Acción">${badgeAccionBitacora(e.accion, Number(e.clave) === 1)}${clave}</td>
+                        <td data-label="Módulo"><span class="badge bg-light text-dark border">${SEMSAD.esc(e.modulo || '')}</span></td>
+                        <td data-label="Descripción" class="small">${SEMSAD.esc(e.descripcion || '')}</td>
+                        <td data-label="Origen / IP" class="small"><i class="fa-solid fa-globe text-muted me-1"></i>${SEMSAD.esc(e.ip || 'Desconocida')}</td>
+                    </tr>`;
+            }).join('');
+        }
+
+        // Cambia entre «Todo» y «Auditorías claves» y vuelve a consultar.
+        function cambiarVistaBitacora(vista) {
+            bitacoraVista = vista;
+            document.getElementById('bitBtnTodo').className = 'btn ' + (vista === 'todo' ? 'btn-primary' : 'btn-outline-primary') + ' fw-semibold';
+            document.getElementById('bitBtnClaves').className = 'btn ' + (vista === 'claves' ? 'btn-danger' : 'btn-outline-danger') + ' fw-semibold';
+            cargarBitacora();
+        }
+
+        // Espera a que el usuario deje de escribir antes de buscar (evita una consulta por cada tecla).
+        function programarBitacora() {
+            clearTimeout(bitacoraTimer);
+            bitacoraTimer = setTimeout(cargarBitacora, 350);
+        }
+
+        // Quita todos los filtros y vuelve a la vista completa.
+        function limpiarFiltrosBitacora() {
+            document.getElementById('bitBuscar').value = '';
+            document.getElementById('bitAccion').value = '';
+            document.getElementById('bitModulo').value = '';
+            document.getElementById('bitUsuario').value = '';
+            cambiarVistaBitacora('todo');
+        }
+
+        // Descarga los eventos que se ven en pantalla como CSV (con BOM y separador ';' para Excel).
+        function exportarBitacoraCSV() {
+            if (!bitacoraEventos.length) { SEMSAD.toast('No hay eventos para exportar.', 'warning'); return; }
+            const esc = v => '"' + String(v ?? '').replace(/"/g, '""') + '"';
+            const filas = [['Fecha y hora', 'Usuario', 'Correo', 'Acción', 'Módulo', 'Descripción', 'IP', 'Auditoría clave']]
+                .concat(bitacoraEventos.map(e => [e.fecha_hora, e.nombre, e.correo, e.accion, e.modulo, e.descripcion, e.ip, Number(e.clave) === 1 ? 'Sí' : 'No']));
+            const csv = '﻿' + filas.map(f => f.map(esc).join(';')).join('\r\n');
+            const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+            const a = document.createElement('a');
+            a.href = url; a.download = 'bitacora_' + new Date().toISOString().slice(0, 10) + '.csv';
+            document.body.appendChild(a); a.click(); a.remove();
+            URL.revokeObjectURL(url);
         }
 
         // Pide el padrón de usuarios y dibuja una fila por cuenta, con botones de editar y de activar o desactivar.

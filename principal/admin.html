@@ -932,6 +932,8 @@
                 if (!document.getElementById('secDashboard').classList.contains('d-none')) cargarDashboard();
                 if (!document.getElementById('secVentanilla').classList.contains('d-none')) cargarVentanilla(true);
                 if (!document.getElementById('secMultas').classList.contains('d-none')) cargarMultas();
+                if (!document.getElementById('secComprobantes').classList.contains('d-none') &&
+                    comprobTipo === 'demo' && !comprobUrlActual) cargarComprobantes('demo');
             }, 15000);
         });
 
@@ -1243,6 +1245,23 @@
             tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4"><i class="fa-solid fa-spinner fa-spin text-danger me-2"></i>Cargando datos de multas...</td></tr>';
 
             try {
+                // La vista del personal comprueba los registros académicos sin modificar el estado de la multa real.
+                const operacionesDePrueba = new Map();
+                try {
+                    const demoResp = await fetch(window.SEMSAD_API +
+                        '/pagos_demo_sirve_para_registrar_y_listar.php?listar=1',
+                        { credentials:'include', cache:'no-store' });
+                    const demoData = await demoResp.json();
+                    if (demoData.status === 'success' && Array.isArray(demoData.lista)) {
+                        demoData.lista.forEach(op => {
+                            if (op.estado === 'SIMULADO' && Array.isArray(op.multa_ids)) {
+                                op.multa_ids.forEach(id => operacionesDePrueba.set(Number(id),Number(op.id)));
+                            }
+                        });
+                    }
+                } catch (error) {
+                    console.warn('Los datos del entorno de pruebas no están disponibles.', error);
+                }
                 // Llamada GET a la API de multas.
                 const resp = await fetch(window.SEMSAD_API + '/obtener_multas_sirve_para_cobrar_y_ver_mora.php', { credentials: 'include' });
                 // La respuesta se lee como texto antes de convertirla a JSON.
@@ -1272,6 +1291,13 @@
                                 ? `<span class="badge bg-success py-2 px-3">Activo</span>`
                                 : `<span class="badge bg-danger py-2 px-3">${SEMSAD.esc(estadoUser)}</span>`;
 
+                            const comprobantePrueba = operacionesDePrueba.get(Number(m.id_multa));
+                            const etiquetaPrueba = comprobantePrueba
+                                ? '<div class="mt-1"><span class="badge bg-info text-dark">Cubierta en pruebas</span> ' +
+                                  '<a class="small fw-bold" href="comprobante.html?tipo=demo&id=' + comprobantePrueba +
+                                  '" target="_blank" rel="noopener">Ver constancia</a></div>' +
+                                  '<div class="small text-muted">La multa real sigue pendiente.</div>'
+                                : '';
                             // Agrega la fila de la multa. El botón abre la ventana de cobro (abrirCobroMulta) con el id de la multa.
                             tbody.innerHTML += `
                                 <tr>
@@ -1281,7 +1307,7 @@
                                     </td>
                                     <td><span class="badge bg-secondary">${SEMSAD.esc(m.tipo_multa || 'Por Mora')}</span></td>
                                     <td class="text-muted fw-bold">${SEMSAD.esc(m.fecha_limite || 'N/A')}</td>
-                                    <td><strong class="text-danger fs-6">${parseFloat(m.monto).toFixed(2)} Bs.</strong></td>
+                                    <td><strong class="text-danger fs-6">${parseFloat(m.monto).toFixed(2)} Bs.</strong>${etiquetaPrueba}</td>
                                     <td>${badgeUser}</td>
                                     <td class="text-center no-print">
                                         <button class="btn btn-success btn-sm fw-bold px-3" onclick="abrirCobroMulta(${Number(m.id_multa)})">

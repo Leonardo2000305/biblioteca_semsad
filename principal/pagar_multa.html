@@ -135,6 +135,9 @@
             <h2 class="h4 fw-bold">¡Simulación completada!</h2>
             <p class="text-secondary" id="comprobanteMensaje"></p>
             <div class="text-start mx-auto" style="max-width: 420px" id="comprobanteLineas"></div>
+            <a id="reciboCompartido" href="#" class="btn btn-outline-info fw-bold mt-3 d-none" target="_blank" rel="noopener">
+                <i class="fa-solid fa-receipt me-1"></i>Ver comprobante registrado
+            </a>
             <div class="d-flex flex-wrap gap-2 justify-content-center mt-4">
                 <a href="index.html" class="btn btn-outline-light px-4">Volver al catálogo</a>
                 <button type="button" class="btn btn-pagar px-4" onclick="volverADemostracion()">Nueva prueba</button>
@@ -261,6 +264,7 @@
         const LLAVE_DEMO = 'semsad_pagos_prueba_v1';
         let multas = [], originales = [], seleccion = new Set(), metodo = 'tarjeta';
         let tarjetaDemo = 'visa', paypalAprobado = false, procesando = false;
+        let pruebasCompartidas = [];
         const TARJETAS = {
             visa: { nombre: 'VISA · DEMO', css: 'marca-visa', numero: '•••• •••• •••• DEMO', boton: 'demoVisa' },
             mastercard: { nombre: 'MASTERCARD · DEMO', css: 'marca-mastercard', numero: '•••• •••• •••• DEMO', boton: 'demoMastercard' },
@@ -275,10 +279,19 @@
             try { const list = JSON.parse(localStorage.getItem(LLAVE_DEMO) || '[]'); return Array.isArray(list) ? list : []; }
             catch (e) { return []; }
         }
+        async function cargarPruebasCompartidas() {
+            const resp = await fetch(window.SEMSAD_API + '/pagos_demo_sirve_para_registrar_y_listar.php',
+                { credentials:'include', cache:'no-store' });
+            const res = await resp.json();
+            if (res.status !== 'success' || !Array.isArray(res.lista)) {
+                throw new Error(res.mensaje || 'No se pudo consultar el historial compartido de pruebas.');
+            }
+            pruebasCompartidas = res.lista;
+        }
         function idsCubiertos() {
             const ids = new Set();
             if (!usuarioDemo) return ids;
-            historialDemo().forEach(r => {
+            [...historialDemo(), ...pruebasCompartidas].forEach(r => {
                 if (r && r.estado === 'SIMULADO' && String(r.usuario_id || '') === usuarioDemo && Array.isArray(r.multa_ids))
                     r.multa_ids.forEach(id => ids.add(Number(id)));
             });
@@ -331,7 +344,12 @@
                     originales = [{id_multa: -1, titulo:'Multa ficticia de presentación', monto:120}];
                     document.getElementById('saludo').textContent = 'No tienes multas pendientes. Se muestra un ejemplo de Bs 120 para la presentación.';
                 }
-                actualizarPendientesDemo();
+                try {
+                    await cargarPruebasCompartidas();
+                    actualizarPendientesDemo();
+                } catch (error) {
+                    mostrarError('El registro compartido de pagos no está preparado. ' + error.message);
+                }
             } catch (err) {
                 mostrarError('No se pudo cargar la información. Inténtalo de nuevo.');
             }
@@ -376,7 +394,7 @@
         function actualizarTotal() {
             const total = bs(totalSeleccionado());
             document.getElementById('totalPagar').textContent = total;
-            document.getElementById('textoBoton').textContent = 'Simular ' + total;
+            document.getElementById('textoBoton').textContent = 'Confirmar prueba · ' + total;
             validarFormulario();
         }
         function seleccionarTarjetaDemo(tipo) {
@@ -426,53 +444,74 @@
             document.getElementById('btnPagar').disabled = procesando || seleccion.size === 0
                 || totalSeleccionado() <= 0 || (metodo === 'paypal' && !paypalAprobado);
         }
-        function simularPago() {
-            if (procesando || seleccion.size === 0 || totalSeleccionado() <= 0 || (metodo === 'paypal' && !paypalAprobado)) return;
-            if (!usuarioDemo) { SEMSAD.toast('Debes iniciar sesión para guardar el pago DEMO.','error'); return; }
+        async function simularPago() {
+            if (procesando || seleccion.size === 0 || totalSeleccionado() <= 0 ||
+                (metodo === 'paypal' && !paypalAprobado)) return;
+            if (!usuarioDemo) { SEMSAD.toast('Inicia sesión para registrar la operación de prueba.', 'error'); return; }
             const conceptosElegidos = multas.filter(m => seleccion.has(m.id_multa));
-            const montoElegido = conceptosElegidos.reduce((s,m) => s + m.monto, 0);
             procesando = true;
             validarFormulario();
             const btn = document.getElementById('btnPagar');
-            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-2"></i>Simulando autorización...';
-            // Retardo solo para mostrar el recorrido: no se realiza ninguna petición de cobro.
-            setTimeout(() => {
-                const ahora = new Date();
-                const registro = {
-                    codigo: 'DEMO-' + String(ahora.getTime()),
-                    fecha: ahora.toISOString(),
-                    metodo: metodo === 'tarjeta' ? TARJETAS[tarjetaDemo].nombre : 'PayPal · DEMO',
-                    monto: Number(montoElegido.toFixed(2)),
-                    conceptos: conceptosElegidos.length,
-                    usuario_id: usuarioDemo,
-                    multa_ids: conceptosElegidos.map(m=>m.id_multa),
-                    detalle_multas: conceptosElegidos.map(m=>m.titulo),
-                    estado: 'SIMULADO'
-                };
-                let guardado = false;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-2"></i>Procesando...';
+            const ahora = new Date();
+            const registro = {
+                codigo: 'DEMO-' + String(ahora.getTime()) + '-' + Math.random().toString(36).slice(2,8),
+                fecha: ahora.toISOString(),
+                metodo: metodo === 'tarjeta' ? TARJETAS[tarjetaDemo].nombre : 'PayPal · DEMO',
+                monto: Number(conceptosElegidos.reduce((s,m)=>s+m.monto,0).toFixed(2)),
+                conceptos: conceptosElegidos.length,
+                usuario_id: usuarioDemo,
+                multa_ids: conceptosElegidos.map(m => m.id_multa),
+                detalle_multas: conceptosElegidos.map(m => m.titulo),
+                estado: 'SIMULADO'
+            };
+            try {
+                // Fuente de verdad: servidor. Si falla NO se muestra un comprobante exitoso.
+                const resp = await fetch(window.SEMSAD_API + '/pagos_demo_sirve_para_registrar_y_listar.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type':'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({
+                        codigo: registro.codigo, metodo: registro.metodo, multa_ids: registro.multa_ids
+                    })
+                });
+                const resultado = await resp.json();
+                if (!resp.ok || resultado.status !== 'success') {
+                    throw new Error(resultado.mensaje || 'No se pudo registrar la operación.');
+                }
+                registro.id = Number(resultado.id);
+                registro.monto = Number(resultado.monto ?? registro.monto);
+                pruebasCompartidas.push(registro);
+                // La copia del navegador mantiene compatibilidad con los comprobantes anteriores.
                 try {
                     const lista = historialDemo().slice(-99);
                     lista.push(registro);
                     localStorage.setItem(LLAVE_DEMO, JSON.stringify(lista));
-                    guardado = true;
-                } catch (e) { console.warn('No se pudo guardar la simulación en el navegador.', e); }
-                if (guardado) {
-                    const ids = new Set(registro.multa_ids);
-                    multas = multas.filter(m=>!ids.has(m.id_multa));
-                    seleccion = new Set(multas.map(m=>m.id_multa));
+                } catch (error) {
+                    console.warn('No se pudo actualizar el historial local; el servidor sí guardó la operación.',error);
                 }
-                pintarComprobanteDemo(registro, guardado);
+                pintarComprobanteDemo(registro, true);
+                SEMSAD.toast('Operación de prueba registrada y disponible en el panel administrativo.', 'success');
+            } catch (error) {
+                SEMSAD.toast(error.message || 'No se pudo registrar la operación en el servidor.', 'error', 7000);
+                try { await cargarPruebasCompartidas(); actualizarPendientesDemo(); } catch (ignored) {}
+            } finally {
                 procesando = false;
                 btn.innerHTML = '<i class="fa-solid fa-flask me-1"></i><span id="textoBoton"></span>';
                 actualizarTotal();
-            }, 650);
+            }
         }
         function pintarComprobanteDemo(registro, guardado) {
             document.getElementById('vistaPago').classList.add('d-none');
             document.getElementById('vistaComprobante').classList.remove('d-none');
             const mensaje = document.getElementById('comprobanteMensaje');
-            mensaje.textContent = 'DEMOSTRACIÓN SIN COBRO REAL: no se modificaron multas, cuentas ni reportes oficiales.'
-                + (guardado ? ' El resultado está disponible en Reportes DEMO de este navegador.' : ' Tu navegador no permitió guardar la prueba.');
+            mensaje.textContent = 'OPERACIÓN DE PRUEBA · sin transferencia bancaria. Las multas reales y la caja permanecen intactas.'
+                + (guardado ? ' El administrador puede consultar este registro desde su cuenta.' : ' El registro no pudo completarse.');
+            const link = document.getElementById('reciboCompartido');
+            if (guardado && Number.isInteger(registro.id) && registro.id > 0) {
+                link.href = 'comprobante.html?tipo=demo&id=' + registro.id;
+                link.classList.remove('d-none');
+            } else link.classList.add('d-none');
             const cont = document.getElementById('comprobanteLineas');
             cont.replaceChildren();
             function fila(nombre, valor) {
@@ -485,7 +524,7 @@
             fila('Multas incluidas', (registro.detalle_multas || []).join(', '));
             fila('Método',registro.metodo);
             fila('Fecha',new Date(registro.fecha).toLocaleString('es-BO'));
-            fila('Estado','SIMULADO · no pagado');
+            fila('Estado','Prueba confirmada · sin cobro bancario');
             fila('Total de prueba',bs(registro.monto));
         }
         function volverADemostracion() {

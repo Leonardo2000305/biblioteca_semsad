@@ -89,9 +89,11 @@ try {
 
     // 4b. Datos extra (no obligatorios: si la tabla no existe, simplemente no se muestran)
     $categoriaPorMaterial = [];
+    $observacionCategoriaPorMaterial = [];
     try {
-        foreach ($conexion->query("SELECT m.id_material, c.nombre FROM materialbibliografico m INNER JOIN categoria c ON c.id_categoria = m.id_categoria")->fetchAll(PDO::FETCH_ASSOC) as $f) {
+        foreach ($conexion->query("SELECT m.id_material, c.nombre, c.observacion FROM materialbibliografico m INNER JOIN categoria c ON c.id_categoria = m.id_categoria")->fetchAll(PDO::FETCH_ASSOC) as $f) {
             $categoriaPorMaterial[(int)$f['id_material']] = $f['nombre'];
+            $observacionCategoriaPorMaterial[(int)$f['id_material']] = $f['observacion'] ?? '';
         }
     } catch (Throwable $ignorar) {}
     // Datos de la lista de espera: cuántas personas esperan cada libro y en qué turno está el usuario.
@@ -143,6 +145,7 @@ try {
             'total_ejemplares' => $tot,
             'reservado_por_mi' => $reservado,
             'categoria'        => $categoriaPorMaterial[$mId] ?? '',
+            'categoria_observacion' => $observacionCategoriaPorMaterial[$mId] ?? '',
             'en_cola'          => $colaPorMaterial[$mId] ?? 0,
             'mi_turno'         => $miTurno[$mId] ?? 0,
             'mi_solicitud'     => (int)($solicitudesPorUsuario[$mId] ?? 0)   // id del préstamo pendiente de entrega (0 = ninguna)
